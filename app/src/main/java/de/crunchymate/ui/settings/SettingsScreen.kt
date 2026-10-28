@@ -1,18 +1,13 @@
 package de.crunchymate.ui.settings
 
 import android.Manifest
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
-import android.provider.Settings
 import android.text.format.Formatter
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -35,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,11 +45,11 @@ import de.crunchymate.core.ffi.Stats
 import de.crunchymate.core.ffi.SyncKind
 import de.crunchymate.ui.components.FilterDropdown
 import de.crunchymate.ui.components.SyncCard
+import de.crunchymate.ui.intro.IntroDialog
 import de.crunchymate.ui.theme.Dimens
 import java.util.IllformedLocaleException
 import java.util.Locale
 
-private const val LOG_TAG = "CrunchyMate"
 private const val STAT_COLUMNS = 2
 
 @Composable
@@ -68,6 +64,7 @@ fun SettingsDestination(
         onCancelSync = viewModel::onCancelSync,
         onHideWatchedChange = viewModel::onHideWatchedChange,
         onContentLocaleChange = viewModel::onContentLocaleChange,
+        onOledModeChange = viewModel::onOledModeChange,
         onOpenLicenses = onOpenLicenses,
     )
 }
@@ -79,10 +76,12 @@ fun SettingsScreen(
     onCancelSync: (SyncKind) -> Unit,
     onHideWatchedChange: (Boolean) -> Unit,
     onContentLocaleChange: (String) -> Unit,
+    onOledModeChange: (Boolean) -> Unit,
     onOpenLicenses: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val startWithPermission = rememberNotificationPermissionStart(onStartSync)
+    var showInfo by rememberSaveable { mutableStateOf(false) }
     Column(
         modifier
             .fillMaxSize()
@@ -110,9 +109,18 @@ fun SettingsScreen(
             onStart = { startWithPermission(SyncKind.METADATA) },
             onCancel = { onCancelSync(SyncKind.METADATA) },
         )
-        DisplaySettings(state, onHideWatchedChange, onContentLocaleChange)
+        DisplaySettings(state, onHideWatchedChange, onContentLocaleChange, onOledModeChange)
         state.stats?.let { StatsSection(it) }
-        OutlinedButton(onClick = onOpenLicenses) { Text(stringResource(R.string.settings_licenses)) }
+        Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+            OutlinedButton(onClick = onOpenLicenses, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_licenses))
+            }
+            OutlinedButton(onClick = { showInfo = true }, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_info))
+            }
+        }
+        // Erneutes Anzeigen berührt das Flag intro_seen nicht; Bestätigen und Zurück schließen nur
+        if (showInfo) IntroDialog(onConfirm = { showInfo = false }, onExit = { showInfo = false })
     }
 }
 
@@ -141,8 +149,10 @@ private fun DisplaySettings(
     state: SettingsUiState,
     onHideWatchedChange: (Boolean) -> Unit,
     onContentLocaleChange: (String) -> Unit,
+    onOledModeChange: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
+    var selectedLanguage by remember { mutableStateOf(context.currentAppLanguage()) }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(Dimens.SpaceMd), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
             Text(stringResource(R.string.settings_display_heading), style = MaterialTheme.typography.titleMedium)
@@ -168,9 +178,25 @@ private fun DisplaySettings(
                 )
                 Switch(checked = state.hideWatched, onCheckedChange = onHideWatchedChange)
             }
-            OutlinedButton(onClick = { openAppLanguageSettings(context) }) {
-                Text(stringResource(R.string.settings_app_language))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.settings_oled_mode),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(checked = state.oledMode, onCheckedChange = onOledModeChange)
             }
+            FilterDropdown(
+                label = stringResource(R.string.settings_app_language),
+                options = AppLanguage.entries,
+                selected = selectedLanguage,
+                optionLabel = { stringResource(it.nameRes) },
+                optionIcon = { language -> language.flagRes?.let { LanguageFlagIcon(it) } },
+                onSelect = {
+                    selectedLanguage = it
+                    context.applyAppLanguage(it)
+                },
+            )
         }
     }
 }
@@ -245,11 +271,9 @@ private fun countryName(country: String): String =
         country
     }
 
-private fun openAppLanguageSettings(context: Context) {
-    val intent = Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.fromParts("package", context.packageName, null))
-    try {
-        context.startActivity(intent)
-    } catch (e: ActivityNotFoundException) {
-        Log.w(LOG_TAG, "App-Spracheinstellung nicht verfügbar: ${e::class.simpleName}")
-    }
+@Composable
+private fun LanguageFlagIcon(
+    @DrawableRes flag: Int,
+) {
+    Image(painterResource(flag), contentDescription = null, Modifier.size(Dimens.LanguageFlagWidth, Dimens.LanguageFlagHeight))
 }

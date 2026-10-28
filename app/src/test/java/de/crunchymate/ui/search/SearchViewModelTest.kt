@@ -38,6 +38,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 private const val SDK = 35
+private const val TAG_CYCLE_TAPS = 4
 
 // Robolectric stellt android.util.Log bereit, das die Fehlerpfade aufrufen
 @RunWith(RobolectricTestRunner::class)
@@ -131,16 +132,24 @@ class SearchViewModelTest {
         }
 
     @Test
-    fun onTagRemoved_dropsOnlyThatTag() =
+    fun tagTaps_cycleThroughAllStatesAndLeaveTheActiveList() =
         runTest(dispatcher) {
             val f = fixture()
-            f.viewModel.onTagTapped("Magie")
-            f.viewModel.onTagTapped("Mecha")
-            runCurrent()
-
-            f.viewModel.onTagRemoved("Magie")
-            runCurrent()
-            assertEquals(listOf(TagSelection("Mecha", TagState.PREFER)), f.viewModel.uiState.value.activeTags)
+            val seen = mutableListOf<List<TagSelection>>()
+            repeat(TAG_CYCLE_TAPS) {
+                f.viewModel.onTagTapped("Magie")
+                runCurrent()
+                seen += f.viewModel.uiState.value.activeTags
+            }
+            assertEquals(
+                listOf(
+                    listOf(TagSelection("Magie", TagState.PREFER)),
+                    listOf(TagSelection("Magie", TagState.MUST)),
+                    listOf(TagSelection("Magie", TagState.EXCLUDE)),
+                    emptyList(),
+                ),
+                seen,
+            )
         }
 
     @Test

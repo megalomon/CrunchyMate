@@ -87,6 +87,10 @@ class SettingsViewModel(
         settingsStore.update { it.copy(search = it.search.copy(watched = watched)) }
     }
 
+    fun onOledModeChange(enabled: Boolean) {
+        settingsStore.update { it.copy(oledMode = enabled) }
+    }
+
     fun onContentLocaleChange(locale: String) {
         settingsStore.update { it.copy(contentLocale = locale) }
     }
@@ -107,6 +111,7 @@ class SettingsViewModel(
         contentLocale = settings.contentLocale,
         availableLocales = locales,
         hideWatched = settings.search.watched == WatchedFilter.UNWATCHED,
+        oledMode = settings.oledMode,
         contentLocaleChangePending = contentLocaleSyncPending(syncedLocale, settings.contentLocale),
     )
 

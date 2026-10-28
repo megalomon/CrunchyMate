@@ -31,6 +31,18 @@ val LightTagPreferBlue = Color(0xFF0B76B0)
 val LightTagMustGreen = Color(0xFF1E8449)
 val LightTagExcludeRed = Color(0xFFC62828)
 
+// Stützfarben der Bewertungs-Einfärbung; hell genug für den dunklen Plakat-Untergrund
+val ScoreLowRed = Color(0xFFFF5C5C)
+val ScoreMidAmber = Color(0xFFFFC107)
+val ScoreHighGreen = Color(0xFF4ADE80)
+
+// OLED-Modus: reines Schwarz, die Containerstufen nur minimal aufgehellt
+val OledBlack = Color(0xFF000000)
+val OledSurfaceContainerLow = Color(0xFF080809)
+val OledSurfaceContainer = Color(0xFF0E0E10)
+val OledSurfaceContainerHigh = Color(0xFF141417)
+val OledSurfaceContainerHighest = Color(0xFF1A1A1E)
+
 // Halbtransparenter Grund für Beschriftungen und Schalter auf Postern, unabhängig vom Farbschema
 val PosterOverlayBackground = Color(0xB3000000)
 val PosterOverlayContent = Color(0xFFFFFFFF)

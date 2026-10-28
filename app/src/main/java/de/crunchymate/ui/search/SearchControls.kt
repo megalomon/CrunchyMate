@@ -4,28 +4,35 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import de.crunchymate.R
 import de.crunchymate.core.ffi.LanguageFilter
 import de.crunchymate.core.ffi.SortOrder
 import de.crunchymate.ui.components.FilterDropdown
 import de.crunchymate.ui.components.TagChip
+import de.crunchymate.ui.components.trimHorizontal
 import de.crunchymate.ui.tags.stateOf
 import de.crunchymate.ui.theme.Dimens
 
@@ -36,7 +43,6 @@ data class SearchActions(
     val onLanguageSelected: (LanguageFilter) -> Unit,
     val onSortSelected: (SortOrder) -> Unit,
     val onTagTapped: (String) -> Unit,
-    val onTagRemoved: (String) -> Unit,
     val onTagQueryChange: (String) -> Unit,
     val onClearTags: () -> Unit,
 )
@@ -127,15 +133,32 @@ private fun LanguageChips(
 ) {
     val sub = language.requiresSub()
     val dub = language.requiresDub()
+    // Übereinander und kompakt, damit das Tag-Feld in der Zeile breit bleibt; Mindest-Tippfläche daher gelockert
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+        Column(Modifier.width(IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(Dimens.LanguageChipGap)) {
+            LanguageChip(R.string.filter_language_sub_chip, sub) { onSelect(languageFilterOf(sub = !sub, dub = dub)) }
+            LanguageChip(R.string.filter_language_dub_chip, dub) { onSelect(languageFilterOf(sub = sub, dub = !dub)) }
+        }
+    }
+}
+
+@Composable
+private fun LanguageChip(
+    @StringRes label: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
     FilterChip(
-        selected = sub,
-        onClick = { onSelect(languageFilterOf(sub = !sub, dub = dub)) },
-        label = { Text(stringResource(R.string.filter_language_sub_chip)) },
-    )
-    FilterChip(
-        selected = dub,
-        onClick = { onSelect(languageFilterOf(sub = sub, dub = !dub)) },
-        label = { Text(stringResource(R.string.filter_language_dub_chip)) },
+        selected = selected,
+        onClick = onClick,
+        label = {
+            Text(
+                stringResource(label),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.trimHorizontal(Dimens.TagChipLabelInset),
+            )
+        },
+        modifier = Modifier.fillMaxWidth().height(Dimens.LanguageChipHeight),
     )
 }
 
@@ -174,8 +197,7 @@ private fun TagSection(
                     name = selection.name,
                     count = null,
                     state = selection.state,
-                    onClick = { actions.onTagRemoved(selection.name) },
-                    removable = true,
+                    onClick = { actions.onTagTapped(selection.name) },
                 )
             }
         }

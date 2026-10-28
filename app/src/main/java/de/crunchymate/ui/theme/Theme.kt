@@ -51,16 +51,36 @@ private val LightScheme =
         outline = LightOutline,
     )
 
+private val OledScheme =
+    DarkScheme.copy(
+        background = OledBlack,
+        surface = OledBlack,
+        surfaceDim = OledBlack,
+        surfaceContainerLowest = OledBlack,
+        surfaceContainerLow = OledSurfaceContainerLow,
+        surfaceContainer = OledSurfaceContainer,
+        surfaceContainerHigh = OledSurfaceContainerHigh,
+        surfaceContainerHighest = OledSurfaceContainerHighest,
+    )
+
+/** Der OLED-Modus erzwingt das dunkle Schema mit reinem Schwarz, unabhängig von der Systemeinstellung. */
 @Composable
 fun CrunchyMateTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    oledMode: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    val dark = darkTheme || oledMode
     CompositionLocalProvider(
-        LocalCrunchyMateColors provides if (darkTheme) DarkExtendedColors else LightExtendedColors,
+        LocalCrunchyMateColors provides if (dark) DarkExtendedColors else LightExtendedColors,
     ) {
         MaterialTheme(
-            colorScheme = if (darkTheme) DarkScheme else LightScheme,
+            colorScheme =
+                when {
+                    oledMode -> OledScheme
+                    dark -> DarkScheme
+                    else -> LightScheme
+                },
             typography = CrunchyMateTypography,
             content = content,
         )

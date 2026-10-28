@@ -107,6 +107,7 @@ class SettingsStore(
                         tags = emptyList(),
                     ),
                 introSeen = false,
+                oledMode = false,
             )
     }
 }

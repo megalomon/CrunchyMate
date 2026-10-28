@@ -59,38 +59,29 @@ fun TagChip(
     state: TagState?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    removable: Boolean = false,
     label: String = if (count == null) name else stringResource(R.string.tag_label_with_count, name, count),
 ) {
     val description = stringResource(state.descriptionRes())
     val stateColor = state?.color(LocalCrunchyMateColors.current)
-    val removeLabel = stringResource(R.string.tags_remove, label)
     // Dichte Tag-Listen: Das Mindest-Touch-Target (48 dp) würde die Chips optisch auseinanderziehen
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
         FilterChip(
             selected = state != null,
             onClick = onClick,
-            label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+            label = {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.trimHorizontal(Dimens.TagChipLabelInset),
+                )
+            },
             modifier =
                 modifier.height(Dimens.TagChipHeight).semantics {
                     stateDescription = description
-                    // Bei entfernbaren Chips löst der Klick das Entfernen aus; Screenreader sollen das ansagen
-                    if (removable) {
-                        onClick(label = removeLabel) {
-                            onClick()
-                            true
-                        }
-                    }
                 },
             leadingIcon =
                 state?.let {
                     { Icon(painterResource(it.iconRes()), contentDescription = null, Modifier.size(FilterChipDefaults.IconSize)) }
-                },
-            trailingIcon =
-                if (removable) {
-                    { Icon(painterResource(R.drawable.ic_clear), contentDescription = null, Modifier.size(Dimens.TagRemoveIcon)) }
-                } else {
-                    null
                 },
             colors =
                 if (stateColor == null) {

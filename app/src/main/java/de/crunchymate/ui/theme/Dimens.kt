@@ -34,10 +34,17 @@ object Dimens {
     val StatTileIcon = 24.dp
     val FilterFieldHeight = 48.dp
     val TagListMaxHeight = 120.dp
-    val TagRemoveIcon = 18.dp
     val TagChipHeight = 24.dp
+    val TagChipLabelInset = 6.dp
+    val LanguageChipHeight = 24.dp
+    val LanguageChipGap = 2.dp
     val TagChipRowGap = 2.dp
     val TagResetButton = 40.dp
     val TagResetIcon = 20.dp
     val FilterFieldVerticalPadding = 4.dp
+    val IntroIcon = 24.dp
+    val IntroSectionCorner = 12.dp
+    val IntroAppIcon = 48.dp
+    val LanguageFlagWidth = 24.dp
+    val LanguageFlagHeight = 18.dp
 }

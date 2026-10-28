@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -42,6 +43,7 @@ import de.crunchymate.core.ffi.AnimeSummary
 import de.crunchymate.ui.theme.Dimens
 import de.crunchymate.ui.theme.PosterOverlayBackground
 import de.crunchymate.ui.theme.PosterOverlayContent
+import de.crunchymate.ui.theme.scoreColor
 
 private const val TITLE_MAX_LINES = 2
 
@@ -51,11 +53,12 @@ const val WATCHED_CIRCLE_TAG = "watched_circle"
 const val MEH_CIRCLE_TAG = "meh_circle"
 
 @Composable
-private fun OverlayBadge(
+internal fun OverlayBadge(
     @DrawableRes icon: Int,
     text: String,
     description: String? = null,
     tag: String? = null,
+    iconTint: Color = PosterOverlayContent,
 ) {
     // Gleiche Höhe wie der sichtbare Kreis der Schalter, damit beide Kanten fluchten
     Row(
@@ -71,7 +74,7 @@ private fun OverlayBadge(
         Icon(
             painterResource(icon),
             contentDescription = description,
-            tint = PosterOverlayContent,
+            tint = iconTint,
             modifier = Modifier.size(Dimens.OverlayBadgeIcon),
         )
         Text(text, style = MaterialTheme.typography.labelSmall, color = PosterOverlayContent)
@@ -107,6 +110,7 @@ fun AnimeCard(
                         stringResource(R.string.badge_score, anime.anilistScore),
                         stringResource(R.string.badge_score_description),
                         SCORE_BADGE_TAG,
+                        scoreColor(anime.anilistScore),
                     )
                 }
             }

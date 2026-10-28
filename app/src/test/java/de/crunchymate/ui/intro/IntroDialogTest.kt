@@ -25,6 +25,20 @@ import org.robolectric.annotation.Config
 
 private const val SDK = 35
 
+private val INTRO_TEXTS =
+    listOf(
+        R.string.intro_disclaimer_title,
+        R.string.intro_disclaimer,
+        R.string.intro_purpose_title,
+        R.string.intro_purpose,
+        R.string.intro_free_title,
+        R.string.intro_free,
+        R.string.intro_first_step_title,
+        R.string.intro_first_step,
+        R.string.intro_privacy_title,
+        R.string.intro_privacy,
+    )
+
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [SDK], qualifiers = "w411dp-h891dp")
 class IntroDialogTest {
@@ -40,13 +54,13 @@ class IntroDialogTest {
     }
 
     @Test
-    fun firstStart_showsAllParagraphsAndConfirmHidesDialogPermanently() {
+    fun firstStart_showsAllSectionsAndConfirmHidesDialogPermanently() {
         val core = FakeCore(storedSettings = sampleSettings(introSeen = false))
         val store = loadedStore(core)
         rule.setContent { CrunchyMateTheme { IntroDialogHost(store) } }
 
         rule.onNodeWithText(string(R.string.intro_title)).assertIsDisplayed()
-        rule.onNodeWithText(string(R.string.intro_disclaimer)).assertIsDisplayed()
+        INTRO_TEXTS.forEach { rule.onNodeWithText(string(it)).assertIsDisplayed() }
         rule.onNodeWithText(string(R.string.intro_confirm)).performClick()
         rule.waitForIdle()
 

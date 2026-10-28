@@ -51,10 +51,12 @@ import de.crunchymate.core.ffi.TagSelection
 import de.crunchymate.ui.components.EmptyState
 import de.crunchymate.ui.components.LanguageFlag
 import de.crunchymate.ui.components.LocalImage
+import de.crunchymate.ui.components.OverlayBadge
 import de.crunchymate.ui.components.TagChip
 import de.crunchymate.ui.components.flagState
 import de.crunchymate.ui.tags.stateOf
 import de.crunchymate.ui.theme.Dimens
+import de.crunchymate.ui.theme.scoreColor
 
 @Composable
 fun DetailDestination(
@@ -258,7 +260,13 @@ private fun AniListSection(info: AniListInfo) {
     val uriHandler = LocalUriHandler.current
     Section(R.string.detail_anilist) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
-            if (info.score > 0) InfoLabel(stringResource(R.string.detail_anilist_score, info.score))
+            if (info.score > 0) {
+                OverlayBadge(
+                    R.drawable.ic_badge_score,
+                    stringResource(R.string.detail_anilist_score, info.score),
+                    iconTint = scoreColor(info.score),
+                )
+            }
             if (info.status.isNotBlank()) InfoLabel(info.status)
         }
         if (info.description.isNotBlank()) {

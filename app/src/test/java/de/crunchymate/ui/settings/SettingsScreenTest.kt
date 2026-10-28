@@ -1,12 +1,18 @@
 package de.crunchymate.ui.settings
 
 import android.text.format.Formatter
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.InternalComposeUiApi
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.ViewRootForTest
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.isDialog
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import de.crunchymate.R
 import de.crunchymate.core.ffi.Stats
@@ -40,6 +46,7 @@ class SettingsScreenTest {
             contentLocale = "de-DE",
             availableLocales = listOf("de-DE"),
             hideWatched = false,
+            oledMode = false,
             contentLocaleChangePending = false,
         )
 
@@ -47,7 +54,7 @@ class SettingsScreenTest {
 
     @Test
     fun stats_showImageCountAndImageStorageAsSeparateItems() {
-        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}) } }
         val size = Formatter.formatShortFileSize(rule.activity, IMAGE_BYTES)
         rule.onNodeWithText(rule.activity.getString(R.string.stat_images)).performScrollTo().assertIsDisplayed()
         rule.onNodeWithText(IMAGE_COUNT.toString()).assertIsDisplayed()
@@ -57,7 +64,7 @@ class SettingsScreenTest {
 
     @Test
     fun stats_bothColumnsHaveEqualWidthEvenForTheLoneLastTile() {
-        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}) } }
         val left = tileNode(R.string.stat_total)
         val right = tileNode(R.string.stat_watched)
         val lone = tileNode(R.string.stat_image_storage)
@@ -73,4 +80,59 @@ class SettingsScreenTest {
         expected: Int,
         actual: Int,
     ) = assertTrue("$expected != $actual", kotlin.math.abs(expected - actual) <= ROUNDING_TOLERANCE_PX)
+
+    private fun showInfoDialog() {
+        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}) } }
+        rule.onNodeWithText(rule.activity.getString(R.string.settings_info)).performScrollTo().performClick()
+    }
+
+    @Test
+    fun infoButton_showsIntroAndConfirmOnlyCloses() {
+        showInfoDialog()
+        rule.onNodeWithText(rule.activity.getString(R.string.intro_title)).assertIsDisplayed()
+
+        rule.onNodeWithText(rule.activity.getString(R.string.intro_confirm)).performClick()
+        rule.waitForIdle()
+
+        rule.onNodeWithText(rule.activity.getString(R.string.intro_title)).assertDoesNotExist()
+        assertTrue(!rule.activity.isFinishing)
+    }
+
+    @OptIn(InternalComposeUiApi::class)
+    @Test
+    fun infoDialog_backClosesDialogWithoutFinishingActivity() {
+        showInfoDialog()
+
+        // Der Dialog hat ein eigenes Fenster; Espresso.pressBack träfe die Activity
+        val dialogView = (rule.onNode(isDialog()).fetchSemanticsNode().root as ViewRootForTest).view.rootView
+        dialogView.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK))
+        dialogView.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK))
+        rule.waitForIdle()
+
+        rule.onNodeWithText(rule.activity.getString(R.string.intro_title)).assertDoesNotExist()
+        assertTrue(!rule.activity.isFinishing)
+    }
+
+    @Test
+    fun appLanguageDropdown_listsAllLanguagesAndSelectingSetsApplicationLocale() {
+        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}) } }
+        rule.onNodeWithText(rule.activity.getString(R.string.settings_app_language)).performScrollTo().performClick()
+        rule.onNodeWithText("Deutsch").assertIsDisplayed()
+        rule.onNodeWithText("English").assertIsDisplayed()
+        rule.onNodeWithText("Boykisser").assertIsDisplayed().performClick()
+        rule.waitForIdle()
+
+        assertEquals(AppLanguage.BOYKISSER, rule.activity.currentAppLanguage())
+    }
+
+    @Test
+    fun oledSwitch_reportsNewValue() {
+        var enabled: Boolean? = null
+        rule.setContent {
+            CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, { enabled = it }, {}) }
+        }
+        // Reihenfolge der Schalter: Gesehene ausblenden, OLED-Modus
+        rule.onAllNodes(isToggleable())[1].performScrollTo().performClick()
+        assertEquals(true, enabled)
+    }
 }

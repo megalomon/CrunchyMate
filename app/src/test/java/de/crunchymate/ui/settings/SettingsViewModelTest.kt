@@ -113,6 +113,23 @@ class SettingsViewModelTest {
         }
 
     @Test
+    fun settings_oledMode_savedViaStoreAndKeepsOtherSettings() =
+        runTest(dispatcher) {
+            val f = fixture()
+            assertFalse(f.viewModel.uiState.value.oledMode)
+
+            f.viewModel.onOledModeChange(true)
+            runCurrent()
+            assertTrue(f.viewModel.uiState.value.oledMode)
+
+            advanceTimeBy(SAVE_DEBOUNCE + 1)
+            runCurrent()
+            val saved = f.core.savedSettings.last()
+            assertTrue(saved.oledMode)
+            assertEquals(f.store.settings.value.contentLocale, saved.contentLocale)
+        }
+
+    @Test
     fun settings_startSync_savesPendingLocaleFirst() =
         runTest(dispatcher) {
             val f = fixture()

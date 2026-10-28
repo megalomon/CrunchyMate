@@ -30,6 +30,7 @@ fun <T> FilterDropdown(
     optionLabel: @Composable (T) -> String,
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
+    optionIcon: (@Composable (T) -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = modifier) {
@@ -58,6 +59,7 @@ fun <T> FilterDropdown(
                     visualTransformation = VisualTransformation.None,
                     interactionSource = interactionSource,
                     label = { Text(label) },
+                    leadingIcon = optionIcon?.let { icon -> { icon(selected) } },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
                     contentPadding =
                         OutlinedTextFieldDefaults.contentPadding(
@@ -71,6 +73,7 @@ fun <T> FilterDropdown(
             options.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(optionLabel(option)) },
+                    leadingIcon = optionIcon?.let { icon -> { icon(option) } },
                     onClick = {
                         expanded = false
                         onSelect(option)

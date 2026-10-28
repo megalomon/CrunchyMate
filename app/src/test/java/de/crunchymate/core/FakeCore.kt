@@ -120,10 +120,12 @@ class FakeCore(
 fun sampleSettings(
     locale: String = "de-DE",
     introSeen: Boolean = false,
+    oledMode: Boolean = false,
 ) = Settings(
     locale,
     SearchState("", null, LanguageFilter.ALL, WatchedFilter.ALL, SortOrder.TITLE, emptyList()),
     introSeen,
+    oledMode,
 )
 
 fun sampleFilter() =

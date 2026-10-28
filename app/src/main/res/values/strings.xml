@@ -74,7 +74,9 @@
     <string name="settings_content_locale_label">Inhaltssprache</string>
     <string name="settings_content_locale_hint">Wirkt ab dem nächsten Sync.</string>
     <string name="settings_hide_watched">Gesehene ausblenden</string>
-    <string name="settings_app_language">App-Sprache ändern</string>
+    <string name="settings_oled_mode">OLED-Modus</string>
+    <string name="settings_app_language">App-Sprache</string>
+    <string name="settings_language_system">Systemsprache</string>
     <string name="settings_stats_heading">Statistik</string>
     <string name="stat_total">Anime gesamt</string>
     <string name="stat_watched">Gesehen</string>
@@ -95,7 +97,6 @@
     <string name="sort_episodes">Episodenanzahl</string>
     <string name="sort_year">Erscheinungsjahr</string>
     <string name="tags_filter_label">Tags</string>
-    <string name="tags_remove">%1$s entfernen</string>
     <string name="tags_reset">Filter löschen</string>
     <string name="results_loading">Lade Anime …</string>
     <string name="results_error">Trefferzahl konnte nicht ermittelt werden.</string>
@@ -108,14 +109,20 @@
     <string name="error_load_title">Anime konnten nicht geladen werden</string>
     <string name="startup_error_title">Die App konnte nicht gestartet werden</string>
     <string name="intro_title">Willkommen bei CrunchyMate</string>
+    <string name="intro_disclaimer_title">Hinweis</string>
     <string name="intro_disclaimer">Keine offizielle Crunchyroll-App. CrunchyMate ist nicht mit Crunchyroll verbunden und wird von Crunchyroll weder unterstützt noch geprüft.</string>
+    <string name="intro_purpose_title">Funktion</string>
     <string name="intro_purpose">Katalog durchsuchen, mit Daten von AniList anreichern und Anime als Gesehen oder Meh markieren.</string>
+    <string name="intro_free_title">Kostenlos</string>
     <string name="intro_free">Die App ist kostenlos und steht unter der Apache-Lizenz 2.0. Wer dafür bezahlt hat, wurde betrogen.</string>
+    <string name="intro_first_step_title">Erster Schritt</string>
     <string name="intro_first_step">Empfehlung: Als Erstes in den Einstellungen einen kompletten Sync starten.</string>
+    <string name="intro_privacy_title">Datenschutz</string>
     <string name="intro_privacy">Die App sammelt keine Diagnose- oder Nutzungsdaten. Nach dem Sync läuft sie vollständig offline.</string>
     <string name="intro_confirm">Verstanden</string>
     <string name="action_back">Zurück</string>
     <string name="settings_licenses">Open-Source-Lizenzen</string>
+    <string name="settings_info">Info</string>
     <string name="licenses_title">Open-Source-Lizenzen</string>
     <string name="licenses_texts_heading">Lizenztexte</string>
     <string name="licenses_error_title">Lizenzen konnten nicht geladen werden</string>
@@ -137,4 +144,7 @@
         <item quantity="one">%d Episode</item>
         <item quantity="other">%d Episoden</item>
     </plurals>
+    <string name="language_name_de" translatable="false">Deutsch</string>
+    <string name="language_name_en" translatable="false">English</string>
+    <string name="language_name_boykisser" translatable="false">Boykisser</string>
 </resources>

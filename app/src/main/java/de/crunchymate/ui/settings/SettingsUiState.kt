@@ -11,6 +11,7 @@ data class SettingsUiState(
     val contentLocale: String,
     val availableLocales: List<String>,
     val hideWatched: Boolean,
+    val oledMode: Boolean,
     /** Wahr, solange die gespeicherten Daten in einer anderen als der eingestellten Inhaltssprache vorliegen. */
     val contentLocaleChangePending: Boolean,
 )
