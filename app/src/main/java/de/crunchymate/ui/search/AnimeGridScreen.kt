@@ -45,7 +45,7 @@ const val GRID_COLUMNS = 3
 
 fun animeGridCells(): GridCells = GridCells.Fixed(GRID_COLUMNS)
 
-// Poster (2:3) plus Titel- und Aktionszeile der AnimeCard, grob angenähert
+// Poster (2:3) plus zweizeiliger Titel und Zeile mit Episoden und Flagge der AnimeCard, grob angenähert
 private const val PLACEHOLDER_ASPECT_RATIO = 0.5f
 
 /** Texte, die sich zwischen Suche, Gesehen und Meh unterscheiden. */

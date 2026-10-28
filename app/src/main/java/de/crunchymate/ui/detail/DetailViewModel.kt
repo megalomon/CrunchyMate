@@ -26,6 +26,8 @@ data class DetailUiState(
     val loading: Boolean,
     @StringRes val error: Int?,
     val tagStates: List<TagSelection>,
+    /** Sprache, für die die Flagge die Verfügbarkeit der Fassung zeigt. */
+    val contentLocale: String,
 )
 
 private data class LoadState(
@@ -43,11 +45,17 @@ class DetailViewModel(
 
     val uiState: StateFlow<DetailUiState> =
         combine(load, settingsStore.settings) { state, settings ->
-            DetailUiState(state.anime, state.loading, state.error, settings.search.tags)
+            DetailUiState(state.anime, state.loading, state.error, settings.search.tags, settings.contentLocale)
         }.stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
-            DetailUiState(anime = null, loading = true, error = null, tagStates = settingsStore.settings.value.search.tags),
+            DetailUiState(
+                anime = null,
+                loading = true,
+                error = null,
+                tagStates = settingsStore.settings.value.search.tags,
+                contentLocale = settingsStore.settings.value.contentLocale,
+            ),
         )
 
     init {

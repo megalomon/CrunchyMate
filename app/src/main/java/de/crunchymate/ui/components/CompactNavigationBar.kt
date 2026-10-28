@@ -29,6 +29,8 @@ import de.crunchymate.ui.theme.Dimens
 /**
  * Niedrigere Variante der M3-Navigationsleiste: Deren Höhe von 80 dp ist fest und lässt sich nicht
  * verkleinern. Die Systemleisten-Abstände werden wie bei der Standardleiste außerhalb der Höhe angewendet.
+ * Die Animation des M3-Indikators und die Ripple-Konfiguration der Standardleiste gelten bewusst nicht;
+ * der Indikator wechselt ohne Übergang.
  */
 @Composable
 fun CompactNavigationBar(content: @Composable RowScope.() -> Unit) {

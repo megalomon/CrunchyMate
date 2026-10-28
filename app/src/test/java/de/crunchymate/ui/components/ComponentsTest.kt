@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTouchHeightIsEqualTo
+import androidx.compose.ui.test.assertTouchWidthIsEqualTo
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -43,6 +45,8 @@ private const val SDK = 35
 private const val TIMESTAMP_SECONDS = 1_700_000_000L
 private val CARD_WIDTH = 160.dp
 private val MIN_TOUCH_TARGET = 48.dp
+private val OVERLAY_INSET = 6.dp
+private val OVERLAY_GAP = 4.dp
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [SDK], qualifiers = "w411dp-h891dp")
@@ -219,5 +223,25 @@ class ComponentsTest {
         val state = SyncUiState(true, 5, 10, null, null)
         rule.setContent { CrunchyMateTheme { SyncCard("Katalog", SyncKind.CATALOG, state, {}, {}) } }
         rule.onNodeWithText(string(R.string.sync_phase_progress, string(R.string.sync_phase_catalog), 5, 10)).assertIsDisplayed()
+    }
+
+    @Test
+    fun animeCard_overlaysShareInsetAndAlign() {
+        rule.setContent {
+            CrunchyMateTheme { Box(Modifier.width(CARD_WIDTH)) { AnimeCard(anime(), "de-DE", {}, {}, {}) } }
+        }
+
+        fun bounds(tag: String) = rule.onNodeWithTag(tag, useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val poster = bounds(IMAGE_PLACEHOLDER_TAG)
+        val watched = bounds(WATCHED_CIRCLE_TAG)
+        val meh = bounds(MEH_CIRCLE_TAG)
+        val score = bounds(SCORE_BADGE_TAG)
+        assertEquals(OVERLAY_INSET, poster.right - watched.right)
+        assertEquals(OVERLAY_INSET, watched.top - poster.top)
+        assertEquals(OVERLAY_INSET, score.left - poster.left)
+        assertEquals(watched.top, score.top)
+        assertEquals(watched.bottom - watched.top, score.bottom - score.top)
+        assertEquals(OVERLAY_GAP, meh.top - watched.bottom)
+        rule.onNodeWithContentDescription(string(R.string.action_toggle_watched)).assertTouchWidthIsEqualTo(MIN_TOUCH_TARGET)
     }
 }

@@ -3,6 +3,9 @@ package de.crunchymate.ui.theme
 import androidx.compose.ui.unit.dp
 
 object Dimens {
+    /** Seitenverhältnis (Breite zu Höhe) der Poster auf Karten und im Detail. */
+    const val POSTER_ASPECT_RATIO = 2f / 3f
+
     val SpaceXs = 4.dp
     val SpaceSm = 8.dp
     val SpaceMd = 16.dp
@@ -12,13 +15,16 @@ object Dimens {
     val BorderWidth = 1.dp
     val GridSpacing = 4.dp
     val CardTextPadding = 6.dp
-    val OverlayPadding = 2.dp
+    val OverlayInset = 6.dp
+    val OverlayGap = 4.dp
+    val MinTouchTarget = 48.dp
     val OverlayButton = 28.dp
     val OverlayIcon = 18.dp
     val OverlayBadgeIcon = 14.dp
     val FlagWidth = 20.dp
     val FlagHeight = 15.dp
-    val FlagStrokeWidth = 1.5.dp
+    val DetailFlagWidth = 28.dp
+    val DetailFlagHeight = 21.dp
     val NavigationBarHeight = 56.dp
     val NavigationIcon = 22.dp
     val NavIndicatorHorizontalPadding = 16.dp

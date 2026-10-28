@@ -14,10 +14,6 @@
     <string name="tag_state_exclude">Ausgeschlossen</string>
     <string name="tag_label_with_count">%1$s (%2$d)</string>
     <string name="badge_score">%1$d %%</string>
-    <string name="badge_dub">Dub</string>
-    <string name="badge_sub">Sub</string>
-    <string name="badge_dub_description">Als Synchronfassung verfügbar</string>
-    <string name="badge_sub_description">Mit Untertiteln verfügbar</string>
     <string name="badge_score_description">AniList-Wertung</string>
     <plurals name="badge_boost_matches">
         <item quantity="one">%d bevorzugter Tag</item>
@@ -28,12 +24,10 @@
     <string name="flag_dub_description">Synchronfassung verfügbar</string>
     <string name="flag_sub_only_description">Nur Untertitel</string>
     <string name="flag_none_description">Keine Fassung in der Inhaltssprache</string>
-    <string name="action_toggle_watched">Als gesehen markieren</string>
-    <string name="action_toggle_meh">Als uninteressant markieren</string>
-    <string name="state_watched">Gesehen</string>
-    <string name="state_not_watched">Nicht gesehen</string>
-    <string name="state_meh">Uninteressant</string>
-    <string name="state_not_meh">Nicht als uninteressant markiert</string>
+    <string name="action_toggle_watched">Gesehen</string>
+    <string name="action_toggle_meh">Meh</string>
+    <string name="state_marked">Markiert</string>
+    <string name="state_not_marked">Nicht markiert</string>
     <string name="sync_start">Synchronisation starten</string>
     <string name="sync_cancel">Synchronisation abbrechen</string>
     <string name="sync_status_running">Synchronisation läuft</string>
@@ -116,8 +110,6 @@
     <string name="detail_anilist">AniList</string>
     <string name="detail_anilist_score">Bewertung: %1$d %%</string>
     <string name="detail_anilist_open">Auf AniList ansehen</string>
-    <string name="detail_unmark_watched">Nicht mehr gesehen</string>
-    <string name="detail_unmark_meh">Wieder anzeigen</string>
     <plurals name="detail_episodes">
         <item quantity="one">%d Episode</item>
         <item quantity="other">%d Episoden</item>

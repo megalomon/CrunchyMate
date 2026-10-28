@@ -13,17 +13,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,8 +36,10 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,12 +49,12 @@ import de.crunchymate.core.ffi.AniListInfo
 import de.crunchymate.core.ffi.AnimeDetail
 import de.crunchymate.core.ffi.TagSelection
 import de.crunchymate.ui.components.EmptyState
+import de.crunchymate.ui.components.LanguageFlag
 import de.crunchymate.ui.components.LocalImage
 import de.crunchymate.ui.components.TagChip
+import de.crunchymate.ui.components.flagState
 import de.crunchymate.ui.tags.stateOf
 import de.crunchymate.ui.theme.Dimens
-
-private const val POSTER_ASPECT_RATIO = 2f / 3f
 
 @Composable
 fun DetailDestination(
@@ -130,7 +132,7 @@ private fun DetailContent(
             )
         }
         Column(Modifier.padding(Dimens.SpaceMd), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
-            Header(anime, onToggleWatched, onToggleMeh)
+            Header(anime, state.contentLocale, onToggleWatched, onToggleMeh)
             state.error?.let {
                 Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
@@ -153,6 +155,7 @@ private fun DetailContent(
 @Composable
 private fun Header(
     anime: AnimeDetail,
+    contentLocale: String,
     onToggleWatched: () -> Unit,
     onToggleMeh: () -> Unit,
 ) {
@@ -161,7 +164,7 @@ private fun Header(
         LocalImage(
             path = anime.posterPath,
             contentDescription = null,
-            modifier = Modifier.width(Dimens.DetailPosterWidth).aspectRatio(POSTER_ASPECT_RATIO),
+            modifier = Modifier.width(Dimens.DetailPosterWidth).aspectRatio(Dimens.POSTER_ASPECT_RATIO),
         )
         Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
             Text(anime.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
@@ -179,44 +182,50 @@ private fun Header(
                 if (anime.episodeCount > 0) {
                     InfoLabel(pluralStringResource(R.plurals.detail_episodes, anime.episodeCount, anime.episodeCount))
                 }
-                if (anime.hasTargetDub) {
-                    InfoLabel(stringResource(R.string.badge_dub), R.drawable.ic_badge_dub, stringResource(R.string.badge_dub_description))
-                }
-                if (anime.hasTargetSub) {
-                    InfoLabel(stringResource(R.string.badge_sub), R.drawable.ic_badge_sub, stringResource(R.string.badge_sub_description))
-                }
+                LanguageFlag(
+                    contentLocale,
+                    flagState(anime.hasTargetDub, anime.hasTargetSub),
+                    width = Dimens.DetailFlagWidth,
+                    height = Dimens.DetailFlagHeight,
+                )
             }
-            ToggleButton(
-                active = anime.watched,
-                icon = if (anime.watched) R.drawable.ic_watched_on else R.drawable.ic_watched_off,
-                text = stringResource(if (anime.watched) R.string.detail_unmark_watched else R.string.action_toggle_watched),
-                onClick = onToggleWatched,
-            )
-            ToggleButton(
-                active = anime.isMeh,
-                icon = if (anime.isMeh) R.drawable.ic_meh_on else R.drawable.ic_meh_off,
-                text = stringResource(if (anime.isMeh) R.string.detail_unmark_meh else R.string.action_toggle_meh),
-                onClick = onToggleMeh,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+                ToggleButton(
+                    active = anime.watched,
+                    icon = if (anime.watched) R.drawable.ic_watched_on else R.drawable.ic_watched_off,
+                    description = stringResource(R.string.action_toggle_watched),
+                    onClick = onToggleWatched,
+                )
+                ToggleButton(
+                    active = anime.isMeh,
+                    icon = if (anime.isMeh) R.drawable.ic_meh_on else R.drawable.ic_meh_off,
+                    description = stringResource(R.string.action_toggle_meh),
+                    onClick = onToggleMeh,
+                )
+            }
         }
     }
 }
 
+/** Nur Symbol: Beschriftung und Zustand stehen für TalkBack in den Semantics; die Standardgröße der Buttons sichert 48 dp. */
 @Composable
 private fun ToggleButton(
     active: Boolean,
     @DrawableRes icon: Int,
-    text: String,
+    description: String,
     onClick: () -> Unit,
 ) {
-    val content: @Composable () -> Unit = {
-        Icon(painterResource(icon), contentDescription = null)
-        Text(text, modifier = Modifier.padding(start = Dimens.SpaceSm))
-    }
+    val state = stringResource(if (active) R.string.state_marked else R.string.state_not_marked)
+    val semantics: Modifier =
+        Modifier.semantics {
+            contentDescription = description
+            stateDescription = state
+        }
+    val content: @Composable () -> Unit = { Icon(painterResource(icon), contentDescription = null) }
     if (active) {
-        FilledTonalButton(onClick = onClick) { content() }
+        FilledTonalIconButton(onClick = onClick, modifier = semantics) { content() }
     } else {
-        OutlinedButton(onClick = onClick) { content() }
+        OutlinedIconButton(onClick = onClick, modifier = semantics) { content() }
     }
 }
 
@@ -271,21 +280,12 @@ private fun Section(
 }
 
 @Composable
-private fun InfoLabel(
-    text: String,
-    @DrawableRes icon: Int? = null,
-    iconDescription: String? = null,
-) {
+private fun InfoLabel(text: String) {
     Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = MaterialTheme.shapes.small) {
-        Row(
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(horizontal = Dimens.SpaceSm, vertical = Dimens.SpaceXs),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
-        ) {
-            if (icon != null) {
-                Icon(painterResource(icon), contentDescription = iconDescription, modifier = Modifier.size(Dimens.BadgeIcon))
-            }
-            Text(text, style = MaterialTheme.typography.labelMedium)
-        }
+        )
     }
 }

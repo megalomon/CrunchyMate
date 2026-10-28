@@ -11,7 +11,6 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -61,21 +60,19 @@ private enum class TopLevel(
 
 @Composable
 fun CrunchyMateApp(container: AppContainer) {
-    val appViewModel = viewModel { AppViewModel(container.gateway, container.settingsStore) }
+    val appViewModel = viewModel { AppViewModel(container.settingsStore) }
     val ready by appViewModel.ready.collectAsStateWithLifecycle()
-    val badges by appViewModel.badges.collectAsStateWithLifecycle()
     if (!ready) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         return
     }
     val syncRunning by container.syncScheduler.anyRunning.collectAsStateWithLifecycle(initialValue = false)
-    AppShell(container, badges, syncRunning)
+    AppShell(container, syncRunning)
 }
 
 @Composable
 private fun AppShell(
     container: AppContainer,
-    badges: BadgeCounts,
     syncRunning: Boolean,
 ) {
     val navController = rememberNavController()
@@ -90,7 +87,7 @@ private fun AppShell(
                         CompactNavigationItem(
                             selected = destination.isOn(item),
                             onClick = { navController.navigateTopLevel(item.route) },
-                            icon = { NavIcon(item, badges, syncRunning) },
+                            icon = { NavIcon(item, syncRunning) },
                             label = stringResource(item.label),
                         )
                     }
@@ -104,26 +101,13 @@ private fun AppShell(
 
 private fun NavDestination?.isOn(item: TopLevel): Boolean = this?.hierarchy?.any { it.hasRoute(item.routeClass) } == true
 
+// Nur die Einstellungen zeigen einen Punkt, solange eine Synchronisation läuft
 @Composable
 private fun NavIcon(
     item: TopLevel,
-    badges: BadgeCounts,
     syncRunning: Boolean,
 ) {
-    val count =
-        when (item) {
-            TopLevel.Watched -> badges.watched
-            TopLevel.Meh -> badges.meh
-            TopLevel.Search, TopLevel.Settings -> 0L
-        }
-    BadgedBox(
-        badge = {
-            when {
-                count > 0 -> Badge { Text(count.toString()) }
-                item == TopLevel.Settings && syncRunning -> Badge()
-            }
-        },
-    ) {
+    BadgedBox(badge = { if (item == TopLevel.Settings && syncRunning) Badge() }) {
         Icon(painterResource(item.icon), contentDescription = null, modifier = Modifier.size(Dimens.NavigationIcon))
     }
 }

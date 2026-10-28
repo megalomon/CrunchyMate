@@ -4,6 +4,8 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -55,6 +57,12 @@ class LanguageFlagTest {
         assertEquals(FlagState.DUB, flagState(hasTargetDub = true, hasTargetSub = false))
         assertEquals(FlagState.SUB_ONLY, flagState(hasTargetDub = false, hasTargetSub = true))
         assertEquals(FlagState.NONE, flagState(hasTargetDub = false, hasTargetSub = false))
+    }
+
+    @Test
+    fun greyTriangle_coversUpperLeftOfDiagonalFromBottomLeftToTopRight() {
+        val points = greyTrianglePoints(Size(20f, 15f))
+        assertEquals(listOf(Offset(0f, 0f), Offset(20f, 0f), Offset(0f, 15f)), points)
     }
 
     @Test

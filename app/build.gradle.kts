@@ -1,3 +1,7 @@
+import org.gradle.api.artifacts.component.ComponentIdentifier
+import org.gradle.api.artifacts.result.ResolvedComponentResult
+import org.gradle.api.artifacts.result.ResolvedDependencyResult
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -215,8 +219,40 @@ val generateUniffiBindings =
         doFirst { outDir.deleteRecursively() }
     }
 
+// Die App ist offline-first: Bilder liegen lokal, Netzwerkclients gehören nur in den Rust-Kern.
+// Ein versehentlich mitgezogenes Coil-Netzwerkmodul oder ein HTTP-Client würde sonst unbemerkt Netzbilder erlauben.
+val checkNoNetworkClients by tasks.registering {
+    val forbidden =
+        listOf(
+            Regex("io\\.coil-kt\\.coil3:coil-network-.*"),
+            Regex("com\\.squareup\\.okhttp3:okhttp"),
+            Regex("io\\.ktor:.*client.*"),
+        )
+    val roots =
+        listOf("debugRuntimeClasspath", "releaseRuntimeClasspath").associateWith { name ->
+            configurations.named(name).flatMap { it.incoming.resolutionResult.rootComponent }
+        }
+    doLast {
+        val violations = mutableListOf<String>()
+        roots.forEach { (name, root) ->
+            val seen = mutableSetOf<ComponentIdentifier>()
+            val pending = ArrayDeque<ResolvedComponentResult>().apply { add(root.get()) }
+            while (pending.isNotEmpty()) {
+                val component = pending.removeFirst()
+                if (!seen.add(component.id)) continue
+                val module = component.moduleVersion
+                if (module != null && forbidden.any { it.matches("${module.group}:${module.name}") }) {
+                    violations += "$name: ${module.group}:${module.name}"
+                }
+                component.dependencies.filterIsInstance<ResolvedDependencyResult>().forEach { pending.add(it.selected) }
+            }
+        }
+        check(violations.isEmpty()) { "Netzwerkclients auf dem Klassenpfad der App: $violations" }
+    }
+}
+
 tasks.named("preBuild") {
-    dependsOn(cargoBuildArm64, generateUniffiBindings)
+    dependsOn(cargoBuildArm64, generateUniffiBindings, checkNoNetworkClients)
 }
 
 // ktlint schließt die erzeugten Bindings aus, sieht das Verzeichnis aber im Source-Set;
