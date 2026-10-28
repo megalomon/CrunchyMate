@@ -49,6 +49,9 @@ fn item(id: &str, tall: &str, wide: &str) -> CatalogItem {
         has_target_sub: true,
         has_target_dub: false,
         genres: Vec::new(),
+        age_rating: None,
+        is_adult: false,
+        content_descriptors: Vec::new(),
     }
 }
 
@@ -457,6 +460,7 @@ fn all_filter() -> AnimeFilter {
         prefer_tags: Vec::new(),
         must_tags: Vec::new(),
         exclude_tags: Vec::new(),
+        hide_adult: false,
     }
 }
 

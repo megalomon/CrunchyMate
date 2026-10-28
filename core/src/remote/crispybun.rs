@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 
 use crate::error::{CoreError, CoreResult};
 use crate::model::{CatalogItem, CatalogPage};
-use crate::remote::catalog_mapping::{to_catalog_item, ImageCandidate, RawSeries};
+use crate::remote::catalog_mapping::{to_catalog_item, ImageCandidate, RawMaturity, RawSeries};
 use crate::remote::catalog_source::CatalogSource;
 
 /// Zeitlimit pro HTTP-Anfrage.
@@ -251,6 +251,26 @@ fn string_list(value: &Value, key: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Fehlende oder anders getypte Felder ergeben leere Werte statt eines Fehlers.
+fn parse_maturity(meta: &Value) -> RawMaturity {
+    let extended_rating = meta
+        .get("extended_maturity_rating")
+        .and_then(|rating| rating.get("rating"))
+        .and_then(|rating| match rating {
+            Value::String(text) => Some(text.clone()),
+            Value::Number(number) => Some(number.to_string()),
+            _ => None,
+        });
+    RawMaturity {
+        extended_rating,
+        maturity_ratings: string_list(meta, "maturity_ratings"),
+        is_mature: meta
+            .get("is_mature")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+    }
+}
+
 /// Bilder liegen als Array von Arrays vor; verwendet wird die erste Liste.
 fn image_list(images: Option<&Value>, key: &str) -> Vec<ImageCandidate> {
     images
@@ -296,6 +316,8 @@ fn parse_series(item: &Value) -> Option<RawSeries> {
         audio_locales: string_list(meta, "audio_locales"),
         subtitle_locales: string_list(meta, "subtitle_locales"),
         categories: string_list(meta, "tenant_categories"),
+        maturity: parse_maturity(meta),
+        content_descriptors: string_list(meta, "content_descriptors"),
     })
 }
 
@@ -318,5 +340,65 @@ mod tests {
     fn parse_page_with_total_keeps_it() {
         let json = json!({ "data": [], "total": 7 });
         assert_eq!(parse_page(&json, "de-DE").unwrap().total, 7);
+    }
+
+    fn first_item(series: serde_json::Value) -> crate::model::CatalogItem {
+        let json = json!({ "data": [series], "total": 1 });
+        parse_page(&json, "de-DE").unwrap().items.remove(0)
+    }
+
+    #[test]
+    fn parse_page_reads_maturity_and_descriptors() {
+        let item = first_item(json!({
+            "id": "A", "title": "T",
+            "series_metadata": {
+                "maturity_ratings": ["TV-14"],
+                "extended_maturity_rating": {
+                    "system": "cr-tv", "rating": "16", "level": "M2", "advisories": []
+                },
+                "is_mature": false,
+                "content_descriptors": ["Gewalt", "vulgäre Sprache"]
+            }
+        }));
+        assert_eq!(item.age_rating, Some(16));
+        assert!(!item.is_adult);
+        assert_eq!(item.content_descriptors, ["Gewalt", "vulgäre Sprache"]);
+    }
+
+    #[test]
+    fn parse_page_marks_mature_entries_as_adult() {
+        let by_flag = first_item(json!({
+            "id": "A", "series_metadata": { "is_mature": true }
+        }));
+        assert!(by_flag.is_adult);
+        assert_eq!(by_flag.age_rating, None);
+        let by_age = first_item(json!({
+            "id": "B",
+            "series_metadata": { "extended_maturity_rating": { "rating": "18" } }
+        }));
+        assert!(by_age.is_adult);
+    }
+
+    #[test]
+    fn parse_page_derives_age_from_maturity_ratings() {
+        let item = first_item(json!({
+            "id": "A", "series_metadata": { "maturity_ratings": ["TV-14"] }
+        }));
+        assert_eq!(item.age_rating, Some(14));
+    }
+
+    #[test]
+    fn parse_page_tolerates_missing_and_malformed_fields() {
+        for meta in [
+            json!({}),
+            json!({ "extended_maturity_rating": null, "maturity_ratings": "TV-14" }),
+            json!({ "extended_maturity_rating": "16", "is_mature": "ja" }),
+            json!({ "extended_maturity_rating": { "rating": [] }, "content_descriptors": 5 }),
+        ] {
+            let item = first_item(json!({ "id": "A", "series_metadata": meta }));
+            assert_eq!(item.age_rating, None);
+            assert!(!item.is_adult);
+            assert!(item.content_descriptors.is_empty());
+        }
     }
 }

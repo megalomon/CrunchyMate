@@ -15,6 +15,19 @@ pub struct ImageCandidate {
     pub width: u32,
 }
 
+/// Ab dieser Altersstufe gilt ein Eintrag als „18+“, auch wenn `is_mature` nicht gesetzt ist.
+pub const ADULT_MIN_AGE: u32 = 18;
+
+/// Rohwerte der Altersfreigabe, wie die Quelle sie liefert.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RawMaturity {
+    /// `extended_maturity_rating.rating`, z. B. "16".
+    pub extended_rating: Option<String>,
+    /// `maturity_ratings`, z. B. ["TV-14"].
+    pub maturity_ratings: Vec<String>,
+    pub is_mature: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawSeries {
     pub id: String,
@@ -29,6 +42,8 @@ pub struct RawSeries {
     pub audio_locales: Vec<String>,
     pub subtitle_locales: Vec<String>,
     pub categories: Vec<String>,
+    pub maturity: RawMaturity,
+    pub content_descriptors: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,6 +98,31 @@ pub fn pick_image(candidates: &[ImageCandidate], min_width: u32, max_width: u32)
         .unwrap_or_default()
 }
 
+/// Erste zusammenhängende Ziffernfolge als Zahl („TV-14“ -> 14, „16“ -> 16).
+fn age_from_text(text: &str) -> Option<u32> {
+    let digits: String = text
+        .chars()
+        .skip_while(|c| !c.is_ascii_digit())
+        .take_while(char::is_ascii_digit)
+        .collect();
+    digits.parse().ok()
+}
+
+/// Altersstufe: primär die erweiterte Freigabe, sonst `maturity_ratings`, sofern alle
+/// Einträge dieselbe Zahl ergeben. Mehrdeutige oder zahllose Angaben (z. B. „TV-MA“) bleiben leer.
+pub fn age_rating(maturity: &RawMaturity) -> Option<u32> {
+    if let Some(age) = maturity.extended_rating.as_deref().and_then(age_from_text) {
+        return Some(age);
+    }
+    let mut ages = maturity.maturity_ratings.iter().map(|r| age_from_text(r));
+    let first = ages.next()??;
+    ages.all(|age| age == Some(first)).then_some(first)
+}
+
+pub fn is_adult(age: Option<u32>, is_mature: bool) -> bool {
+    is_mature || age.is_some_and(|age| age >= ADULT_MIN_AGE)
+}
+
 pub fn to_catalog_item(raw: RawSeries, content_locale: &str) -> CatalogItem {
     let flags = language_flags(
         &raw.audio_locales,
@@ -97,7 +137,18 @@ pub fn to_catalog_item(raw: RawSeries, content_locale: &str) -> CatalogItem {
         .filter(|c| !c.is_empty())
         .map(str::to_string)
         .collect();
+    let age_rating = age_rating(&raw.maturity);
+    let content_descriptors = raw
+        .content_descriptors
+        .iter()
+        .map(|d| d.trim())
+        .filter(|d| !d.is_empty())
+        .map(str::to_string)
+        .collect();
     CatalogItem {
+        age_rating,
+        is_adult: is_adult(age_rating, raw.maturity.is_mature),
+        content_descriptors,
         poster_tall: pick_image(&raw.poster_tall, POSTER_TALL_WIDTH.0, POSTER_TALL_WIDTH.1),
         poster_wide: pick_image(&raw.poster_wide, POSTER_WIDE_WIDTH.0, POSTER_WIDE_WIDTH.1),
         id: raw.id,
@@ -142,6 +193,8 @@ mod tests {
             audio_locales: s(&["de-DE"]),
             subtitle_locales: vec![],
             categories: s(&[" Action ", "", "  ", "Drama"]),
+            maturity: RawMaturity::default(),
+            content_descriptors: s(&[" Gewalt ", ""]),
         }
     }
 
@@ -206,5 +259,62 @@ mod tests {
         assert!(!item.has_target_sub);
         assert!(item.is_subbed && !item.is_dubbed);
         assert_eq!(item.episode_count, 12);
+    }
+
+    fn maturity(extended: Option<&str>, ratings: &[&str], is_mature: bool) -> RawMaturity {
+        RawMaturity {
+            extended_rating: extended.map(str::to_string),
+            maturity_ratings: s(ratings),
+            is_mature,
+        }
+    }
+
+    #[test]
+    fn age_prefers_extended_rating() {
+        assert_eq!(
+            age_rating(&maturity(Some("16"), &["TV-14"], false)),
+            Some(16)
+        );
+    }
+
+    #[test]
+    fn age_falls_back_to_unique_maturity_rating() {
+        assert_eq!(age_rating(&maturity(None, &["TV-14"], false)), Some(14));
+        assert_eq!(
+            age_rating(&maturity(Some("MA"), &["TV-14", "TV-14"], false)),
+            Some(14)
+        );
+    }
+
+    #[test]
+    fn age_is_unknown_when_ambiguous_or_without_number() {
+        assert_eq!(
+            age_rating(&maturity(None, &["TV-14", "TV-MA"], false)),
+            None
+        );
+        assert_eq!(
+            age_rating(&maturity(None, &["TV-14", "TV-16"], false)),
+            None
+        );
+        assert_eq!(age_rating(&maturity(None, &["TV-MA"], false)), None);
+        assert_eq!(age_rating(&maturity(None, &[], false)), None);
+    }
+
+    #[test]
+    fn adult_by_flag_or_age_threshold() {
+        assert!(is_adult(None, true));
+        assert!(is_adult(Some(ADULT_MIN_AGE), false));
+        assert!(!is_adult(Some(ADULT_MIN_AGE - 1), false));
+        assert!(!is_adult(None, false));
+    }
+
+    #[test]
+    fn to_catalog_item_maps_maturity_and_trims_descriptors() {
+        let mut series = raw();
+        series.maturity = maturity(Some("18"), &[], false);
+        let item = to_catalog_item(series, "de-DE");
+        assert_eq!(item.age_rating, Some(18));
+        assert!(item.is_adult);
+        assert_eq!(item.content_descriptors, s(&["Gewalt"]));
     }
 }

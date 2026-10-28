@@ -10,8 +10,8 @@ use crate::model::{
 const UPSERT_ANIME: &str = "
     INSERT INTO anime (
         id, title, description, poster_tall, poster_wide, episode_count, launch_year,
-        is_subbed, is_dubbed, has_target_sub, has_target_dub, cr_updated_at
-    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, unixepoch())
+        is_subbed, is_dubbed, has_target_sub, has_target_dub, age_rating, is_adult, cr_updated_at
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, unixepoch())
     ON CONFLICT(id) DO UPDATE SET
         title = excluded.title,
         description = excluded.description,
@@ -23,6 +23,8 @@ const UPSERT_ANIME: &str = "
         is_dubbed = excluded.is_dubbed,
         has_target_sub = excluded.has_target_sub,
         has_target_dub = excluded.has_target_dub,
+        age_rating = excluded.age_rating,
+        is_adult = excluded.is_adult,
         cr_updated_at = excluded.cr_updated_at";
 
 const UPDATE_ANILIST: &str = "
@@ -44,7 +46,7 @@ const SELECT_DETAIL: &str = "
            a.episode_count, a.launch_year, a.has_target_dub, a.has_target_sub,
            COALESCE(m.watched, 0), COALESCE(m.is_meh, 0),
            a.anilist_id, a.anilist_score, a.anilist_status, a.anilist_site_url,
-           a.anilist_description
+           a.anilist_description, a.age_rating
     FROM anime a LEFT JOIN userdata.marks m ON m.anime_id = a.id
     WHERE a.id = ?1";
 
@@ -67,8 +69,11 @@ pub fn upsert_catalog_page(tx: &Transaction, items: &[CatalogItem]) -> CoreResul
             item.is_dubbed,
             item.has_target_sub,
             item.has_target_dub,
+            item.age_rating,
+            item.is_adult,
         ])?;
         link_genres(tx, &item.id, &item.genres)?;
+        replace_descriptors(tx, &item.id, &item.content_descriptors)?;
     }
     Ok(())
 }
@@ -113,6 +118,19 @@ fn link_genres(tx: &Transaction, anime_id: &str, genres: &[String]) -> CoreResul
     for genre in genres {
         insert_genre.execute([genre])?;
         link_genre.execute(params![anime_id, genre])?;
+    }
+    Ok(())
+}
+
+// Ersetzen statt ergänzen: die Hinweise folgen der Sprache des jeweils letzten Syncs.
+fn replace_descriptors(tx: &Transaction, anime_id: &str, descriptors: &[String]) -> CoreResult<()> {
+    tx.prepare_cached("DELETE FROM anime_descriptors WHERE anime_id = ?1")?
+        .execute([anime_id])?;
+    let mut insert = tx.prepare_cached(
+        "INSERT OR IGNORE INTO anime_descriptors (anime_id, position, name) VALUES (?1, ?2, ?3)",
+    )?;
+    for (position, name) in descriptors.iter().enumerate() {
+        insert.execute(params![anime_id, position as i64, name])?;
     }
     Ok(())
 }
@@ -176,6 +194,8 @@ pub fn get_anime(
                 genres: Vec::new(),
                 tags: Vec::new(),
                 anilist,
+                age_rating: row.get(16)?,
+                content_descriptors: Vec::new(),
             })
         })
         .optional()?;
@@ -184,6 +204,7 @@ pub fn get_anime(
     };
     detail.genres = detail_genres(conn, id)?;
     detail.tags = detail_tags(conn, id)?;
+    detail.content_descriptors = detail_descriptors(conn, id)?;
     detail.poster_path = local_path(conn, store, id, ImageSlot::PosterTall)?.unwrap_or_default();
     // Ohne Banner dient das breite Poster als Ersatz
     detail.banner_path = match local_path(conn, store, id, ImageSlot::Banner)? {
@@ -197,6 +218,16 @@ fn detail_genres(conn: &Connection, id: &str) -> CoreResult<Vec<String>> {
     let mut stmt = conn.prepare_cached(
         "SELECT g.name FROM genres g JOIN anime_genres ag ON ag.genre_id = g.id
          WHERE ag.anime_id = ?1 ORDER BY g.name",
+    )?;
+    let names = stmt
+        .query_map([id], |row| row.get(0))?
+        .collect::<Result<Vec<String>, _>>()?;
+    Ok(names)
+}
+
+fn detail_descriptors(conn: &Connection, id: &str) -> CoreResult<Vec<String>> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT name FROM anime_descriptors WHERE anime_id = ?1 ORDER BY position",
     )?;
     let names = stmt
         .query_map([id], |row| row.get(0))?
@@ -340,6 +371,9 @@ mod tests {
             has_target_sub: true,
             has_target_dub: false,
             genres: vec!["Action".to_string()],
+            age_rating: None,
+            is_adult: false,
+            content_descriptors: Vec::new(),
         }
     }
 
@@ -637,5 +671,56 @@ mod tests {
                 .unwrap();
             assert_eq!(rows, 0, "{table} sollte leer bleiben");
         }
+    }
+
+    #[test]
+    fn detail_returns_age_and_descriptors_in_order() {
+        let db = Database::open_in_memory().unwrap();
+        insert_all(
+            &db,
+            &[AnimeFixture::new("a", "A")
+                .age(16)
+                .descriptor("Gewalt")
+                .descriptor("vulgäre Sprache")],
+        )
+        .unwrap();
+        let detail = db
+            .with_conn(|c| get_anime(c, &store(), "a"))
+            .unwrap()
+            .unwrap();
+        assert_eq!(detail.age_rating, Some(16));
+        assert_eq!(detail.content_descriptors, ["Gewalt", "vulgäre Sprache"]);
+    }
+
+    #[test]
+    fn resync_replaces_descriptors_and_age() {
+        let db = Database::open_in_memory().unwrap();
+        let first = AnimeFixture::new("a", "A").age(16).descriptor("Gewalt");
+        let second = AnimeFixture::new("a", "A")
+            .descriptor("Violence")
+            .descriptor("Nudity");
+        insert_all(&db, &[first]).unwrap();
+        insert_all(&db, &[second]).unwrap();
+        let detail = db
+            .with_conn(|c| get_anime(c, &store(), "a"))
+            .unwrap()
+            .unwrap();
+        assert_eq!(detail.age_rating, None);
+        assert_eq!(detail.content_descriptors, ["Violence", "Nudity"]);
+    }
+
+    #[test]
+    fn stats_count_adult_entries() {
+        let db = Database::open_in_memory().unwrap();
+        insert_all(
+            &db,
+            &[
+                AnimeFixture::new("a", "A").adult().watched(),
+                AnimeFixture::new("b", "B"),
+            ],
+        )
+        .unwrap();
+        let stats = db.with_conn(stats).unwrap();
+        assert_eq!((stats.total, stats.watched), (2, 1));
     }
 }

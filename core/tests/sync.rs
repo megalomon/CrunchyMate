@@ -45,6 +45,9 @@ fn item(id: &str) -> CatalogItem {
         has_target_sub: true,
         has_target_dub: false,
         genres: vec!["Action".to_string()],
+        age_rating: None,
+        is_adult: false,
+        content_descriptors: Vec::new(),
     }
 }
 

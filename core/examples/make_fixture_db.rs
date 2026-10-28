@@ -34,6 +34,9 @@ fn catalog_item(index: usize, title: &str) -> CatalogItem {
         has_target_sub: true,
         has_target_dub: dubbed,
         genres: vec!["Drama".to_string()],
+        age_rating: None,
+        is_adult: false,
+        content_descriptors: Vec::new(),
     }
 }
 

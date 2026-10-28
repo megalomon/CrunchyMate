@@ -27,6 +27,9 @@ pub struct AnimeFixture {
     english: Option<String>,
     banner: Option<String>,
     tags: Vec<TagRank>,
+    age_rating: Option<u32>,
+    is_adult: bool,
+    descriptors: Vec<String>,
 }
 
 impl AnimeFixture {
@@ -51,7 +54,26 @@ impl AnimeFixture {
             english: None,
             banner: None,
             tags: Vec::new(),
+            age_rating: None,
+            is_adult: false,
+            descriptors: Vec::new(),
         }
+    }
+
+    pub fn age(mut self, age: u32) -> Self {
+        self.age_rating = Some(age);
+        self
+    }
+
+    /// Als 18+ gekennzeichnet.
+    pub fn adult(mut self) -> Self {
+        self.is_adult = true;
+        self
+    }
+
+    pub fn descriptor(mut self, name: &str) -> Self {
+        self.descriptors.push(name.to_string());
+        self
     }
 
     pub fn no_poster_tall(mut self) -> Self {
@@ -149,6 +171,9 @@ impl AnimeFixture {
             has_target_sub: self.has_target_sub,
             has_target_dub: self.has_target_dub,
             genres: self.genres.clone(),
+            age_rating: self.age_rating,
+            is_adult: self.is_adult,
+            content_descriptors: self.descriptors.clone(),
         }
     }
 

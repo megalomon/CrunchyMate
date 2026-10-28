@@ -96,6 +96,10 @@ fn build(filter: &AnimeFilter) -> BuiltQuery {
         MehFilter::Only => conditions.push("m.is_meh = 1".to_string()),
     }
 
+    if filter.hide_adult {
+        conditions.push("a.is_adult = 0".to_string());
+    }
+
     for tag in clean_names(&filter.must_tags) {
         conditions.push(
             "EXISTS (SELECT 1 FROM anime_tags at JOIN tags t ON at.tag_id = t.id \
@@ -175,7 +179,7 @@ pub fn query_anime(
         "SELECT a.id, a.title, \
          a.anilist_score, a.has_target_dub, a.has_target_sub, \
          COALESCE(m.watched, 0), COALESCE(m.is_meh, 0), \
-         {prefer_select} AS prefer_matches, pi.hash, pi.ext, a.episode_count \
+         {prefer_select} AS prefer_matches, pi.hash, pi.ext, a.episode_count, a.age_rating \
          FROM anime a {MARKS_JOIN} \
          LEFT JOIN image_refs pr ON pr.anime_id = a.id AND pr.slot = '{poster_slot}' \
          LEFT JOIN images pi ON pi.hash = pr.hash{} ORDER BY {} LIMIT ? OFFSET ?",
@@ -203,6 +207,7 @@ pub fn query_anime(
                 watched: row.get(5)?,
                 is_meh: row.get(6)?,
                 episode_count: row.get(10)?,
+                age_rating: row.get(11)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -292,6 +297,7 @@ mod tests {
             prefer_tags: vec![],
             must_tags: vec![],
             exclude_tags: vec![],
+            hide_adult: false,
         }
     }
 
@@ -542,5 +548,58 @@ mod tests {
         let mut f = base();
         f.meh = MehFilter::Only;
         assert_eq!(ids(&db, &f), ["a5"]);
+    }
+
+    fn adult_db() -> Database {
+        let db = Database::open_in_memory().unwrap();
+        insert_all(
+            &db,
+            &[
+                AnimeFixture::new("k1", "Kind").age(6),
+                AnimeFixture::new("k2", "Unbekannt"),
+                AnimeFixture::new("e1", "Erwachsen").age(18).adult(),
+                AnimeFixture::new("e2", "Erwachsen Gesehen")
+                    .adult()
+                    .watched(),
+                AnimeFixture::new("e3", "Erwachsen Meh").adult().meh(),
+            ],
+        )
+        .unwrap();
+        db
+    }
+
+    #[test]
+    fn hide_adult_removes_entries_from_list_and_total() {
+        let db = adult_db();
+        let mut f = base();
+        f.meh = MehFilter::Include;
+        assert_eq!(run(&db, &f).total, 5);
+        f.hide_adult = true;
+        let page = run(&db, &f);
+        assert_eq!(page.total, 2);
+        assert_eq!(ids(&db, &f), ["k1", "k2"]);
+    }
+
+    #[test]
+    fn hide_adult_applies_to_watched_and_meh_views() {
+        let db = adult_db();
+        let mut watched = base();
+        watched.watched = WatchedFilter::Watched;
+        assert_eq!(ids(&db, &watched), ["e2"]);
+        watched.hide_adult = true;
+        assert!(ids(&db, &watched).is_empty());
+        let mut meh = base();
+        meh.meh = MehFilter::Only;
+        meh.hide_adult = true;
+        assert_eq!(run(&db, &meh).total, 0);
+    }
+
+    #[test]
+    fn summary_carries_age_rating() {
+        let db = adult_db();
+        let mut f = base();
+        f.hide_adult = true;
+        let ages: Vec<_> = run(&db, &f).items.iter().map(|i| i.age_rating).collect();
+        assert_eq!(ages, [Some(6), None]);
     }
 }

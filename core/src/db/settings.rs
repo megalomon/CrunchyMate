@@ -148,7 +148,7 @@ mod tests {
         serde_json::to_string(value).unwrap()
     }
 
-    const GOLDEN_SETTINGS: &str = r#"{"content_locale":"en-US","search":{"query":"Größe","genre":"Action","language":"Both","watched":"Unwatched","sort":"Episodes","tags":[{"name":"Isekai","state":"Prefer"},{"name":"Magie","state":"Must"},{"name":"Horror","state":"Exclude"}]},"intro_seen":true,"oled_mode":true}"#;
+    const GOLDEN_SETTINGS: &str = r#"{"content_locale":"en-US","search":{"query":"Größe","genre":"Action","language":"Both","watched":"Unwatched","sort":"Episodes","tags":[{"name":"Isekai","state":"Prefer"},{"name":"Magie","state":"Must"},{"name":"Horror","state":"Exclude"}]},"intro_seen":true,"oled_mode":true,"show_adult":false,"show_age_rating":false}"#;
 
     fn golden_settings() -> Settings {
         Settings {
@@ -167,6 +167,8 @@ mod tests {
             },
             intro_seen: true,
             oled_mode: true,
+            show_adult: false,
+            show_age_rating: false,
         }
     }
 
@@ -199,6 +201,27 @@ mod tests {
         store_raw(&db, r#"{"content_locale":"fr-FR","oled_mode":"an"}"#);
         let s = db.with_conn(load).unwrap();
         assert!(!s.oled_mode);
+        assert_eq!(s.content_locale, "fr-FR");
+    }
+
+    #[test]
+    fn settings_without_adult_flags_load_as_shown() {
+        let db = Database::open_in_memory().unwrap();
+        store_raw(&db, r#"{"content_locale":"en-US","oled_mode":true}"#);
+        let s = db.with_conn(load).unwrap();
+        assert!(s.show_adult && s.show_age_rating);
+        assert!(s.oled_mode);
+    }
+
+    #[test]
+    fn unreadable_adult_flags_load_as_shown() {
+        let db = Database::open_in_memory().unwrap();
+        store_raw(
+            &db,
+            r#"{"content_locale":"fr-FR","show_adult":"nein","show_age_rating":3}"#,
+        );
+        let s = db.with_conn(load).unwrap();
+        assert!(s.show_adult && s.show_age_rating);
         assert_eq!(s.content_locale, "fr-FR");
     }
 

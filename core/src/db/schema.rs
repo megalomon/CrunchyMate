@@ -5,7 +5,7 @@ use crate::error::{CoreError, CoreResult};
 use crate::model::{Settings, DEFAULT_CONTENT_LOCALE};
 
 /// Version der Katalog-Datenbank (Cache aus dem Katalog der Streamingquelle und AniList).
-pub const SCHEMA_VERSION: i32 = 3;
+pub const SCHEMA_VERSION: i32 = 4;
 /// Version der Nutzer-Datenbank (Einstellungen und Markierungen); zählt unabhängig vom Katalog.
 pub const USER_SCHEMA_VERSION: i32 = 1;
 
@@ -148,6 +148,19 @@ const MIGRATION_V3: &str = "
     ALTER TABLE main.sync_state ADD COLUMN last_skipped_images INTEGER;
 ";
 
+// Nur neue Spalten und Tabellen: vorhandene Anime bleiben, der nächste Sync füllt die Felder.
+// Ohne Angabe gilt ein Eintrag als nicht 18+ und ohne Altersstufe.
+const MIGRATION_V4: &str = "
+    ALTER TABLE main.anime ADD COLUMN age_rating INTEGER;
+    ALTER TABLE main.anime ADD COLUMN is_adult INTEGER NOT NULL DEFAULT 0;
+    CREATE TABLE main.anime_descriptors (
+        anime_id TEXT NOT NULL REFERENCES anime(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        PRIMARY KEY (anime_id, position)
+    );
+";
+
 /// Bringt Nutzer- und Katalog-Datenbank auf den aktuellen Stand. Eine Datei aus einer neueren
 /// App-Version wird abgewiesen statt still weiterverwendet.
 pub fn migrate(conn: &Connection) -> CoreResult<()> {
@@ -171,6 +184,11 @@ pub fn migrate(conn: &Connection) -> CoreResult<()> {
     }
     if catalog_version < 3 {
         migrate_v3(conn)?;
+    }
+    if catalog_version < 4 {
+        run_step(conn, MAIN_SCHEMA, 4, |tx| {
+            Ok(tx.execute_batch(MIGRATION_V4)?)
+        })?;
     }
     Ok(())
 }
@@ -349,6 +367,7 @@ mod tests {
             prefer_tags: vec![],
             must_tags: vec![],
             exclude_tags: vec![],
+            hide_adult: false,
         }
     }
 
@@ -418,6 +437,7 @@ mod tests {
             catalog,
             [
                 "anime",
+                "anime_descriptors",
                 "anime_genres",
                 "anime_tags",
                 "genres",
@@ -510,6 +530,54 @@ mod tests {
         );
         assert_eq!(wm.title, "Gesehen und Meh");
         assert_eq!(db.with_conn(anime::list_tags).unwrap()[0].name, "School");
+    }
+
+    /// Katalog im Stand von Schema v3: die migrierte Datei ohne die Ergänzungen von v4.
+    fn write_v3_catalog(catalog: &str, user: &str) {
+        write_v2_catalog(catalog);
+        drop(Database::open(catalog, user).unwrap());
+        let conn = Connection::open(catalog).unwrap();
+        conn.execute_batch(
+            "DROP TABLE anime_descriptors;
+             ALTER TABLE anime DROP COLUMN age_rating;
+             ALTER TABLE anime DROP COLUMN is_adult;
+             PRAGMA user_version = 3;",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn migration_v3_to_v4_keeps_data_and_defaults_new_fields() {
+        let dir = TempDir::new("schema-v3");
+        let (catalog, user) = paths(&dir);
+        write_v3_catalog(&catalog, &user);
+
+        let db = Database::open(&catalog, &user).unwrap();
+
+        db.with_conn(|c| {
+            assert_eq!(version(c, MAIN_SCHEMA), 4);
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(marks(&db), expected_v2_marks());
+        let store = ImageStore::new(dir.path().join("images")).unwrap();
+        let detail = db
+            .with_conn(|c| anime::get_anime(c, &store, "wm"))
+            .unwrap()
+            .unwrap();
+        assert_eq!(detail.title, "Gesehen und Meh");
+        assert_eq!(detail.age_rating, None);
+        assert!(detail.content_descriptors.is_empty());
+        assert!(detail.watched && detail.is_meh);
+        let stats = db.with_conn(anime::stats).unwrap();
+        assert_eq!(stats.total, 6);
+        let mut hide = filter(WatchedFilter::All, MehFilter::Include);
+        hide.hide_adult = true;
+        assert_eq!(ids(&db, &hide).len(), 6, "ohne Angabe gilt nichts als 18+");
+        let adult: i64 = db
+            .with_conn(|c| Ok(c.query_row("SELECT SUM(is_adult) FROM anime", [], |r| r.get(0))?))
+            .unwrap();
+        assert_eq!(adult, 0);
     }
 
     #[test]

@@ -66,6 +66,8 @@ pub struct AnimeFilter {
     pub prefer_tags: Vec<String>,
     pub must_tags: Vec<String>,
     pub exclude_tags: Vec<String>,
+    /// Blendet als 18+ gekennzeichnete Einträge aus (Liste und Trefferzahl).
+    pub hide_adult: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
@@ -80,6 +82,8 @@ pub struct AnimeSummary {
     pub watched: bool,
     pub is_meh: bool,
     pub episode_count: i32,
+    /// Altersstufe als Zahl; leer, solange der Katalog sie nicht geliefert hat.
+    pub age_rating: Option<i32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
@@ -120,6 +124,9 @@ pub struct AnimeDetail {
     pub genres: Vec<String>,
     pub tags: Vec<TagRank>,
     pub anilist: Option<AniListInfo>,
+    pub age_rating: Option<i32>,
+    /// Inhaltshinweise in der Sprache des letzten Katalog-Syncs.
+    pub content_descriptors: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
@@ -175,6 +182,12 @@ pub struct Settings {
     /// Dunkles Theme mit reinem Schwarz unabhängig von der Systemeinstellung; fehlt in älteren Ständen und gilt dann als aus.
     #[serde(deserialize_with = "lenient")]
     pub oled_mode: bool,
+    /// Als 18+ gekennzeichnete Einträge anzeigen; fehlt in älteren Ständen und gilt dann als an.
+    #[serde(deserialize_with = "lenient_true")]
+    pub show_adult: bool,
+    /// Altersstufe auf den Kacheln anzeigen; fehlt in älteren Ständen und gilt dann als an.
+    #[serde(deserialize_with = "lenient_true")]
+    pub show_age_rating: bool,
 }
 
 /// Unlesbarer Wert ergibt den Standard des Typs.
@@ -185,6 +198,15 @@ where
 {
     let value = serde_json::Value::deserialize(deserializer)?;
     Ok(T::deserialize(value).unwrap_or_default())
+}
+
+/// Wie `lenient`, aber mit „an“ als Standard.
+fn lenient_true<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(bool::deserialize(value).unwrap_or(true))
 }
 
 /// Unlesbare Einträge entfallen einzeln; die übrigen bleiben erhalten.
@@ -221,6 +243,8 @@ impl Default for Settings {
             search: SearchState::default(),
             intro_seen: false,
             oled_mode: false,
+            show_adult: true,
+            show_age_rating: true,
         }
     }
 }
@@ -294,6 +318,11 @@ pub struct CatalogItem {
     pub has_target_sub: bool,
     pub has_target_dub: bool,
     pub genres: Vec<String>,
+    /// Altersstufe als Zahl; `None`, wenn die Quelle keine eindeutige liefert.
+    pub age_rating: Option<u32>,
+    /// `is_mature` der Quelle oder Altersstufe ab `ADULT_MIN_AGE`.
+    pub is_adult: bool,
+    pub content_descriptors: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -41,7 +41,11 @@ fn browse_body() -> serde_json::Value {
                     "is_dubbed": true,
                     "audio_locales": ["ja-JP", "de-DE"],
                     "subtitle_locales": ["en-US"],
-                    "tenant_categories": [" Action ", "", "Drama"]
+                    "tenant_categories": [" Action ", "", "Drama"],
+                    "maturity_ratings": ["TV-14"],
+                    "extended_maturity_rating": { "system": "cr-tv", "rating": "16", "level": "M2", "advisories": [] },
+                    "is_mature": false,
+                    "content_descriptors": ["Gewalt", "vulgäre Sprache"]
                 }
             },
             { "id": "GR2", "title": "Leer" },
@@ -113,6 +117,11 @@ async fn maps_browse_page() {
     assert_eq!(first.launch_year, 2019);
     assert!(first.is_subbed && first.is_dubbed);
     assert!(first.has_target_dub);
+    assert_eq!(first.age_rating, Some(16));
+    assert!(!first.is_adult);
+    assert_eq!(first.content_descriptors, ["Gewalt", "vulgäre Sprache"]);
+    // Ohne series_metadata bleibt der Eintrag ohne Altersangaben
+    assert_eq!(page.items[1].age_rating, None);
     assert!(!first.has_target_sub);
     assert_eq!(
         first.genres,
