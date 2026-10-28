@@ -18,6 +18,7 @@ const DEFAULT_BROWSE_URL: &str = "https://beta-api.crunchyroll.com/content/v2/di
 const BASIC_AUTH_HEADER: &str = "Basic Y3Jfd2ViOg==";
 const USER_AGENT_HEADER: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const FORM_CONTENT_TYPE: &str = "application/x-www-form-urlencoded";
 const TOKEN_REQUEST_BODY: &str = "grant_type=client_id";
 const SORT_BY: &str = "popularity";
 /// Sicherheitsabstand, um den das Token früher als angegeben als abgelaufen gilt.
@@ -42,24 +43,23 @@ pub struct CrunchyrollSource {
 }
 
 impl CrunchyrollSource {
-    /// Anonymer Login gegen die Standard-Endpunkte.
-    pub async fn connect() -> CoreResult<Self> {
-        Self::with_endpoints(DEFAULT_AUTH_URL.to_string(), DEFAULT_BROWSE_URL.to_string()).await
+    /// Quelle mit den Standard-Endpunkten. Es findet kein Netzwerkzugriff statt;
+    /// die Anmeldung erfolgt beim ersten Abruf.
+    pub fn new() -> CoreResult<Self> {
+        Self::with_endpoints(DEFAULT_AUTH_URL.to_string(), DEFAULT_BROWSE_URL.to_string())
     }
 
-    /// Wie `connect`, aber mit frei wählbaren Endpunkten (für Tests).
-    pub async fn with_endpoints(auth_url: String, browse_url: String) -> CoreResult<Self> {
+    /// Wie `new`, aber mit frei wählbaren Endpunkten (für Tests).
+    pub fn with_endpoints(auth_url: String, browse_url: String) -> CoreResult<Self> {
         let http = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .build()?;
-        let source = Self {
+        Ok(Self {
             http,
             auth_url,
             browse_url,
             session: Mutex::new(None),
-        };
-        source.session(None).await?;
-        Ok(source)
+        })
     }
 
     /// Liefert die gültige Sitzung. Ist `stale` gesetzt und entspricht dem
@@ -82,7 +82,7 @@ impl CrunchyrollSource {
             .http
             .post(&self.auth_url)
             .header(AUTHORIZATION, BASIC_AUTH_HEADER)
-            .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .header(CONTENT_TYPE, FORM_CONTENT_TYPE)
             .header(USER_AGENT, USER_AGENT_HEADER)
             .body(TOKEN_REQUEST_BODY)
             .send()
@@ -192,6 +192,10 @@ async fn check_status(response: reqwest::Response, what: &str) -> CoreResult<Vec
     Ok(response.bytes().await?.to_vec())
 }
 
+fn saturating_u32(value: u64) -> u32 {
+    u32::try_from(value).unwrap_or(u32::MAX)
+}
+
 fn parse_error(message: &str) -> CoreError {
     CoreError::Parse {
         message: message.to_string(),
@@ -206,7 +210,7 @@ fn parse_page(json: &Value, locale: &str) -> CoreResult<CatalogPage> {
     let total = json
         .get("total")
         .and_then(Value::as_u64)
-        .map(|t| u32::try_from(t).unwrap_or(u32::MAX))
+        .map(saturating_u32)
         .unwrap_or(0);
     let items: Vec<CatalogItem> = data
         .iter()
@@ -228,7 +232,7 @@ fn u32_field(value: &Value, key: &str) -> u32 {
     value
         .get(key)
         .and_then(Value::as_u64)
-        .map(|v| u32::try_from(v).unwrap_or(u32::MAX))
+        .map(saturating_u32)
         .unwrap_or(0)
 }
 

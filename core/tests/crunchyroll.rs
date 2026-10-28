@@ -2,19 +2,18 @@ use crunchymate_core::error::CoreError;
 use crunchymate_core::remote::catalog_source::CatalogSource;
 use crunchymate_core::remote::crunchyroll::CrunchyrollSource;
 use serde_json::json;
-use wiremock::matchers::{header, method, path, query_param};
+use wiremock::matchers::{body_string, header, header_exists, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn token_body(token: &str, country: &str) -> serde_json::Value {
     json!({ "access_token": token, "expires_in": 300, "country": country })
 }
 
-async fn source(server: &MockServer) -> CrunchyrollSource {
+fn source(server: &MockServer) -> CrunchyrollSource {
     CrunchyrollSource::with_endpoints(
         format!("{}/auth/v1/token", server.uri()),
         format!("{}/content/v2/discover/browse", server.uri()),
     )
-    .await
     .unwrap()
 }
 
@@ -45,7 +44,8 @@ fn browse_body() -> serde_json::Value {
                     "tenant_categories": [" Action ", "", "Drama"]
                 }
             },
-            { "id": "GR2", "title": "Leer" }
+            { "id": "GR2", "title": "Leer" },
+            { "title": "Ohne ID" }
         ]
     })
 }
@@ -58,7 +58,7 @@ async fn reads_country_from_token() {
         .respond_with(ResponseTemplate::new(200).set_body_json(token_body("t1", "de")))
         .mount(&server)
         .await;
-    let src = source(&server).await;
+    let src = source(&server);
     assert_eq!(src.session_country().await.unwrap(), "DE");
 }
 
@@ -73,12 +73,11 @@ async fn missing_country_is_parse_error() {
         )
         .mount(&server)
         .await;
-    let result = CrunchyrollSource::with_endpoints(
-        format!("{}/auth/v1/token", server.uri()),
-        format!("{}/content/v2/discover/browse", server.uri()),
-    )
-    .await;
-    assert!(matches!(result, Err(CoreError::Parse { .. })));
+    let src = source(&server);
+    assert!(matches!(
+        src.session_country().await,
+        Err(CoreError::Parse { .. })
+    ));
 }
 
 #[tokio::test]
@@ -101,9 +100,10 @@ async fn maps_browse_page() {
         .expect(1)
         .mount(&server)
         .await;
-    let src = source(&server).await;
+    let src = source(&server);
     let page = src.fetch_page(50, 50, "de-DE").await.unwrap();
     assert_eq!(page.total, 1686);
+    // Eintrag ohne ID entfällt, total bleibt unverändert.
     assert_eq!(page.items.len(), 2);
     let first = &page.items[0];
     assert_eq!(first.id, "GR1");
@@ -151,7 +151,7 @@ async fn reauthenticates_once_on_401() {
         .expect(1)
         .mount(&server)
         .await;
-    let src = source(&server).await;
+    let src = source(&server);
     let page = src.fetch_page(0, 50, "de-DE").await.unwrap();
     assert_eq!(page.total, 1686);
 }
@@ -162,6 +162,7 @@ async fn second_401_is_auth_error() {
     Mock::given(method("POST"))
         .and(path("/auth/v1/token"))
         .respond_with(ResponseTemplate::new(200).set_body_json(token_body("t", "DE")))
+        .expect(2)
         .mount(&server)
         .await;
     Mock::given(method("GET"))
@@ -169,7 +170,7 @@ async fn second_401_is_auth_error() {
         .expect(2)
         .mount(&server)
         .await;
-    let src = source(&server).await;
+    let src = source(&server);
     let err = src.fetch_page(0, 50, "de-DE").await.unwrap_err();
     assert!(matches!(err, CoreError::Auth { .. }));
 }
@@ -186,7 +187,7 @@ async fn forbidden_is_network_error() {
         .respond_with(ResponseTemplate::new(403).set_body_string("<html>Cloudflare</html>"))
         .mount(&server)
         .await;
-    let src = source(&server).await;
+    let src = source(&server);
     match src.fetch_page(0, 50, "de-DE").await.unwrap_err() {
         CoreError::Network { message } => assert!(message.contains("403")),
         other => panic!("unerwarteter Fehler: {other:?}"),
@@ -205,7 +206,61 @@ async fn non_json_body_is_parse_error() {
         .respond_with(ResponseTemplate::new(200).set_body_string("<html>kein JSON</html>"))
         .mount(&server)
         .await;
-    let src = source(&server).await;
+    let src = source(&server);
     let err = src.fetch_page(0, 50, "de-DE").await.unwrap_err();
     assert!(matches!(err, CoreError::Parse { .. }));
+}
+
+#[tokio::test]
+async fn construction_without_network_then_first_fetch_fails_with_network() {
+    // Port 1 ist nicht erreichbar; der Konstruktor darf trotzdem nicht scheitern.
+    let src = CrunchyrollSource::with_endpoints(
+        "http://127.0.0.1:1/auth".to_string(),
+        "http://127.0.0.1:1/browse".to_string(),
+    )
+    .unwrap();
+    let err = src.fetch_page(0, 50, "de-DE").await.unwrap_err();
+    assert!(matches!(err, CoreError::Network { .. }));
+}
+
+#[tokio::test]
+async fn failed_login_is_retried_on_next_call() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/auth/v1/token"))
+        .respond_with(ResponseTemplate::new(500))
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/auth/v1/token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(token_body("t", "DE")))
+        .mount(&server)
+        .await;
+    let src = source(&server);
+    assert!(src.session_country().await.is_err());
+    assert_eq!(src.session_country().await.unwrap(), "DE");
+}
+
+#[tokio::test]
+async fn token_is_cached_and_credentials_are_sent() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/auth/v1/token"))
+        .and(header_exists("Authorization"))
+        .and(header_exists("User-Agent"))
+        .and(header("Content-Type", "application/x-www-form-urlencoded"))
+        .and(body_string("grant_type=client_id"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(token_body("t1", "DE")))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(browse_body()))
+        .expect(2)
+        .mount(&server)
+        .await;
+    let src = source(&server);
+    src.fetch_page(0, 50, "de-DE").await.unwrap();
+    src.fetch_page(50, 50, "de-DE").await.unwrap();
 }

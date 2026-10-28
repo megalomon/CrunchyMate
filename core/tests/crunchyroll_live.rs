@@ -7,7 +7,7 @@ use crunchymate_core::remote::crunchyroll::CrunchyrollSource;
 #[tokio::test]
 #[ignore = "benötigt Netzwerk und die echte Crunchyroll-API"]
 async fn fetches_live_page() {
-    let source = CrunchyrollSource::connect().await.unwrap();
+    let source = CrunchyrollSource::new().unwrap();
     let country = source.session_country().await.unwrap();
     let page = source.fetch_page(0, 5, "de-DE").await.unwrap();
     println!(
