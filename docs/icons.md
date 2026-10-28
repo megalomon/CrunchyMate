@@ -78,7 +78,7 @@ Jeder Tag wird per Tippen durchgeschaltet: neutral → Boost → Muss → Ausges
 | `ic_stat_total` | Anzahl aller Anime im Katalog | 📚 | `database-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/database-outline/; Apache 2.0 (Pictogrammers Free License) |
 | `ic_stat_watched` | Anzahl gesehener Anime | 👁️ | `account-eye-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/account-eye-outline/; Apache 2.0 (Pictogrammers Free License) |
 | `ic_stat_meh` | Anzahl als „Meh“ markierter Anime | 😒 | `emoticon-confused.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/emoticon-confused/; Apache 2.0 (Pictogrammers Free License) |
-| `ic_stat_enriched` | Anzahl der mit AniList-Daten angereicherten Anime | ✨ | | |
+| `ic_stat_enriched` | Anzahl der mit AniList-Daten angereicherten Anime | ✨ | `account-eye-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/account-eye-outline/; Apache 2.0 (Pictogrammers Free License) |
 | `ic_stat_tags` | Anzahl bekannter Tags | 🏷️ | `book-arrow-down-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/book-arrow-down-outline/; Apache 2.0 (Pictogrammers Free License) |
 
 ## System
@@ -86,9 +86,9 @@ Jeder Tag wird per Tippen durchgeschaltet: neutral → Boost → Muss → Ausges
 | Datei | Bedeutung | Emoji-Entsprechung | Gelieferte Datei | Quelle/Lizenz |
 |---|---|---|---|---|
 | `ic_notification_sync` | Benachrichtigung während einer laufenden Synchronisation (Statusleiste) | 🔄 | `timer-sync-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/timer-sync-outline/; Apache 2.0 (Pictogrammers Free License) |
-| `ic_launcher_foreground` | App-Icon, Vordergrund (Motiv) | 🍿 | | |
+| `ic_launcher_foreground` | App-Icon, Vordergrund (Motiv) | 🍿 | `movie-roll.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/movie-roll/; Apache 2.0 (Pictogrammers Free License) |
 | `ic_launcher_background` | App-Icon, Hintergrund (Fläche oder Muster, z. B. Crunchyroll-Orange) | 🟧 | | |
-| `ic_launcher_monochrome` | App-Icon, einfarbige Variante für Themed Icons | 🍿 | | |
+| `ic_launcher_monochrome` | App-Icon, einfarbige Variante für Themed Icons | 🍿 | `movie-roll.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/movie-roll/; Apache 2.0 (Pictogrammers Free License) |
 
 ## Umwandlung SVG in VectorDrawable
 
