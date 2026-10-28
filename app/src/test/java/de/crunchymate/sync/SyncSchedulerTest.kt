@@ -7,6 +7,7 @@ import de.crunchymate.core.CoreGateway
 import de.crunchymate.core.FakeCore
 import de.crunchymate.core.ffi.ErrorCode
 import de.crunchymate.core.ffi.SyncKind
+import de.crunchymate.core.ffi.SyncPhase
 import de.crunchymate.core.ffi.SyncProgress
 import de.crunchymate.core.ffi.SyncRunState
 import de.crunchymate.core.ffi.SyncStatus
@@ -93,7 +94,7 @@ class SyncSchedulerTest {
                         SyncStatus(SyncKind.CATALOG, SyncRunState.FAILED, 3L, 40L, FINISHED_AT, ErrorCode.RATE_LIMITED, "DE"),
                 )
             core.syncBehavior = { kind, observer ->
-                observer.onProgress(SyncProgress(kind, 5L, 10L))
+                observer.onProgress(SyncProgress(kind, SyncPhase.ITEMS, 5L, 10L))
                 awaitCancellation()
             }
 

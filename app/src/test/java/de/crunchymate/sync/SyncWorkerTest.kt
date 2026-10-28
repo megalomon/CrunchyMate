@@ -9,6 +9,7 @@ import de.crunchymate.core.CoreGateway
 import de.crunchymate.core.FakeCore
 import de.crunchymate.core.ffi.CoreException
 import de.crunchymate.core.ffi.SyncKind
+import de.crunchymate.core.ffi.SyncPhase
 import de.crunchymate.core.ffi.SyncProgress
 import de.crunchymate.core.ffi.SyncSummary
 import kotlinx.coroutines.Dispatchers
@@ -48,8 +49,8 @@ class SyncWorkerTest {
             val kinds = mutableListOf<SyncKind>()
             core.syncBehavior = { kind, observer ->
                 kinds += kind
-                observer.onProgress(SyncProgress(kind, 1L, 2L))
-                SyncSummary(2L, 0)
+                observer.onProgress(SyncProgress(kind, SyncPhase.ITEMS, 1L, 2L))
+                SyncSummary(2L, 0, 0)
             }
 
             val result = worker(SyncKind.METADATA).doWork()

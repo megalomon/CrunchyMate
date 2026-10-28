@@ -3,6 +3,7 @@
 use rusqlite::{params, Connection, Transaction};
 
 use crate::error::CoreResult;
+use crate::images::store::ImageStore;
 
 /// Bildart je Anime; der Text ist in `image_refs.slot` gespeichert und muss stabil bleiben.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -105,6 +106,17 @@ pub fn local_ref(
         Some(row) => Ok(Some((row.get(0)?, row.get(1)?))),
         None => Ok(None),
     }
+}
+
+/// Absoluter Pfad der lokalen Datei als Text, falls das Bild geladen ist.
+pub fn local_path(
+    conn: &Connection,
+    store: &ImageStore,
+    anime_id: &str,
+    slot: ImageSlot,
+) -> CoreResult<Option<String>> {
+    Ok(local_ref(conn, anime_id, slot)?
+        .map(|(hash, ext)| store.path(&hash, &ext).to_string_lossy().into_owned()))
 }
 
 /// Bilder ohne Verweis als (Hash, Endung); ihre Dateien dürfen gelöscht werden.

@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use crate::db::{anime, settings, sync_state, Database};
 use crate::error::CoreResult;
+use crate::images::fetch::{HttpImageFetcher, ImageFetcher};
+use crate::images::store::ImageStore;
 use crate::model::{
     AnimeDetail, AnimeFilter, AnimePage, NameCount, Settings, Stats, SyncKind, SyncStatus,
     SyncSummary,
@@ -24,6 +26,8 @@ pub struct Core {
     db: Arc<Database>,
     catalog: Arc<dyn CatalogSource>,
     metadata: Arc<dyn MetadataSource>,
+    store: ImageStore,
+    fetcher: Arc<dyn ImageFetcher>,
     config: SyncConfig,
 }
 
@@ -34,7 +38,7 @@ impl Core {
     /// Öffnet die Datenbank und baut die echten Quellen auf, ohne Netzwerkzugriff.
     /// Läufe, die beim letzten Prozessende noch liefen, gelten danach als abgebrochen.
     #[uniffi::constructor]
-    pub fn new(db_path: String) -> CoreResult<Arc<Self>> {
+    pub fn new(db_path: String, image_dir: String) -> CoreResult<Arc<Self>> {
         let db = Database::open(&db_path)?;
         db.with_conn(|conn| sync_state::reset_orphaned_runs(conn, now_unix()))?;
         let catalog = Arc::new(CrunchyrollSource::new()?);
@@ -42,10 +46,14 @@ impl Core {
             AniListClient::DEFAULT_ENDPOINT.to_string(),
             RetryConfig::default(),
         )?);
+        let store = ImageStore::new(image_dir)?;
+        let fetcher = Arc::new(HttpImageFetcher::new()?);
         Ok(Self::with_sources(
             db,
             catalog,
             metadata,
+            store,
+            fetcher,
             SyncConfig::default(),
         ))
     }
@@ -61,11 +69,12 @@ impl Core {
         let offset = non_negative(offset);
         let limit = non_negative(limit);
         self.db
-            .with_conn(|conn| query::query_anime(conn, &filter, offset, limit))
+            .with_conn(|conn| query::query_anime(conn, &self.store, &filter, offset, limit))
     }
 
     pub fn get_anime(&self, id: String) -> CoreResult<Option<AnimeDetail>> {
-        self.db.with_conn(|conn| anime::get_anime(conn, &id))
+        self.db
+            .with_conn(|conn| anime::get_anime(conn, &self.store, &id))
     }
 
     pub fn set_watched(&self, id: String, watched: bool) -> CoreResult<()> {
@@ -115,6 +124,8 @@ impl Core {
         run_catalog_sync(
             &self.db,
             self.catalog.as_ref(),
+            &self.store,
+            self.fetcher.as_ref(),
             &locale,
             &self.config,
             &*observer,
@@ -126,7 +137,15 @@ impl Core {
         &self,
         observer: Arc<dyn SyncObserver>,
     ) -> CoreResult<SyncSummary> {
-        run_enrichment(&self.db, self.metadata.as_ref(), &self.config, &*observer).await
+        run_enrichment(
+            &self.db,
+            self.metadata.as_ref(),
+            &self.store,
+            self.fetcher.as_ref(),
+            &self.config,
+            &*observer,
+        )
+        .await
     }
 }
 
@@ -137,12 +156,16 @@ impl Core {
         db: Database,
         catalog: Arc<dyn CatalogSource>,
         metadata: Arc<dyn MetadataSource>,
+        store: ImageStore,
+        fetcher: Arc<dyn ImageFetcher>,
         config: SyncConfig,
     ) -> Arc<Self> {
         Arc::new(Self {
             db: Arc::new(db),
             catalog,
             metadata,
+            store,
+            fetcher,
             config,
         })
     }

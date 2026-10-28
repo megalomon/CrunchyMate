@@ -10,6 +10,7 @@ import de.crunchymate.sync.SyncScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import java.io.File
 
 class AppContainer(
     context: Context,
@@ -20,7 +21,7 @@ class AppContainer(
         val dbFile = appContext.getDatabasePath(DB_NAME)
         // Das Verzeichnis "databases" legt Android erst beim ersten SQLiteOpenHelper an
         dbFile.parentFile?.mkdirs()
-        Core(dbFile.path)
+        Core(dbFile.path, File(appContext.filesDir, IMAGE_DIR).absolutePath)
     }
 
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -35,5 +36,6 @@ class AppContainer(
 
     private companion object {
         const val DB_NAME = "crunchymate.db"
+        const val IMAGE_DIR = "images"
     }
 }

@@ -3,7 +3,9 @@
 use rusqlite::types::Value;
 use rusqlite::{params_from_iter, Connection};
 
+use crate::db::images::{local_path, ImageSlot};
 use crate::error::CoreResult;
+use crate::images::store::ImageStore;
 use crate::model::{
     AnimeFilter, AnimePage, AnimeSummary, LanguageFilter, MehFilter, SortOrder, WatchedFilter,
 };
@@ -141,6 +143,7 @@ fn build(filter: &AnimeFilter) -> BuiltQuery {
 /// Mit `limit == 0` bleibt `items` leer, `total` ist trotzdem korrekt (reine Zählabfrage).
 pub fn query_anime(
     conn: &Connection,
+    store: &ImageStore,
     filter: &AnimeFilter,
     offset: u32,
     limit: u32,
@@ -163,7 +166,7 @@ pub fn query_anime(
         )
     };
     let sql = format!(
-        "SELECT a.id, a.title, COALESCE(NULLIF(a.poster_tall, ''), a.poster_wide), \
+        "SELECT a.id, a.title, \
          a.anilist_score, a.has_target_dub, a.has_target_sub, a.watched, a.is_meh, \
          {prefer_select} AS prefer_matches \
          FROM anime a{} ORDER BY {} LIMIT ? OFFSET ?",
@@ -177,21 +180,25 @@ pub fn query_anime(
     args.push(Value::Integer(i64::from(offset)));
 
     let mut stmt = conn.prepare(&sql)?;
-    let items = stmt
+    let mut items = stmt
         .query_map(params_from_iter(args.iter()), |row| {
             Ok(AnimeSummary {
                 id: row.get(0)?,
                 title: row.get(1)?,
-                poster_url: row.get(2)?,
-                anilist_score: row.get(3)?,
-                has_target_dub: row.get(4)?,
-                has_target_sub: row.get(5)?,
-                watched: row.get(6)?,
-                is_meh: row.get(7)?,
-                prefer_matches: row.get(8)?,
+                poster_path: String::new(),
+                anilist_score: row.get(2)?,
+                has_target_dub: row.get(3)?,
+                has_target_sub: row.get(4)?,
+                watched: row.get(5)?,
+                is_meh: row.get(6)?,
+                prefer_matches: row.get(7)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
+    for item in &mut items {
+        item.poster_path =
+            local_path(conn, store, &item.id, ImageSlot::PosterTall)?.unwrap_or_default();
+    }
 
     Ok(AnimePage { items, total })
 }
@@ -249,6 +256,11 @@ mod tests {
         ]
     }
 
+    // Es werden keine Dateien geschrieben; das Verzeichnis dient nur der Pfadbildung
+    fn store() -> ImageStore {
+        ImageStore::new(std::env::temp_dir().join("crunchymate-query-unit")).unwrap()
+    }
+
     fn db() -> Database {
         let db = Database::open_in_memory().unwrap();
         insert_all(&db, &fixtures()).unwrap();
@@ -270,7 +282,8 @@ mod tests {
     }
 
     fn run(db: &Database, filter: &AnimeFilter) -> AnimePage {
-        db.with_conn(|c| query_anime(c, filter, 0, 100)).unwrap()
+        db.with_conn(|c| query_anime(c, &store(), filter, 0, 100))
+            .unwrap()
     }
 
     fn ids(db: &Database, filter: &AnimeFilter) -> Vec<String> {
@@ -290,7 +303,7 @@ mod tests {
             titles,
             ["100% Liebe", "A_B", "alpha", "AxB", "beta", "Über die Welt"]
         );
-        assert_eq!(page.items[5].poster_url, "tall-a1");
+        assert!(page.items.iter().all(|i| i.poster_path.is_empty()));
     }
 
     #[test]
@@ -473,7 +486,9 @@ mod tests {
     #[test]
     fn paging_returns_slice_and_full_total() {
         let db = db();
-        let page = db.with_conn(|c| query_anime(c, &base(), 2, 2)).unwrap();
+        let page = db
+            .with_conn(|c| query_anime(c, &store(), &base(), 2, 2))
+            .unwrap();
         let got: Vec<_> = page.items.iter().map(|i| i.id.as_str()).collect();
         assert_eq!(got, ["a7", "a4"]);
         assert_eq!(page.total, 6);
@@ -482,7 +497,9 @@ mod tests {
     #[test]
     fn limit_zero_returns_total_only() {
         let db = db();
-        let page = db.with_conn(|c| query_anime(c, &base(), 0, 0)).unwrap();
+        let page = db
+            .with_conn(|c| query_anime(c, &store(), &base(), 0, 0))
+            .unwrap();
         assert!(page.items.is_empty());
         assert_eq!(page.total, 6);
     }

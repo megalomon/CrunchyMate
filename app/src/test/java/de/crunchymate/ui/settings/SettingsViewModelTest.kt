@@ -136,11 +136,11 @@ class SettingsViewModelTest {
                 FakeCore().apply {
                     syncStatuses =
                         mapOf(SyncKind.CATALOG to SyncStatus(SyncKind.CATALOG, SyncRunState.COMPLETED, 0L, 0L, null, null, "DE"))
-                    currentStats = Stats(total = 5, watched = 1, meh = 2, enriched = 3, tags = 4)
+                    currentStats = Stats(total = 5, watched = 1, meh = 2, enriched = 3, tags = 4, imageCount = 0, imageBytes = 0)
                 }
             val f = fixture(core)
 
             assertEquals("DE", f.viewModel.uiState.value.catalogCountry)
-            assertEquals(Stats(5, 1, 2, 3, 4), f.viewModel.uiState.value.stats)
+            assertEquals(Stats(5, 1, 2, 3, 4, 0, 0), f.viewModel.uiState.value.stats)
         }
 }

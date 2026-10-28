@@ -1,6 +1,8 @@
 use rusqlite::{params, Connection, OptionalExtension, Transaction};
 
+use crate::db::images::{image_stats, local_path, ImageSlot};
 use crate::error::CoreResult;
+use crate::images::store::ImageStore;
 use crate::model::{
     AniListInfo, AnimeDetail, CatalogItem, MetadataItem, NameCount, Stats, TagRank,
 };
@@ -38,7 +40,7 @@ const UPDATE_ANILIST: &str = "
 
 const SELECT_DETAIL: &str = "
     SELECT id, title, anilist_title_romaji, anilist_title_english, description,
-           poster_tall, poster_wide, anilist_banner_image, episode_count, launch_year,
+           episode_count, launch_year,
            is_subbed, is_dubbed, has_target_dub, has_target_sub, watched, is_meh,
            anilist_id, anilist_score, anilist_status, anilist_site_url, anilist_description
     FROM anime WHERE id = ?1";
@@ -124,18 +126,19 @@ pub fn set_meh(conn: &Connection, id: &str, meh: bool, now: i64) -> CoreResult<(
     Ok(())
 }
 
-pub fn get_anime(conn: &Connection, id: &str) -> CoreResult<Option<AnimeDetail>> {
+pub fn get_anime(
+    conn: &Connection,
+    store: &ImageStore,
+    id: &str,
+) -> CoreResult<Option<AnimeDetail>> {
     let detail = conn
         .query_row(SELECT_DETAIL, [id], |row| {
-            let poster_tall: String = row.get(5)?;
-            let poster_wide: String = row.get(6)?;
-            let banner: String = row.get(7)?;
-            let anilist = match row.get::<_, Option<i64>>(16)? {
+            let anilist = match row.get::<_, Option<i64>>(13)? {
                 Some(_) => Some(AniListInfo {
-                    score: row.get(17)?,
-                    status: row.get(18)?,
-                    site_url: row.get(19)?,
-                    description: row.get(20)?,
+                    score: row.get(14)?,
+                    status: row.get(15)?,
+                    site_url: row.get(16)?,
+                    description: row.get(17)?,
                 }),
                 None => None,
             };
@@ -145,16 +148,16 @@ pub fn get_anime(conn: &Connection, id: &str) -> CoreResult<Option<AnimeDetail>>
                 title_romaji: row.get(2)?,
                 title_english: row.get(3)?,
                 description: row.get(4)?,
-                poster_url: first_non_empty(&poster_tall, &poster_wide),
-                banner_url: first_non_empty(&banner, &poster_wide),
-                episode_count: row.get(8)?,
-                launch_year: row.get(9)?,
-                is_subbed: row.get(10)?,
-                is_dubbed: row.get(11)?,
-                has_target_dub: row.get(12)?,
-                has_target_sub: row.get(13)?,
-                watched: row.get(14)?,
-                is_meh: row.get(15)?,
+                poster_path: String::new(),
+                banner_path: String::new(),
+                episode_count: row.get(5)?,
+                launch_year: row.get(6)?,
+                is_subbed: row.get(7)?,
+                is_dubbed: row.get(8)?,
+                has_target_dub: row.get(9)?,
+                has_target_sub: row.get(10)?,
+                watched: row.get(11)?,
+                is_meh: row.get(12)?,
                 genres: Vec::new(),
                 tags: Vec::new(),
                 anilist,
@@ -166,16 +169,13 @@ pub fn get_anime(conn: &Connection, id: &str) -> CoreResult<Option<AnimeDetail>>
     };
     detail.genres = detail_genres(conn, id)?;
     detail.tags = detail_tags(conn, id)?;
+    detail.poster_path = local_path(conn, store, id, ImageSlot::PosterTall)?.unwrap_or_default();
+    // Ohne Banner dient das breite Poster als Ersatz
+    detail.banner_path = match local_path(conn, store, id, ImageSlot::Banner)? {
+        Some(path) => path,
+        None => local_path(conn, store, id, ImageSlot::PosterWide)?.unwrap_or_default(),
+    };
     Ok(Some(detail))
-}
-
-fn first_non_empty(preferred: &str, fallback: &str) -> String {
-    if preferred.is_empty() {
-        fallback
-    } else {
-        preferred
-    }
-    .to_string()
 }
 
 fn detail_genres(conn: &Connection, id: &str) -> CoreResult<Vec<String>> {
@@ -252,10 +252,17 @@ pub fn stats(conn: &Connection) -> CoreResult<Stats> {
                 meh: row.get(2)?,
                 enriched: row.get(3)?,
                 tags: row.get(4)?,
+                image_count: 0,
+                image_bytes: 0,
             })
         },
     )?;
-    Ok(stats)
+    let (image_count, image_bytes) = image_stats(conn)?;
+    Ok(Stats {
+        image_count,
+        image_bytes,
+        ..stats
+    })
 }
 
 pub fn unenriched(conn: &Connection) -> CoreResult<Vec<(String, String)>> {
@@ -282,6 +289,11 @@ mod tests {
     use crate::db::test_support::{insert_all, AnimeFixture};
     use crate::db::Database;
     use crate::model::{CatalogItem, MetadataItem, TagRank};
+
+    // Es werden keine Dateien geschrieben; das Verzeichnis dient nur der Pfadbildung
+    fn store() -> ImageStore {
+        ImageStore::new(std::env::temp_dir().join("crunchymate-anime-unit")).unwrap()
+    }
 
     fn catalog_item(id: &str, title: &str) -> CatalogItem {
         CatalogItem {
@@ -350,7 +362,10 @@ mod tests {
         db.with_tx(|tx| upsert_catalog_page(tx, &[catalog_item("a", "Neu")]))
             .unwrap();
 
-        let detail = db.with_conn(|c| get_anime(c, "a")).unwrap().unwrap();
+        let detail = db
+            .with_conn(|c| get_anime(c, &store(), "a"))
+            .unwrap()
+            .unwrap();
         assert_eq!(detail.title, "Neu");
         assert!(detail.watched && detail.is_meh);
         assert_eq!(detail.anilist.unwrap().score, 80);
@@ -406,22 +421,28 @@ mod tests {
         )
         .unwrap();
 
-        let a = db.with_conn(|c| get_anime(c, "a")).unwrap().unwrap();
+        let a = db
+            .with_conn(|c| get_anime(c, &store(), "a"))
+            .unwrap()
+            .unwrap();
         let ranks: Vec<i32> = a.tags.iter().map(|t| t.rank).collect();
         assert_eq!(ranks, vec![90, 50]);
-        assert_eq!(a.banner_url, "wide-a");
-        assert_eq!(a.poster_url, "wide-a");
         assert_eq!(a.title_romaji, "A Romaji");
         assert_eq!(a.title_english, "A English");
         assert_eq!(a.genres, vec!["Action".to_string()]);
         assert!(a.anilist.is_some());
 
-        let b = db.with_conn(|c| get_anime(c, "b")).unwrap().unwrap();
-        assert_eq!(b.banner_url, "banner-b");
-        assert_eq!(b.poster_url, "tall-b");
+        let b = db
+            .with_conn(|c| get_anime(c, &store(), "b"))
+            .unwrap()
+            .unwrap();
+        assert_eq!((b.poster_path.as_str(), b.banner_path.as_str()), ("", ""));
 
         insert_all(&db, &[AnimeFixture::new("c", "C")]).unwrap();
-        let c = db.with_conn(|c| get_anime(c, "c")).unwrap().unwrap();
+        let c = db
+            .with_conn(|c| get_anime(c, &store(), "c"))
+            .unwrap()
+            .unwrap();
         assert!(c.anilist.is_none());
         assert_eq!(c.title_romaji, "");
     }
@@ -429,7 +450,10 @@ mod tests {
     #[test]
     fn get_anime_unknown_id_is_none() {
         let db = Database::open_in_memory().unwrap();
-        assert!(db.with_conn(|c| get_anime(c, "x")).unwrap().is_none());
+        assert!(db
+            .with_conn(|c| get_anime(c, &store(), "x"))
+            .unwrap()
+            .is_none());
     }
 
     #[test]

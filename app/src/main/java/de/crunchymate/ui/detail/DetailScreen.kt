@@ -49,6 +49,7 @@ import de.crunchymate.core.ffi.AnimeDetail
 import de.crunchymate.core.ffi.TagSelection
 import de.crunchymate.ui.components.EmptyState
 import de.crunchymate.ui.components.TagChip
+import de.crunchymate.ui.components.localImageModel
 import de.crunchymate.ui.tags.stateOf
 import de.crunchymate.ui.theme.Dimens
 
@@ -122,9 +123,9 @@ private fun DetailContent(
     onTagTapped: (String) -> Unit,
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        if (anime.bannerUrl.isNotEmpty()) {
+        if (anime.bannerPath.isNotEmpty()) {
             AsyncImage(
-                model = anime.bannerUrl,
+                model = localImageModel(anime.bannerPath),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxWidth().height(Dimens.DetailBannerHeight),
@@ -160,7 +161,7 @@ private fun Header(
     Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
         // Der Titel steht direkt daneben; eine Bildbeschreibung würde ihn doppelt vorlesen
         AsyncImage(
-            model = anime.posterUrl.ifEmpty { null },
+            model = localImageModel(anime.posterPath),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.width(Dimens.DetailPosterWidth).aspectRatio(POSTER_ASPECT_RATIO),

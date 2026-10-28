@@ -38,7 +38,7 @@ class AppViewModelTest {
         runTest(dispatcher) {
             val core =
                 FakeCore(storedSettings = sampleSettings("en-US")).apply {
-                    currentStats = Stats(total = 10, watched = 3, meh = 2, enriched = 0, tags = 0)
+                    currentStats = Stats(total = 10, watched = 3, meh = 2, enriched = 0, tags = 0, imageCount = 0, imageBytes = 0)
                 }
             val gateway = CoreGateway(core, dispatcher)
             val store = SettingsStore(gateway, backgroundScope, dispatcher)
@@ -67,7 +67,7 @@ class AppViewModelTest {
             val viewModel = AppViewModel(gateway, SettingsStore(gateway, backgroundScope, dispatcher))
             runCurrent()
 
-            core.currentStats = Stats(total = 1, watched = 1, meh = 0, enriched = 0, tags = 0)
+            core.currentStats = Stats(total = 1, watched = 1, meh = 0, enriched = 0, tags = 0, imageCount = 0, imageBytes = 0)
             gateway.notifyChanged()
             runCurrent()
 

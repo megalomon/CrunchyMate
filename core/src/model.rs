@@ -59,7 +59,8 @@ pub struct AnimeFilter {
 pub struct AnimeSummary {
     pub id: String,
     pub title: String,
-    pub poster_url: String,
+    /// Absoluter Pfad der lokalen Bilddatei; leer, solange sie nicht geladen ist.
+    pub poster_path: String,
     pub anilist_score: i32,
     pub has_target_dub: bool,
     pub has_target_sub: bool,
@@ -95,8 +96,8 @@ pub struct AnimeDetail {
     pub title_romaji: String,
     pub title_english: String,
     pub description: String,
-    pub poster_url: String,
-    pub banner_url: String,
+    pub poster_path: String,
+    pub banner_path: String,
     pub episode_count: i32,
     pub launch_year: i32,
     pub is_subbed: bool,
@@ -123,6 +124,8 @@ pub struct Stats {
     pub meh: i64,
     pub enriched: i64,
     pub tags: i64,
+    pub image_count: i64,
+    pub image_bytes: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
@@ -173,6 +176,13 @@ pub enum SyncKind {
     Metadata,
 }
 
+/// Abschnitt eines Laufs: erst die Daten, danach die Bilder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum SyncPhase {
+    Items,
+    Images,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum SyncRunState {
     Idle,
@@ -196,6 +206,7 @@ pub struct SyncStatus {
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct SyncProgress {
     pub kind: SyncKind,
+    pub phase: SyncPhase,
     pub done: i64,
     pub total: i64,
 }
@@ -204,6 +215,7 @@ pub struct SyncProgress {
 pub struct SyncSummary {
     pub processed: i64,
     pub failed_batches: i32,
+    pub failed_images: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

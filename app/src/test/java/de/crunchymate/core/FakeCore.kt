@@ -43,7 +43,7 @@ class FakeCore(
 
     /** Ersatz für den Rust-Sync; Standard: sofort fertig ohne Fortschritt. */
     @Volatile
-    var syncBehavior: suspend (SyncKind, SyncObserver) -> SyncSummary = { _, _ -> SyncSummary(0L, 0) }
+    var syncBehavior: suspend (SyncKind, SyncObserver) -> SyncSummary = { _, _ -> SyncSummary(0L, 0, 0) }
 
     override fun queryAnime(
         filter: AnimeFilter,
@@ -82,7 +82,7 @@ class FakeCore(
         return tagList
     }
 
-    override fun stats(): Stats = currentStats ?: Stats(items.size.toLong(), 0L, 0L, 0L, 0L)
+    override fun stats(): Stats = currentStats ?: Stats(items.size.toLong(), 0L, 0L, 0L, 0L, 0L, 0L)
 
     override fun settings(): Settings = storedSettings
 
@@ -137,8 +137,8 @@ fun sampleDetail(
     titleRomaji = "",
     titleEnglish = "",
     description = "",
-    posterUrl = "",
-    bannerUrl = "",
+    posterPath = "",
+    bannerPath = "",
     episodeCount = 12,
     launchYear = 2024,
     isSubbed = true,

@@ -57,7 +57,7 @@ fun AnimeCard(
 ) {
     Card(onClick = onOpen, modifier = modifier.fillMaxWidth()) {
         AsyncImage(
-            model = anime.posterUrl.ifEmpty { null },
+            model = localImageModel(anime.posterPath),
             contentDescription = anime.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxWidth().aspectRatio(POSTER_ASPECT_RATIO),

@@ -1,6 +1,7 @@
 pub mod catalog_sync;
 pub mod config;
 pub mod enrichment;
+pub mod images;
 pub mod progress;
 pub mod run_guard;
 

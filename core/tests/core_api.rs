@@ -1,3 +1,5 @@
+mod common;
+
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -14,6 +16,8 @@ use crunchymate_core::remote::catalog_source::CatalogSource;
 use crunchymate_core::remote::metadata_source::MetadataSource;
 use crunchymate_core::sync::config::SyncConfig;
 use crunchymate_core::sync::progress::SyncObserver;
+
+use common::{FakeFetcher, TempDir};
 
 // Testkonfiguration ohne Pausen
 fn fast() -> SyncConfig {
@@ -110,13 +114,17 @@ fn all_filter() -> AnimeFilter {
     }
 }
 
-fn core_with(catalog: Arc<FakeCatalog>) -> Arc<Core> {
-    Core::with_sources(
+fn core_with(catalog: Arc<FakeCatalog>) -> (Arc<Core>, TempDir) {
+    let dir = TempDir::new("core");
+    let core = Core::with_sources(
         Database::open_in_memory().unwrap(),
         catalog,
         Arc::new(EmptyMetadata),
+        dir.store(),
+        Arc::new(FakeFetcher::default()),
         fast(),
-    )
+    );
+    (core, dir)
 }
 
 /// Temporäre Datenbankdatei, die samt WAL-Dateien beim Verlassen gelöscht wird.
@@ -153,7 +161,12 @@ async fn new_resets_orphaned_running_state() {
         db.with_conn(|c| mark_running(c, SyncKind::Catalog, 5))
             .unwrap();
     }
-    let core = Core::new(path.as_str().to_string()).unwrap();
+    let images = TempDir::new("orphan-images");
+    let core = Core::new(
+        path.as_str().to_string(),
+        images.path().to_string_lossy().into_owned(),
+    )
+    .unwrap();
     let status = core.sync_status(SyncKind::Catalog).unwrap();
     assert_eq!(status.state, SyncRunState::Cancelled);
     assert!(status.last_finished_at.is_some());
@@ -165,7 +178,7 @@ async fn new_resets_orphaned_running_state() {
 
 #[tokio::test]
 async fn facade_roundtrip_with_fake_sources() {
-    let core = core_with(Arc::new(FakeCatalog::new(&["a1", "a2", "a3"])));
+    let (core, _dir) = core_with(Arc::new(FakeCatalog::new(&["a1", "a2", "a3"])));
     let observer = Arc::new(RecordingObserver::default());
 
     let summary = core.sync_catalog(observer.clone()).await.unwrap();
@@ -199,7 +212,7 @@ async fn facade_roundtrip_with_fake_sources() {
 
 #[tokio::test]
 async fn query_anime_clamps_negative_and_zero_limit() {
-    let core = core_with(Arc::new(FakeCatalog::new(&["a1", "a2"])));
+    let (core, _dir) = core_with(Arc::new(FakeCatalog::new(&["a1", "a2"])));
     core.sync_catalog(Arc::new(RecordingObserver::default()))
         .await
         .unwrap();
@@ -219,7 +232,7 @@ async fn query_anime_clamps_negative_and_zero_limit() {
 #[tokio::test]
 async fn sync_catalog_uses_content_locale_from_settings() {
     let catalog = Arc::new(FakeCatalog::new(&["a1"]));
-    let core = core_with(catalog.clone());
+    let (core, _dir) = core_with(catalog.clone());
     assert_eq!(core.settings().unwrap(), Settings::default());
 
     let settings = Settings {
@@ -239,7 +252,7 @@ async fn sync_catalog_uses_content_locale_from_settings() {
 
 #[test]
 fn supported_locales_start_with_german() {
-    let core = core_with(Arc::new(FakeCatalog::new(&[])));
+    let (core, _dir) = core_with(Arc::new(FakeCatalog::new(&[])));
     let locales = core.supported_content_locales();
     assert_eq!(locales[0], "de-DE");
     assert!(locales.contains(&"en-US".to_string()));

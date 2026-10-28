@@ -1,3 +1,5 @@
+mod common;
+
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -6,7 +8,8 @@ use crunchymate_core::db::sync_state::status;
 use crunchymate_core::db::Database;
 use crunchymate_core::error::{CoreError, CoreResult, ErrorCode};
 use crunchymate_core::model::{
-    CatalogItem, CatalogPage, MetadataItem, SyncKind, SyncProgress, SyncRunState, SyncSummary,
+    CatalogItem, CatalogPage, MetadataItem, SyncKind, SyncPhase, SyncProgress, SyncRunState,
+    SyncSummary,
 };
 use crunchymate_core::remote::catalog_source::CatalogSource;
 use crunchymate_core::remote::metadata_source::MetadataSource;
@@ -14,6 +17,8 @@ use crunchymate_core::sync::catalog_sync::run_catalog_sync;
 use crunchymate_core::sync::config::SyncConfig;
 use crunchymate_core::sync::enrichment::run_enrichment;
 use crunchymate_core::sync::progress::SyncObserver;
+
+use common::{FakeFetcher, TempDir};
 
 // Testkonfiguration ohne Pausen
 fn fast() -> SyncConfig {
@@ -223,13 +228,22 @@ fn anime_total(db: &Database) -> i64 {
 
 #[tokio::test]
 async fn catalog_sync_upserts_all_pages_and_reports_progress() {
+    let dir = TempDir::new("sync");
     let db = Database::open_in_memory().unwrap();
     let source = FakeCatalog::pages(120, &[50, 50, 20]);
     let observer = Recorder::default();
 
-    let summary = run_catalog_sync(&db, &source, "de-DE", &fast(), &observer)
-        .await
-        .unwrap();
+    let summary = run_catalog_sync(
+        &db,
+        &source,
+        &dir.store(),
+        &FakeFetcher::default(),
+        "de-DE",
+        &fast(),
+        &observer,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(anime_total(&db), 120);
     assert_eq!(summary.processed, 120);
@@ -239,7 +253,7 @@ async fn catalog_sync_upserts_all_pages_and_reports_progress() {
         .lock()
         .unwrap()
         .iter()
-        .all(|p| p.kind == SyncKind::Catalog));
+        .all(|p| p.kind == SyncKind::Catalog && p.phase == SyncPhase::Items));
     let calls = source.calls.lock().unwrap().clone();
     assert_eq!(
         calls,
@@ -258,24 +272,42 @@ async fn catalog_sync_upserts_all_pages_and_reports_progress() {
 
 #[tokio::test]
 async fn catalog_sync_stores_country() {
+    let dir = TempDir::new("sync");
     let db = Database::open_in_memory().unwrap();
     let source = FakeCatalog::pages(10, &[10]);
-    run_catalog_sync(&db, &source, "de-DE", &fast(), &Recorder::default())
-        .await
-        .unwrap();
+    run_catalog_sync(
+        &db,
+        &source,
+        &dir.store(),
+        &FakeFetcher::default(),
+        "de-DE",
+        &fast(),
+        &Recorder::default(),
+    )
+    .await
+    .unwrap();
     let s = db.with_conn(|c| status(c, SyncKind::Catalog)).unwrap();
     assert_eq!(s.catalog_country.as_deref(), Some("DE"));
 }
 
 #[tokio::test]
 async fn catalog_sync_stops_on_empty_page() {
+    let dir = TempDir::new("sync");
     let db = Database::open_in_memory().unwrap();
     // total behauptet 200, aber Seite 2 ist leer
     let source = FakeCatalog::pages(200, &[50, 0, 50]);
     let observer = Recorder::default();
-    run_catalog_sync(&db, &source, "de-DE", &fast(), &observer)
-        .await
-        .unwrap();
+    run_catalog_sync(
+        &db,
+        &source,
+        &dir.store(),
+        &FakeFetcher::default(),
+        "de-DE",
+        &fast(),
+        &observer,
+    )
+    .await
+    .unwrap();
     assert_eq!(source.calls.lock().unwrap().len(), 2);
     assert_eq!(anime_total(&db), 50);
     assert_eq!(observer.pairs(), vec![(50, 200)]);
@@ -285,6 +317,7 @@ async fn catalog_sync_stops_on_empty_page() {
 
 #[tokio::test]
 async fn catalog_sync_failure_marks_failed_and_keeps_saved_pages() {
+    let dir = TempDir::new("sync");
     let db = Database::open_in_memory().unwrap();
     let source = FakeCatalog::new(vec![
         PageReply::Page(CatalogPage {
@@ -293,7 +326,16 @@ async fn catalog_sync_failure_marks_failed_and_keeps_saved_pages() {
         }),
         PageReply::Fail(network()),
     ]);
-    let result = run_catalog_sync(&db, &source, "de-DE", &fast(), &Recorder::default()).await;
+    let result = run_catalog_sync(
+        &db,
+        &source,
+        &dir.store(),
+        &FakeFetcher::default(),
+        "de-DE",
+        &fast(),
+        &Recorder::default(),
+    )
+    .await;
     assert!(matches!(result, Err(CoreError::Network { .. })));
     assert_eq!(anime_total(&db), 50);
     let s = db.with_conn(|c| status(c, SyncKind::Catalog)).unwrap();
@@ -304,6 +346,7 @@ async fn catalog_sync_failure_marks_failed_and_keeps_saved_pages() {
 
 #[tokio::test]
 async fn dropping_sync_future_marks_cancelled_and_keeps_pages() {
+    let dir = TempDir::new("sync");
     let db = Database::open_in_memory().unwrap();
     let source = FakeCatalog::new(vec![
         PageReply::Page(CatalogPage {
@@ -314,8 +357,10 @@ async fn dropping_sync_future_marks_cancelled_and_keeps_pages() {
     ]);
     let observer = Recorder::default();
     let config = fast();
+    let store = dir.store();
+    let fetcher = FakeFetcher::default();
     {
-        let future = run_catalog_sync(&db, &source, "de-DE", &config, &observer);
+        let future = run_catalog_sync(&db, &source, &store, &fetcher, "de-DE", &config, &observer);
         tokio::pin!(future);
         // Die Future läuft bis zur blockierenden Seite 2; dann wird sie verworfen.
         tokio::select! {
@@ -337,6 +382,7 @@ async fn dropping_sync_future_marks_cancelled_and_keeps_pages() {
 
 #[tokio::test]
 async fn enrichment_processes_only_unenriched() {
+    let dir = TempDir::new("sync");
     let db = Database::open_in_memory().unwrap();
     seed(&db, 3);
     db.with_tx(|tx| apply_metadata(tx, "a001", &metadata(1)))
@@ -344,9 +390,16 @@ async fn enrichment_processes_only_unenriched() {
     let source = FakeMetadata::new(Vec::new());
     let observer = Recorder::default();
 
-    let summary = run_enrichment(&db, &source, &fast(), &observer)
-        .await
-        .unwrap();
+    let summary = run_enrichment(
+        &db,
+        &source,
+        &dir.store(),
+        &FakeFetcher::default(),
+        &fast(),
+        &observer,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(
         source.calls(),
@@ -356,7 +409,8 @@ async fn enrichment_processes_only_unenriched() {
         summary,
         SyncSummary {
             processed: 2,
-            failed_batches: 0
+            failed_batches: 0,
+            failed_images: 0
         }
     );
     assert_eq!(observer.pairs(), vec![(2, 2)]);
@@ -374,20 +428,29 @@ async fn enrichment_processes_only_unenriched() {
 
 #[tokio::test]
 async fn enrichment_tolerates_failed_batch() {
+    let dir = TempDir::new("sync");
     let db = Database::open_in_memory().unwrap();
     seed(&db, 15);
     let source = FakeMetadata::new(vec![Some(network()), None]);
     let observer = Recorder::default();
 
-    let summary = run_enrichment(&db, &source, &fast(), &observer)
-        .await
-        .unwrap();
+    let summary = run_enrichment(
+        &db,
+        &source,
+        &dir.store(),
+        &FakeFetcher::default(),
+        &fast(),
+        &observer,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(
         summary,
         SyncSummary {
             processed: 5,
-            failed_batches: 1
+            failed_batches: 1,
+            failed_images: 0
         }
     );
     assert_eq!(observer.pairs(), vec![(10, 15), (15, 15)]);
@@ -398,6 +461,7 @@ async fn enrichment_tolerates_failed_batch() {
 
 #[tokio::test]
 async fn enrichment_aborts_on_rate_limit() {
+    let dir = TempDir::new("sync");
     let db = Database::open_in_memory().unwrap();
     seed(&db, 25);
     let source = FakeMetadata::new(vec![
@@ -407,7 +471,15 @@ async fn enrichment_aborts_on_rate_limit() {
         }),
     ]);
 
-    let result = run_enrichment(&db, &source, &fast(), &Recorder::default()).await;
+    let result = run_enrichment(
+        &db,
+        &source,
+        &dir.store(),
+        &FakeFetcher::default(),
+        &fast(),
+        &Recorder::default(),
+    )
+    .await;
 
     assert!(matches!(result, Err(CoreError::RateLimited { .. })));
     assert_eq!(source.calls().len(), 2);
@@ -420,14 +492,22 @@ async fn enrichment_aborts_on_rate_limit() {
 
 #[tokio::test]
 async fn enrichment_uses_clean_batches_of_configured_size() {
+    let dir = TempDir::new("sync");
     let db = Database::open_in_memory().unwrap();
     seed(&db, 25);
     let source = FakeMetadata::new(Vec::new());
     let observer = Recorder::default();
 
-    run_enrichment(&db, &source, &fast(), &observer)
-        .await
-        .unwrap();
+    run_enrichment(
+        &db,
+        &source,
+        &dir.store(),
+        &FakeFetcher::default(),
+        &fast(),
+        &observer,
+    )
+    .await
+    .unwrap();
 
     let sizes: Vec<usize> = source.calls().iter().map(Vec::len).collect();
     assert_eq!(sizes, vec![10, 10, 5]);

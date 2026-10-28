@@ -1,29 +1,52 @@
 use crate::db::anime::upsert_catalog_page;
+use crate::db::images::ImageSlot;
 use crate::db::sync_state::{set_catalog_country, update_progress};
 use crate::db::Database;
 use crate::error::CoreResult;
-use crate::model::{SyncKind, SyncProgress, SyncSummary};
+use crate::images::fetch::ImageFetcher;
+use crate::images::store::ImageStore;
+use crate::model::{SyncKind, SyncPhase, SyncProgress, SyncSummary};
 use crate::remote::catalog_source::CatalogSource;
 
 use super::config::SyncConfig;
+use super::images::run_image_sync;
 use super::pause;
 use super::progress::SyncObserver;
 use super::run_guard::RunGuard;
 
 const KIND: SyncKind = SyncKind::Catalog;
+/// Der Katalog liefert beide Poster; das Banner kommt erst mit den Metadaten.
+const CATALOG_IMAGE_SLOTS: [ImageSlot; 2] = [ImageSlot::PosterTall, ImageSlot::PosterWide];
 
-/// Lädt den ganzen Katalog seitenweise. Jede Seite wird sofort gespeichert,
-/// damit ein Abbruch oder Fehler die bereits geladenen Seiten nicht verwirft.
+/// Lädt den ganzen Katalog seitenweise und danach die Poster. Jede Seite wird sofort
+/// gespeichert, damit ein Abbruch oder Fehler die bereits geladenen Seiten nicht verwirft.
 pub async fn run_catalog_sync(
     db: &Database,
     source: &dyn CatalogSource,
+    store: &ImageStore,
+    fetcher: &dyn ImageFetcher,
     locale: &str,
     config: &SyncConfig,
     observer: &dyn SyncObserver,
 ) -> CoreResult<SyncSummary> {
     let guard = RunGuard::start(db, KIND, 0)?;
-    let result = sync_pages(db, source, locale, config, observer).await;
+    let result = sync_all(db, source, store, fetcher, locale, config, observer).await;
     guard.finish(result)
+}
+
+async fn sync_all(
+    db: &Database,
+    source: &dyn CatalogSource,
+    store: &ImageStore,
+    fetcher: &dyn ImageFetcher,
+    locale: &str,
+    config: &SyncConfig,
+    observer: &dyn SyncObserver,
+) -> CoreResult<SyncSummary> {
+    let mut summary = sync_pages(db, source, locale, config, observer).await?;
+    let images = run_image_sync(db, store, fetcher, &CATALOG_IMAGE_SLOTS, KIND, observer).await?;
+    summary.failed_images = images.failed;
+    Ok(summary)
 }
 
 async fn sync_pages(
@@ -54,6 +77,7 @@ async fn sync_pages(
         })?;
         observer.on_progress(SyncProgress {
             kind: KIND,
+            phase: SyncPhase::Items,
             done,
             total,
         });
@@ -67,5 +91,6 @@ async fn sync_pages(
     Ok(SyncSummary {
         processed: done,
         failed_batches: 0,
+        failed_images: 0,
     })
 }

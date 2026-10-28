@@ -51,7 +51,7 @@ class ComponentsTest {
         AnimeSummary(
             id = "a1",
             title = "Testtitel",
-            posterUrl = "",
+            posterPath = "",
             anilistScore = 80,
             hasTargetDub = true,
             hasTargetSub = true,
