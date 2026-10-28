@@ -19,7 +19,7 @@ Tipp: Einige Motive können doppelt verwendet werden, etwa `ic_nav_watched` für
 
 | Datei | Bedeutung | Emoji-Entsprechung | Gelieferte Datei | Quelle/Lizenz |
 |---|---|---|---|---|
-| `ic_nav_search` | Tab „Suche“: Katalog durchsuchen und filtern | 🔍 | | |
+| `ic_nav_search` | Tab „Suche“: Katalog durchsuchen und filtern | 🔍 | `magnify.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/magnify/; Lizenz unbekannt, bitte nachtragen |
 | `ic_nav_watched` | Tab „Gesehen“: Liste aller als gesehen markierten Anime | 👁️ | | |
 | `ic_nav_meh` | Tab „Meh“: Liste der ausgeblendeten, unerwünschten Anime | 😒 | | |
 | `ic_nav_settings` | Tab „Einstellungen“: Sync, Sprache, Statistik | ⚙️ | | |
