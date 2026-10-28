@@ -16,7 +16,7 @@ CrunchyMate wird komplett renoviert. Der Go-Webserver und das JS/HTML/CSS-Fronte
 - Ausgabe als normales Einzel-APK, kein App-Bundle und keine Split-APKs (xapk/apkm).
 - Build über GitHub Actions; Nightly-Release, zusätzlich manuell auslösbar.
 - Funktionsumfang 1:1 wie die heutige Web-UI.
-- Mehrsprachigkeit von Anfang an vorbereitet; zum Start nur Deutsch.
+- Mehrsprachigkeit von Anfang an vorbereitet; Deutsch ist die Standardsprache, Englisch ist enthalten.
 - KnusperBrötchen-Inhaltssprache umstellbar (siehe 5.3).
 - Code modular, wartbar, erweiterbar; Clean-Code-Prinzipien.
 - Keine Emojis – weder in UI noch Code, Kommentaren oder Dokumentation. Icons als SVG (VectorDrawable), Rastergrafiken als WebP. Die konkreten Symbole wählt der Auftraggeber selbst aus (Liste in 7.6).
@@ -76,7 +76,7 @@ core/                     Crate "crunchymate-core" (cdylib + lib)
     model.rs              Domänentypen
     remote/
       catalog_source.rs   trait CatalogSource
-      crispybun.rs      CatalogSource auf Basis von crispybun-rs
+      crispybun.rs      CatalogSource, eigene reqwest-Implementierung
       metadata_source.rs  trait MetadataSource
       anilist.rs          MetadataSource, eigene GraphQL-Implementierung
     sync/
@@ -112,7 +112,7 @@ Entfernt werden: `cmd/`, `internal/`, `web/`, `go.mod`, `go.sum`, `android/` (In
 
 ### 4.3. Technologie
 
-- Rust: `rusqlite` (Feature `bundled`), `reqwest` mit `rustls`, `serde`/`serde_json`, `tokio`, `uniffi`, `crispybun-rs` (TLS über rustls), `thiserror`. Tests: `wiremock`.
+- Rust: `rusqlite` (Feature `bundled`), `reqwest` mit `rustls`, `serde`/`serde_json`, `tokio`, `uniffi`, `thiserror`. Tests: `wiremock`.
 - Kotlin: Jetpack Compose mit Material 3, Navigation Compose, Lifecycle/ViewModel, Paging 3, Coil, WorkManager, kotlinx-coroutines, JNA (Laufzeit für UniFFI).
 - Build: Gradle, AGP und Kotlin (K2, Compose-Compiler-Plugin) jeweils in aktueller stabiler Version, zentral in `gradle/libs.versions.toml`. Java-Toolchain 17. Die konkreten Versionen werden im Plan anhand der zum Umsetzungszeitpunkt aktuellen Releases festgelegt.
 - Rust-Build: Gradle-Task vor `preBuild` ruft `cargo ndk -t arm64-v8a build --release` auf, kopiert die `.so` nach `jniLibs` und erzeugt die Kotlin-Bindings mit `uniffi-bindgen` in `build/generated`. Generierter Code wird nicht eingecheckt.
@@ -206,7 +206,7 @@ Daraus folgt:
 - Das **Katalogland** wird beim Sync aus dem Token gelesen, in `sync_state` gespeichert und in den Einstellungen angezeigt („automatisch erkannt“).
 - Die bisherige Heuristik, Dub/Sub zusätzlich aus dem Titel abzuleiten, wird im Plan anhand des Bestandscodes übernommen, sofern sie sprachunabhängig formulierbar ist; sonst gilt sie nur für Deutsch.
 
-Umsetzung über `crispybun-rs` (MIT/Apache-2.0) hinter dem Trait `CatalogSource { token_country(), fetch_page(start, count, locale) }`. Erster Planschritt: prüfen, dass die Bibliothek anonymen Login, paginiertes Browsing sowie Audio- und Untertitel-Locales bietet und mit rustls für `aarch64-linux-android` baut. Fehlt etwas, wird `CatalogSource` mit eigener reqwest-Implementierung umgesetzt (wie heute). Hinweise der Bibliothek zum Umgehen von Cloudflare-Sperren werden nicht übernommen.
+Umsetzung hinter dem Trait `CatalogSource { token_country(), fetch_page(start, count, locale) }`. Erster Planschritt: prüfen, ob ein Drittanbieter-Crate anonymen Login, paginiertes Browsing sowie Audio- und Untertitel-Locales bietet und mit rustls für `aarch64-linux-android` baut. Fehlt etwas, wird `CatalogSource` mit eigener reqwest-Implementierung umgesetzt (wie heute); die Vorprüfung hat so entschieden (fehlender Start-Offset). Hinweise des Crates zum Umgehen von Cloudflare-Sperren werden nicht übernommen.
 
 ### 5.4. AniList-Anbindung
 
@@ -264,9 +264,9 @@ Material 3, dunkles Schema angelehnt an die heutigen Farben (Knusper-Orange als 
 
 ### 7.5. Texte und Mehrsprachigkeit
 
-- Alle Texte in `res/values/strings.xml` (Deutsch), Pluralformen über `plurals`. Keine fest kodierten Texte (Lint `HardcodedText` als Fehler).
+- Alle Texte in Android-String-Ressourcen: Deutsch als Standard in `res/values/strings.xml`, Englisch in `res/values-en/strings.xml`; neue Strings immer in beiden. Pluralformen über `plurals`. Keine fest kodierten Texte (Lint `HardcodedText` als Fehler).
 - Fehlercodes des Kerns werden in Kotlin auf String-Ressourcen abgebildet.
-- App-Sprache über die systemeigene App-Spracheinstellung (`localeConfig`); zum Start nur `de`.
+- App-Sprache über die systemeigene App-Spracheinstellung (`localeConfig`) mit `de` und `en`.
 
 ### 7.6. Icons und Bilder
 
@@ -315,7 +315,7 @@ Benötigte Symbole (Auswahl durch den Auftraggeber):
 - `db`: idempotenter Upsert, Gesehen/Meh inklusive Zeitstempel, Migrationen.
 - `sync`: Fakes für `CatalogSource`/`MetadataSource`; Fortschritt, Abbruch nach Seite N, tolerierte Batch-Fehler, nur nicht angereicherte Einträge.
 - `remote/anilist`: `wiremock` für Mapping, `Retry-After`, Aufgeben nach maximaler Versuchszahl.
-- `remote/crispybun`: Mapping der Bibliothekstypen (u. a. Dub/Sub-Erkennung je Inhaltssprache). Keine Tests gegen die echte API in der CI.
+- `remote/crispybun`: Mapping der Antwortdaten (u. a. Dub/Sub-Erkennung je Inhaltssprache). Keine Tests gegen die echte API in der CI.
 
 ### 9.2. Kotlin (JVM)
 
@@ -344,7 +344,7 @@ Die lokale Toolchain in WSL2 (rustup statt Distributions-cargo, Android-Target, 
 ## 10. Offene Prüfpunkte für den ersten Planschritt
 
 1. Verfügbarkeit von SDK 37.2 und Konfiguration der Minor-Version in AGP.
-2. `crispybun-rs`: anonymer Login, paginiertes Browsing, Audio-/Untertitel-Locales, Build für `aarch64-linux-android` mit rustls; Lizenz- und Pflegestatus bestätigen.
+2. Drittanbieter-Crate für die KnusperBrötchen-API (in der Vorprüfung verworfen): anonymer Login, paginiertes Browsing, Audio-/Untertitel-Locales, Build für `aarch64-linux-android` mit rustls; Lizenz- und Pflegestatus bestätigen.
 3. Einrichtung der lokalen Toolchain in WSL2.
 
 ## 11. Mögliche zukünftige Features

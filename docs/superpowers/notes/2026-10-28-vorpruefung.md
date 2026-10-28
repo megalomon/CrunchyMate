@@ -1,4 +1,4 @@
-# Vorprüfung: Toolchain, SDK 37.2 und crispybun-rs
+# Vorprüfung: Toolchain, SDK 37.2 und Drittanbieter-Crate
 
 Stand: 28.10.2026. Alle Versionen wurden am 28.10.2026 abgefragt (Quellen siehe Tabelle). Sie sind eine Momentaufnahme und vor dem Einchecken der Build-Dateien erneut zu prüfen, falls zwischen Notiz und Umsetzung Tage liegen.
 
@@ -201,7 +201,9 @@ Prüfung: Ein Wegwerf-Crate mit genau diesen Abhängigkeiten baut mit `cargo ndk
 - Für Build-Skripte `uniffi` ggf. zusätzlich mit Feature `build` als `[build-dependencies]` einbinden, falls UDL statt Proc-Makros verwendet wird (Spec nutzt Proc-Makros, daher voraussichtlich nicht nötig).
 - Die tatsächlichen Tokio-Features sind für den Kern ausreichend gewählt (`rt-multi-thread`, `macros`, `time`, `sync`); `net` zieht reqwest selbst nach.
 
-## 4. crispybun-rs: Entscheidung gegen die Bibliothek, eigene reqwest-Implementierung
+## 4. Drittanbieter-Rust-Crate für die KnusperBrötchen-API: Entscheidung gegen die Bibliothek, eigene reqwest-Implementierung
+
+Geprüft wurde ein frei verfügbares Rust-Crate eines Drittanbieters (im Folgenden „das Crate“); sein Name steht hier bewusst nicht.
 
 Geprüft wurde ausschließlich der normale anonyme Login und Browse. Es wurden keine Optionen zum Umgehen von Cloudflare- oder Geo-Sperren verwendet (kein Proxy, kein Header-Spoofing, keine eigene Client-Konfiguration).
 
@@ -215,12 +217,12 @@ Geprüft wurde ausschließlich der normale anonyme Login und Browse. Es wurden k
 ### 4.2 Konkrete API-Aufrufe (alle im Wegwerf-Crate ausgeführt)
 
 ```rust
-use crispybun_rs::{CrispyBun, Locale};
-use crispybun_rs::auth::DeviceIdentifier;
-use crispybun_rs::search::{BrowseOptions, BrowseSortType, SearchMediaCollection};
+use drittanbieter_crate::{Client, Locale};
+use drittanbieter_crate::auth::DeviceIdentifier;
+use drittanbieter_crate::search::{BrowseOptions, BrowseSortType, SearchMediaCollection};
 
 // Anonymer Login (wie Besuch ohne Konto)
-let cr = CrispyBun::builder()
+let cr = Client::builder()
     .locale(Locale::de_DE)
     .login_anonymously(DeviceIdentifier::default())
     .await?;
@@ -241,7 +243,7 @@ Erreichbare Felder (Typ `Series`, per Deref aus `SearchSeries`):
 | Untertitel-Locales | `series.subtitle_locales: Vec<Locale>` | vorhanden |
 | Bilder | `series.images.poster_tall` / `poster_wide: Vec<Image>` (`source`, `width`, `height`) | vorhanden (je 9 Größen) |
 | Kategorien | `series.categories: Option<Vec<Category>>` (Quelle `tenant_categories`) | vorhanden |
-| Locale der Texte | `CrispyBunBuilder::locale(Locale)` bzw. intern `apply_locale_query()` | vorhanden |
+| Locale der Texte | `ClientBuilder::locale(Locale)` bzw. intern `apply_locale_query()` | vorhanden |
 | Sortierung | `BrowseOptions::sort(BrowseSortType::Popularity)` | vorhanden |
 | Anzahl pro Seite | `Pagination::page_size(u32)` | vorhanden |
 | Start-Offset | nicht setzbar | siehe 4.3 |
@@ -255,7 +257,7 @@ Erreichbare Felder (Typ `Series`, per Deref aus `SearchSeries`):
 4. **Client-Konfiguration.** `predefined_client_builder()` setzt ein angepasstes TLS-Profil (feste Cipher-Suites, nur X25519). Das ist laut Dokumentation auf Cloudflare-Erkennung ausgerichtet. Die Spec schließt das Übernehmen solcher Maßnahmen aus (Spec 5.3: Hinweise zum Umgehen von Cloudflare-Sperren werden nicht übernommen). Eine eigene Implementierung vermeidet das von vornherein.
 5. **Größe und Build-Zeit.** Die Bibliothek zieht u. a. `jsonwebtoken`, `dash-mpd`, `chrono`, `regex` mit; für Katalog-Browse wird nur ein Bruchteil benötigt.
 
-Entscheidungsregel aus dem Plan: Nur wenn alles zutrifft, wird `crispybun-rs` verwendet. Punkt 1 (Start-Offset) trifft nicht zu. Entscheidung: **eigene reqwest-Implementierung** hinter dem Trait `CatalogSource`, nach dem Vorbild von `git show 1d5ca54:android/app/src/main/java/de/crunchymate/sync/CrispyBunClient.kt`.
+Entscheidungsregel aus dem Plan: Nur wenn alles zutrifft, wird das Crate verwendet. Punkt 1 (Start-Offset) trifft nicht zu. Entscheidung: **eigene reqwest-Implementierung** hinter dem Trait `CatalogSource`, nach dem Vorbild des Katalog-Clients im Verzeichnis `sync/` von `git show 1d5ca54:android/app/src/main/java/de/crunchymate/sync/` (Verzeichnisliste; der Client ist dort die Datei mit dem Dienstnamen im Dateinamen).
 
 ### 4.4 Vorgaben für die eigene Implementierung (aus Bibliothek und Altcode abgeleitet)
 

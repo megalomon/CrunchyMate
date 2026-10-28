@@ -4,9 +4,9 @@
 
 **Goal:** CrunchyMate wird zu einer reinen Android-App mit Fachlogik in Rust (UniFFI) und nativer Jetpack-Compose-UI, gebaut und als Nightly veröffentlicht über GitHub Actions.
 
-**Architecture:** Crate `core/` (rusqlite, reqwest/rustls, tokio, crispybun-rs) kapselt Persistenz, Filterlogik, Remote-Quellen hinter Traits und Sync-Abläufe; exportiert wird ein UniFFI-Objekt `Core`. Das Android-Modul `app/` enthält nur Compose-Screens, ViewModels, WorkManager-Worker und Benachrichtigungen und spricht ausschließlich über einen `CoreGateway` mit dem Kern. Go-Server, Web-Frontend und die alte Kotlin-Implementierung entfallen.
+**Architecture:** Crate `core/` (rusqlite, reqwest/rustls, tokio) kapselt Persistenz, Filterlogik, Remote-Quellen hinter Traits und Sync-Abläufe; exportiert wird ein UniFFI-Objekt `Core`. Das Android-Modul `app/` enthält nur Compose-Screens, ViewModels, WorkManager-Worker und Benachrichtigungen und spricht ausschließlich über einen `CoreGateway` mit dem Kern. Go-Server, Web-Frontend und die alte Kotlin-Implementierung entfallen.
 
-**Tech Stack:** Rust (rusqlite `bundled`, reqwest `rustls-tls`, tokio, serde, uniffi, async-trait, thiserror, regex, crispybun-rs, wiremock), Kotlin (Compose Material 3, Navigation Compose typsicher, Lifecycle ViewModel, Paging 3, Coil, WorkManager, kotlinx-coroutines, kotlinx-serialization, JNA), Gradle mit Version Catalog, cargo-ndk, GitHub Actions.
+**Tech Stack:** Rust (rusqlite `bundled`, reqwest `rustls-tls`, tokio, serde, uniffi, async-trait, thiserror, regex, wiremock), Kotlin (Compose Material 3, Navigation Compose typsicher, Lifecycle ViewModel, Paging 3, Coil, WorkManager, kotlinx-coroutines, kotlinx-serialization, JNA), Gradle mit Version Catalog, cargo-ndk, GitHub Actions.
 
 **Spec:** `docs/superpowers/specs/2026-10-28-rust-core-native-ui-design.md`
 
@@ -48,7 +48,7 @@
 - Create: `docs/superpowers/notes/2026-10-28-vorpruefung.md`
 
 **Interfaces:**
-- Produces: die Notiz mit (a) allen Versionsnummern für `libs.versions.toml` und `Cargo.toml`, (b) NDK-Version, (c) Entscheidung `compileSdk` 37 oder 37.2 inklusive AGP-Syntax, (d) Entscheidung `crispybun-rs` ja/nein inklusive der konkreten API-Aufrufe (Login anonym, Browse mit Start/Anzahl/Locale/Sortierung, Felder für Audio-/Untertitel-Locales, Bilder, Kategorien, Land der Sitzung).
+- Produces: die Notiz mit (a) allen Versionsnummern für `libs.versions.toml` und `Cargo.toml`, (b) NDK-Version, (c) Entscheidung `compileSdk` 37 oder 37.2 inklusive AGP-Syntax, (d) Entscheidung Drittanbieter-Crate für die KnusperBrötchen-API ja/nein inklusive der konkreten API-Aufrufe (Login anonym, Browse mit Start/Anzahl/Locale/Sortierung, Felder für Audio-/Untertitel-Locales, Bilder, Kategorien, Land der Sitzung).
 
 - [ ] **Step 1: rustup installieren und Distributions-Rust ersetzen**
 
@@ -65,10 +65,10 @@ Expected: `sdkmanager --list_installed` listet Plattform 37 und NDK; `actionlint
 `sdkmanager --list | grep -i "android-37"` und AGP-Release-Notes zur Minor-SDK-Konfiguration lesen.
 Expected: Notiz hält fest, ob `platforms;android-37.2` (o. ä.) stabil verfügbar ist und welche AGP-Syntax die Minor-Version setzt; sonst Entscheidung `compileSdk = 37`.
 
-- [ ] **Step 4: crispybun-rs prüfen**
+- [ ] **Step 4: Drittanbieter-Crate für die KnusperBrötchen-API prüfen**
 
 In einem Wegwerf-Crate im Scratchpad die aktuelle Version mit rustls-Feature einbinden, Doku und Quellcode lesen, anonymen Login und eine Browse-Seite (`locale` de-DE, sortiert nach Popularität, 50 Einträge) abrufen und `cargo ndk -t arm64-v8a build` ausführen.
-Expected: Notiz hält fest: Version, Lizenz, Datum des letzten Releases, ob alle in „Produces“ genannten Daten erreichbar sind und ob der Android-Build gelingt. Entscheidungsregel: Nur wenn alles zutrifft, wird `crispybun-rs` verwendet; sonst eigene reqwest-Implementierung nach dem Vorbild von `git show 1d5ca54:android/app/src/main/java/de/crunchymate/sync/CrispyBunClient.kt`. Das Wegwerf-Crate wird nicht eingecheckt.
+Expected: Notiz hält fest: Version, Lizenz, Datum des letzten Releases, ob alle in „Produces“ genannten Daten erreichbar sind und ob der Android-Build gelingt. Entscheidungsregel: Nur wenn alles zutrifft, wird das Crate verwendet; sonst eigene reqwest-Implementierung nach dem Vorbild des Katalog-Clients aus `git show 1d5ca54:android/app/src/main/java/de/crunchymate/sync/` (Verzeichnisliste; der Client ist dort die Datei mit dem Dienstnamen im Namen). Das Wegwerf-Crate wird nicht eingecheckt.
 
 - [ ] **Step 5: Aktuelle Versionen ermitteln**
 
@@ -79,7 +79,7 @@ Expected: vollständige Versionstabelle in der Notiz.
 
 ```bash
 git add docs/superpowers/notes/2026-10-28-vorpruefung.md
-git commit -m "docs: Vorprüfung Toolchain, SDK 37.2 und crispybun-rs"
+git commit -m "docs: Vorprüfung Toolchain, SDK 37.2 und Drittanbieter-Crate"
 ```
 
 ### Task 2: Altbestand entfernen, Rust-Workspace und Projektregeln in CLAUDE.md
@@ -490,7 +490,7 @@ git commit -m "feat(core): AniList-Metadatenquelle mit Batch-Suche und Backoff"
   pub const POSTER_WIDE_WIDTH: (u32, u32) = (640, 1280);
   pub const SUPPORTED_CONTENT_LOCALES: &[&str]; // Locales, die der Katalog laut Task 1 liefert; erstes Element "de-DE"
   ```
-  Regeln (aus `git show 1d5ca54:android/app/src/main/java/de/crunchymate/sync/CrispyBunClient.kt`): Sprachvergleich über das Primärsubtag (`de-DE` -> `de`), Groß-/Kleinschreibung egal. Titelheuristik nur, wenn das Primärsubtag `de` ist: Titel enthält „german dub“ oder „synchro“ -> Dub; „omu“ oder „(ov)“ -> Sub. `pick_image`: erster Kandidat mit Breite im Bereich, sonst der letzte, leer bei keiner Auswahl. Kategorien getrimmt, leere verworfen. `session_country` liefert das Land der Sitzung in Großbuchstaben. Sortierung beim Abruf: Popularität; `locale` steuert Locale-Parameter und `Accept-Language`. Bei eigener Implementierung: Token-Abruf mit `grant_type=client_id`, bei 401 einmal neu anmelden; Land aus dem Feld `country` der Token-Antwort; Zugangsdaten als benannte Konstante wie bisher.
+  Regeln (aus dem Katalog-Client im Verzeichnis von `git show 1d5ca54:android/app/src/main/java/de/crunchymate/sync/`): Sprachvergleich über das Primärsubtag (`de-DE` -> `de`), Groß-/Kleinschreibung egal. Titelheuristik nur, wenn das Primärsubtag `de` ist: Titel enthält „german dub“ oder „synchro“ -> Dub; „omu“ oder „(ov)“ -> Sub. `pick_image`: erster Kandidat mit Breite im Bereich, sonst der letzte, leer bei keiner Auswahl. Kategorien getrimmt, leere verworfen. `session_country` liefert das Land der Sitzung in Großbuchstaben. Sortierung beim Abruf: Popularität; `locale` steuert Locale-Parameter und `Accept-Language`. Bei eigener Implementierung: Token-Abruf mit `grant_type=client_id`, bei 401 einmal neu anmelden; Land aus dem Feld `country` der Token-Antwort; Zugangsdaten als benannte Konstante wie bisher.
 
 - [ ] **Step 1: Tests schreiben**
 
@@ -510,7 +510,7 @@ Bei eigener Implementierung zusätzlich in `core/tests/crispybun.rs`: `reauthent
 Run: `cargo test -p crunchymate-core catalog`
 Expected: FAIL
 
-- [ ] **Step 3: Implementieren** (`CrispyBunSource` füllt `RawSeries` aus den Bibliothekstypen bzw. der JSON-Antwort und ruft `to_catalog_item`)
+- [ ] **Step 3: Implementieren** (`CrispyBunSource` füllt `RawSeries` aus der JSON-Antwort und ruft `to_catalog_item`)
 
 - [ ] **Step 4: Tests ausführen**
 

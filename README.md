@@ -15,6 +15,7 @@ CrunchyMate ist eine Android-App zum Durchsuchen, Filtern und Verfolgen des Knus
 - Anime als gesehen oder als Meh markieren; Meh-Einträge verschwinden aus der Suche.
 - KnusperBrötchen-Sync und AniList-Anreicherung mit Fortschritt, Abbruch und Hintergrundausführung über WorkManager.
 - Wählbare Inhaltssprache für Titel und Beschreibungen.
+- Oberfläche auf Deutsch und Englisch; die App-Sprache folgt der Systemeinstellung.
 - Offline-first: Poster und Banner werden beim Sync als WebP lokal abgelegt, die App lädt keine Bilder aus dem Netz.
 
 Der Katalog hängt am Land, das im anonymen KnusperBrötchen-Token festgelegt ist; die Inhaltssprache ändert nur die Texte.
@@ -36,7 +37,7 @@ Voraussetzungen:
 - Rust über rustup; `rust-toolchain.toml` wählt die stabile Toolchain und das Target `aarch64-linux-android`
 - cargo-ndk: `cargo install cargo-ndk --locked`
 - JDK 17
-- Android SDK mit Plattform 37.2, Build-Tools 37.0.0 und NDK 30.0.16248370
+- Android SDK mit Plattform 37.2, Build-Tools 37.0.0 und dem NDK aus `gradle.properties` (`crunchymate.ndkVersion`)
 
 ```bash
 ./gradlew assembleDebug

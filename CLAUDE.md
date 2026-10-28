@@ -25,7 +25,7 @@ cargo test -p crunchymate-core <testname>          # Einzeltest
 bash scripts/run-device-tests.sh
 ```
 
-`assembleDebug` baut den Kern per cargo-ndk, erzeugt die UniFFI-Bindings und führt `checkNoNetworkClients` aus. Dafür brauchen Rust (rustup, Target `aarch64-linux-android`), cargo-ndk und das NDK aus `app/build.gradle.kts`.
+`assembleDebug` baut den Kern per cargo-ndk, erzeugt die UniFFI-Bindings und führt `checkNoNetworkClients` aus. Dafür brauchen Rust (rustup, Target `aarch64-linux-android`), cargo-ndk und das NDK aus `gradle.properties`.
 
 ## Architektur
 
@@ -41,7 +41,7 @@ bash scripts/run-device-tests.sh
 - Icons sind VectorDrawables aus SVG-Dateien, die der Auftraggeber liefert; keine eigene Icon-Auswahl. Rohdateien liegen in `design/icons/ablage/` (nicht versioniert). Einbindung über den Projekt-Skill `/check-svg` (`.claude/skills/check-svg/`). Platzhalter dürfen gelieferte Icons nie überschreiben. Rastergrafiken nur als WebP.
 - Ungenutzte Icons vollständig entfernen: Drawable, Eintrag in `docs/icons.md`, Eintrag in `docs/open-source-hinweise.md`, Quell-SVG in `design/icons/` und Original in `design/icons/originals`.
 - Ändern sich Abhängigkeiten (Cargo oder Gradle), `docs/open-source-hinweise.md` mit `python3 scripts/gen-oss-notices.py` aktualisieren. Das Skript ersetzt nur den Abschnitt zwischen `<!-- oss:begin -->` und `<!-- oss:end -->` (aus `cargo metadata` und `./gradlew :app:dependencies`); Icon-, Flaggen- und Lizenztextabschnitte pflegt man von Hand. Das Skript liest sie zusammen mit den erzeugten Tabellen wieder ein und schreibt das App-Asset `app/src/main/assets/open_source_notices.json` (Lizenzbildschirm); die Markdown-Datei ist die einzige Quelle, das Asset wird nie von Hand bearbeitet. Das Asset gehört immer mit ins selbe Commit (`OpenSourceNoticesTest` prüft den Abgleich).
-- UI-Texte stehen ausschließlich auf Deutsch in `strings.xml`.
+- UI-Texte stehen nur in `strings.xml`: Deutsch als Standard in `values/`, Englisch in `values-en/`; neue Strings immer in beiden.
 - Einzel-APK ohne Splits.
 - Code-Kommentare sparsam, auf Deutsch, und sie erklären das Warum.
 
