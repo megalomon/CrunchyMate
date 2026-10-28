@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Enum)]
 pub enum WatchedFilter {
     All,
     Unwatched,
@@ -12,7 +12,7 @@ pub enum MehFilter {
     Include,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Enum)]
 pub enum LanguageFilter {
     All,
     Dub,
@@ -21,7 +21,7 @@ pub enum LanguageFilter {
     Any,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Enum)]
 pub enum SortOrder {
     Title,
     Score,
@@ -29,14 +29,14 @@ pub enum SortOrder {
     Year,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Enum)]
 pub enum TagState {
     Prefer,
     Must,
     Exclude,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
 pub struct TagSelection {
     pub name: String,
     pub state: TagState,
@@ -125,7 +125,8 @@ pub struct Stats {
     pub tags: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(default)]
 pub struct SearchState {
     pub query: String,
     pub genre: Option<String>,
@@ -150,7 +151,8 @@ impl Default for SearchState {
 
 pub const DEFAULT_CONTENT_LOCALE: &str = "de-DE";
 
-#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(default)]
 pub struct Settings {
     pub content_locale: String,
     pub search: SearchState,

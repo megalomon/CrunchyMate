@@ -1,5 +1,7 @@
 pub mod anime;
 pub mod schema;
+pub mod settings;
+pub mod sync_state;
 #[cfg(test)]
 pub(crate) mod test_support;
 
