@@ -225,7 +225,7 @@ val checkNoNetworkClients by tasks.registering {
     val forbidden =
         listOf(
             Regex("io\\.coil-kt\\.coil3:coil-network-.*"),
-            Regex("com\\.squareup\\.okhttp3:okhttp"),
+            Regex("com\\.squareup\\.okhttp3:okhttp(-.*)?"),
             Regex("io\\.ktor:.*client.*"),
         )
     val roots =
