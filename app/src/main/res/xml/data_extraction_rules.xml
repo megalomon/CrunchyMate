@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Gesichert wird nur die Nutzer-Datenbank (Einstellungen, Gesehen/Meh). Sobald ein include
+    angegeben ist, sichert Android nichts anderes mehr: Katalog- und AniList-Cache samt
+    Sync-Zustand (crunchymate.db), Bilder und WorkManager-Daten bleiben außen vor und entstehen
+    beim nächsten Sync neu. Die Nutzer-Datenbank läuft im Rollback-Journal; die Begleitdateien
+    sind aufgeführt, damit ein nach einem Absturz offenes Journal mit der Datei zusammen bleibt.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="database" path="crunchymate-user.db" />
+        <include domain="database" path="crunchymate-user.db-journal" />
+        <include domain="database" path="crunchymate-user.db-wal" />
+        <include domain="database" path="crunchymate-user.db-shm" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="database" path="crunchymate-user.db" />
+        <include domain="database" path="crunchymate-user.db-journal" />
+        <include domain="database" path="crunchymate-user.db-wal" />
+        <include domain="database" path="crunchymate-user.db-shm" />
+    </device-transfer>
+</data-extraction-rules>

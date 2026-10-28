@@ -1,0 +1,31 @@
+name: Android-Build vorbereiten
+description: Richtet JDK, Android-SDK mit NDK, Rust mit Android-Target, cargo-ndk und Gradle ein.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: "17"
+    - uses: android-actions/setup-android@v4
+      with:
+        accept-android-sdk-licenses: false
+    - name: SDK-Lizenzen akzeptieren
+      shell: bash
+      # yes endet beim Schließen der Pipe mit SIGPIPE; unter pipefail darf das nicht scheitern.
+      run: "{ yes || true; } | sdkmanager --licenses > /dev/null"
+    - name: Plattform, Build-Tools und NDK installieren
+      shell: bash
+      run: |
+        ndk_version=$(sed -n 's/^crunchymate\.ndkVersion=//p' gradle.properties)
+        test -n "$ndk_version"
+        sdkmanager --install "platforms;android-37.2" "build-tools;37.0.0" "ndk;$ndk_version"
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: aarch64-linux-android
+    - uses: Swatinem/rust-cache@v2
+    - name: cargo-ndk installieren
+      shell: bash
+      run: cargo install cargo-ndk --locked
+    - uses: gradle/actions/setup-gradle@v6

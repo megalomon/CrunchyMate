@@ -1,0 +1,327 @@
+package de.crunchymate.ui.detail
+
+import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.fromHtml
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import de.crunchymate.R
+import de.crunchymate.core.ffi.AniListInfo
+import de.crunchymate.core.ffi.AnimeDetail
+import de.crunchymate.core.ffi.TagSelection
+import de.crunchymate.ui.components.EmptyState
+import de.crunchymate.ui.components.LanguageFlag
+import de.crunchymate.ui.components.LocalImage
+import de.crunchymate.ui.components.OverlayBadge
+import de.crunchymate.ui.components.TagChip
+import de.crunchymate.ui.components.flagState
+import de.crunchymate.ui.tags.stateOf
+import de.crunchymate.ui.theme.Dimens
+import de.crunchymate.ui.theme.scoreColor
+
+const val DETAIL_AGE_TAG = "detail_age"
+
+@Composable
+fun DetailDestination(
+    viewModel: DetailViewModel,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    DetailScreen(
+        state = state,
+        onBack = onBack,
+        onToggleWatched = viewModel::onToggleWatched,
+        onToggleMeh = viewModel::onToggleMeh,
+        onTagTapped = viewModel::onTagTapped,
+        modifier = modifier,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DetailScreen(
+    state: DetailUiState,
+    onBack: () -> Unit,
+    onToggleWatched: () -> Unit,
+    onToggleMeh: () -> Unit,
+    onTagTapped: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Die äußere App-Hülle berücksichtigt die Systemleisten bereits
+    Scaffold(
+        modifier = modifier,
+        contentWindowInsets = WindowInsets(0),
+        topBar = {
+            TopAppBar(
+                title = { Text(state.anime?.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(painterResource(R.drawable.ic_back), contentDescription = stringResource(R.string.action_back))
+                    }
+                },
+                windowInsets = WindowInsets(0),
+            )
+        },
+    ) { padding ->
+        val anime = state.anime
+        Box(Modifier.padding(padding).fillMaxSize()) {
+            when {
+                anime != null -> DetailContent(anime, state, onToggleWatched, onToggleMeh, onTagTapped)
+                state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                else ->
+                    EmptyState(
+                        icon = R.drawable.ic_state_error,
+                        title = stringResource(R.string.detail_error_title),
+                        subtitle = stringResource(state.error ?: R.string.error_unknown),
+                    )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailContent(
+    anime: AnimeDetail,
+    state: DetailUiState,
+    onToggleWatched: () -> Unit,
+    onToggleMeh: () -> Unit,
+    onTagTapped: (String) -> Unit,
+) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        if (anime.bannerPath.isNotEmpty()) {
+            LocalImage(
+                path = anime.bannerPath,
+                contentDescription = null,
+                modifier = Modifier.fillMaxWidth().height(Dimens.DetailBannerHeight),
+            )
+        }
+        Column(Modifier.padding(Dimens.SpaceMd), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+            Header(anime, state.contentLocale, onToggleWatched, onToggleMeh)
+            state.error?.let {
+                Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            }
+            if (anime.ageRating != null || anime.contentDescriptors.isNotEmpty()) {
+                AgeAndDescriptors(anime)
+            }
+            if (anime.genres.isNotEmpty()) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+                    anime.genres.forEach { InfoLabel(it) }
+                }
+            }
+            if (anime.description.isNotBlank()) {
+                Section(R.string.detail_description) { Text(anime.description, style = MaterialTheme.typography.bodyMedium) }
+            }
+            if (anime.tags.isNotEmpty()) {
+                Section(R.string.detail_tags) { Tags(anime, state.tagStates, onTagTapped) }
+            }
+            anime.anilist?.let { AniListSection(it) }
+        }
+    }
+}
+
+@Composable
+private fun Header(
+    anime: AnimeDetail,
+    contentLocale: String,
+    onToggleWatched: () -> Unit,
+    onToggleMeh: () -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+        // Der Titel steht direkt daneben; eine Bildbeschreibung würde ihn doppelt vorlesen
+        LocalImage(
+            path = anime.posterPath,
+            contentDescription = null,
+            modifier = Modifier.width(Dimens.DetailPosterWidth).aspectRatio(Dimens.POSTER_ASPECT_RATIO),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+            Text(anime.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+            listOf(anime.titleRomaji, anime.titleEnglish)
+                .filter { it.isNotBlank() && it != anime.title }
+                .distinct()
+                .forEach {
+                    Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
+                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
+            ) {
+                if (anime.launchYear > 0) InfoLabel(anime.launchYear.toString())
+                if (anime.episodeCount > 0) {
+                    InfoLabel(pluralStringResource(R.plurals.detail_episodes, anime.episodeCount, anime.episodeCount))
+                }
+                LanguageFlag(
+                    contentLocale,
+                    flagState(anime.hasTargetDub, anime.hasTargetSub),
+                    width = Dimens.DetailFlagWidth,
+                    height = Dimens.DetailFlagHeight,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+                ToggleButton(
+                    active = anime.watched,
+                    icon = if (anime.watched) R.drawable.ic_watched_on else R.drawable.ic_watched_off,
+                    description = stringResource(R.string.action_toggle_watched),
+                    onClick = onToggleWatched,
+                )
+                ToggleButton(
+                    active = anime.isMeh,
+                    icon = if (anime.isMeh) R.drawable.ic_meh_on else R.drawable.ic_meh_off,
+                    description = stringResource(R.string.action_toggle_meh),
+                    onClick = onToggleMeh,
+                )
+            }
+        }
+    }
+}
+
+/** Altersstufe vor den Inhaltshinweisen; unabhängig von der Einstellung für die Kacheln. */
+@Composable
+private fun AgeAndDescriptors(anime: AnimeDetail) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
+        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
+    ) {
+        anime.ageRating?.let { age ->
+            val description = stringResource(R.string.badge_age_rating_description, age)
+            Box(Modifier.testTag(DETAIL_AGE_TAG).semantics(mergeDescendants = true) { contentDescription = description }) {
+                InfoLabel(stringResource(R.string.detail_age_rating, age))
+            }
+        }
+        anime.contentDescriptors.forEach { InfoLabel(it) }
+    }
+}
+
+/** Nur Symbol: Beschriftung und Zustand stehen für TalkBack in den Semantics; die Standardgröße der Buttons sichert 48 dp. */
+@Composable
+private fun ToggleButton(
+    active: Boolean,
+    @DrawableRes icon: Int,
+    description: String,
+    onClick: () -> Unit,
+) {
+    val state = stringResource(if (active) R.string.state_marked else R.string.state_not_marked)
+    val semantics: Modifier =
+        Modifier.semantics {
+            contentDescription = description
+            stateDescription = state
+        }
+    val content: @Composable () -> Unit = { Icon(painterResource(icon), contentDescription = null) }
+    if (active) {
+        FilledTonalIconButton(onClick = onClick, modifier = semantics) { content() }
+    } else {
+        OutlinedIconButton(onClick = onClick, modifier = semantics) { content() }
+    }
+}
+
+@Composable
+private fun Tags(
+    anime: AnimeDetail,
+    tagStates: List<TagSelection>,
+    onTagTapped: (String) -> Unit,
+) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+        anime.tags.forEach { tag ->
+            TagChip(
+                name = tag.name,
+                count = null,
+                state = tagStates.stateOf(tag.name),
+                onClick = { onTagTapped(tag.name) },
+                label = stringResource(R.string.detail_tag_rank, tag.name, tag.rank),
+            )
+        }
+    }
+}
+
+/** Die Adresse stammt aus Fremddaten; nur https wird an andere Apps weitergereicht. */
+internal fun isOpenableSiteUrl(url: String): Boolean = url.startsWith(HTTPS_SCHEME, ignoreCase = true)
+
+private const val HTTPS_SCHEME = "https://"
+
+@Composable
+private fun AniListSection(info: AniListInfo) {
+    val uriHandler = LocalUriHandler.current
+    Section(R.string.detail_anilist) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+            if (info.score > 0) {
+                OverlayBadge(
+                    R.drawable.ic_badge_score,
+                    stringResource(R.string.detail_anilist_score, info.score),
+                    iconTint = scoreColor(info.score),
+                )
+            }
+            if (info.status.isNotBlank()) InfoLabel(info.status)
+        }
+        if (info.description.isNotBlank()) {
+            Text(AnnotatedString.fromHtml(info.description), style = MaterialTheme.typography.bodyMedium)
+        }
+        if (isOpenableSiteUrl(info.siteUrl)) {
+            OutlinedButton(onClick = { uriHandler.openUri(info.siteUrl) }) {
+                Icon(painterResource(R.drawable.ic_open_external), contentDescription = null)
+                Text(stringResource(R.string.detail_anilist_open), modifier = Modifier.padding(start = Dimens.SpaceSm))
+            }
+        }
+    }
+}
+
+@Composable
+private fun Section(
+    @StringRes title: Int,
+    content: @Composable () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+        Text(stringResource(title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        content()
+    }
+}
+
+@Composable
+private fun InfoLabel(text: String) {
+    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = MaterialTheme.shapes.small) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = Dimens.SpaceSm, vertical = Dimens.SpaceXs),
+        )
+    }
+}

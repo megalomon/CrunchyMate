@@ -4,7 +4,7 @@
 
 **Goal:** Build a standalone Android application (`.apk`) under `android/` providing the exact same CrunchyMate web experience via an Android `WebView`, communicating with an internal SQLite database and native sync engine via a JavaScript bridge, with zero local HTTP servers.
 
-**Architecture:** An Android project using Kotlin and Gradle embedding the existing web UI (`index.html`, `style.css`, `app.js`). Communication between JavaScript and the native app is handled via an `@JavascriptInterface` bridge (`AndroidBridge`) using a dual-mode adapter in `app.js`. The native layer uses Android's built-in SQLite framework for persistence and an Android `ForegroundService` with notification for long-running Crunchyroll and AniList catalog synchronizations.
+**Architecture:** An Android project using Kotlin and Gradle embedding the existing web UI (`index.html`, `style.css`, `app.js`). Communication between JavaScript and the native app is handled via an `@JavascriptInterface` bridge (`AndroidBridge`) using a dual-mode adapter in `app.js`. The native layer uses Android's built-in SQLite framework for persistence and an Android `ForegroundService` with notification for long-running CrispyBun and AniList catalog synchronizations.
 
 **Tech Stack:** Kotlin, Android SDK (minSdk 26, targetSdk 34), SQLite (`android.database.sqlite`), Kotlin Coroutines, Java standard HTTP / `HttpURLConnection`, Vanilla JavaScript (ES6+).
 
@@ -128,7 +128,7 @@ git commit -m "chore(android): scaffold Android project and Gradle build configu
   - `AnimeRepository.getGenres(): JSONArray`
   - `AnimeRepository.getTags(): JSONArray`
   - `AnimeRepository.getStats(): JSONObject`
-  - `AnimeRepository.upsertCrunchyrollSeries(items: List<CRSeriesItem>)`
+  - `AnimeRepository.upsertCrispyBunSeries(items: List<CRSeriesItem>)`
   - `AnimeRepository.updateAniListMetadata(id: String, aniData: AniListMediaData)`
 
 - [ ] **Step 1: Write Unit Test for Repository and SQL Query Generation**
@@ -163,18 +163,18 @@ git commit -m "feat(android): implement SQLite database helper and AnimeReposito
 
 ---
 
-### Task 4: Native Sync Engine (Crunchyroll & AniList Clients)
+### Task 4: Native Sync Engine (CrispyBun & AniList Clients)
 
 **Files:**
-- Create: `android/app/src/main/java/de/crunchymate/sync/CrunchyrollClient.kt`
+- Create: `android/app/src/main/java/de/crunchymate/sync/CrispyBunClient.kt`
 - Create: `android/app/src/main/java/de/crunchymate/sync/AniListClient.kt`
 - Create: `android/app/src/main/java/de/crunchymate/sync/SyncManager.kt`
 - Test: `android/app/src/test/java/de/crunchymate/sync/SyncClientTest.kt`
 
 **Interfaces:**
-- Consumes: Crunchyroll REST API (`https://beta-api.crunchyroll.com`), AniList GraphQL (`https://graphql.anilist.co`), `AnimeRepository`.
+- Consumes: CrispyBun REST API (`<API-Basis-URL>`), AniList GraphQL (`https://graphql.anilist.co`), `AnimeRepository`.
 - Produces:
-  - `SyncManager.startCrunchyrollSync(onProgress: (Int, Int) -> Unit)`
+  - `SyncManager.startCrispyBunSync(onProgress: (Int, Int) -> Unit)`
   - `SyncManager.startAniListSync(onProgress: (Int, Int) -> Unit)`
   - `SyncManager.getCrSyncStatus(): JSONObject`
   - `SyncManager.getAniListSyncStatus(): JSONObject`
@@ -183,7 +183,7 @@ git commit -m "feat(android): implement SQLite database helper and AnimeReposito
 
 Write unit tests verifying:
 - Title cleanup regex in `AniListClient` (strips `(German Dub)`, `(OmU)`, etc.).
-- Audio/Subtitle locale parsing (`de-DE`) in `CrunchyrollClient`.
+- Audio/Subtitle locale parsing (`de-DE`) in `CrispyBunClient`.
 - HTTP 429 retry-after backoff handling.
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -191,10 +191,10 @@ Write unit tests verifying:
 Run: `gradle test`
 Expected: FAIL
 
-- [ ] **Step 3: Implement CrunchyrollClient, AniListClient, and SyncManager**
+- [ ] **Step 3: Implement CrispyBunClient, AniListClient, and SyncManager**
 
 Implement:
-- `CrunchyrollClient`: Fetches anonymous token, iterates through `/content/v2/discover/browse?locale=de-DE`, batches upserts to `AnimeRepository`.
+- `CrispyBunClient`: Fetches anonymous token, iterates through `/content/v2/discover/browse?locale=de-DE`, batches upserts to `AnimeRepository`.
 - `AniListClient`: GraphQL queries, media tag rank filtering, cover and banner retrieval.
 - `SyncManager`: Coordinates background coroutine scopes, progress tracking, and sync state timestamps.
 
@@ -207,7 +207,7 @@ Expected: PASS
 
 ```bash
 git add android/app/src/main/java/de/crunchymate/sync/
-git commit -m "feat(android): implement Crunchyroll and AniList sync clients and SyncManager"
+git commit -m "feat(android): implement CrispyBun and AniList sync clients and SyncManager"
 ```
 
 ---
@@ -226,7 +226,7 @@ git commit -m "feat(android): implement Crunchyroll and AniList sync clients and
 
 Implement:
 - Notification channel creation with `IMPORTANCE_LOW`.
-- Ongoing notification builder showing current sync phase (Crunchyroll or AniList) and progress count.
+- Ongoing notification builder showing current sync phase (CrispyBun or AniList) and progress count.
 - Binding or static progress broadcast for UI sync.
 
 - [ ] **Step 2: Verify Service registration in AndroidManifest.xml**
