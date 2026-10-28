@@ -2,9 +2,9 @@ use rusqlite::Connection;
 
 use crate::error::CoreResult;
 
-pub const SCHEMA_VERSION: i32 = 1;
+pub const SCHEMA_VERSION: i32 = 2;
 
-const MIGRATIONS: [&str; SCHEMA_VERSION as usize] = [MIGRATION_V1];
+const MIGRATIONS: [&str; SCHEMA_VERSION as usize] = [MIGRATION_V1, MIGRATION_V2];
 
 const MIGRATION_V1: &str = "
     CREATE TABLE anime (
@@ -73,6 +73,23 @@ const MIGRATION_V1: &str = "
     CREATE INDEX idx_anime_target_dub ON anime(has_target_dub);
     CREATE INDEX idx_tags_name ON tags(name);
     CREATE INDEX idx_anime_tags_tag ON anime_tags(tag_id);
+";
+
+// Nur neue Tabellen: vorhandene Anime bleiben, Bilder lädt der nächste Sync.
+const MIGRATION_V2: &str = "
+    CREATE TABLE images (
+        hash TEXT PRIMARY KEY,
+        ext TEXT NOT NULL,
+        bytes INTEGER NOT NULL
+    );
+    CREATE TABLE image_refs (
+        anime_id TEXT NOT NULL REFERENCES anime(id) ON DELETE CASCADE,
+        slot TEXT NOT NULL,
+        source_url TEXT NOT NULL,
+        hash TEXT NOT NULL REFERENCES images(hash),
+        PRIMARY KEY (anime_id, slot)
+    );
+    CREATE INDEX idx_image_refs_hash ON image_refs(hash);
 ";
 
 pub fn migrate(conn: &Connection) -> CoreResult<()> {
@@ -144,11 +161,46 @@ mod tests {
             "anime_tags",
             "sync_state",
             "settings",
+            "images",
+            "image_refs",
         ] {
             assert!(
                 tables.iter().any(|t| t == expected),
                 "Tabelle {expected} fehlt"
             );
+        }
+    }
+
+    #[test]
+    fn migration_v1_to_v2_keeps_anime() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(&format!("{MIGRATION_V1}\nPRAGMA user_version = 1;"))
+            .unwrap();
+        conn.execute(
+            "INSERT INTO anime (id, title, poster_tall, watched) VALUES ('a', 'Alt', 'url', 1)",
+            [],
+        )
+        .unwrap();
+
+        migrate(&conn).unwrap();
+
+        assert_eq!(user_version(&conn), 2);
+        let (title, poster, watched): (String, String, bool) = conn
+            .query_row(
+                "SELECT title, poster_tall, watched FROM anime WHERE id = 'a'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            (title.as_str(), poster.as_str(), watched),
+            ("Alt", "url", true)
+        );
+        for table in ["images", "image_refs"] {
+            let rows: i64 = conn
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(rows, 0, "{table} sollte leer starten");
         }
     }
 

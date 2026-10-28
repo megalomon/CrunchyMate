@@ -28,6 +28,11 @@ regex = "1.13.1"
 rustls = { version = "0.23.46", default-features = false, features = ["aws-lc-rs", "std", "tls12"] }
 webpki-roots = "1.0.11"
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+# Nur JPEG/PNG dekodieren; WebP-Quellen werden unverändert gespeichert
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
+# Verlustbehaftetes WebP mit Qualitätsstufe gibt es nur über libwebp (per cc gebaut)
+webp = { version = "0.3.1", default-features = false }
+sha2 = "0.11.1"
 
 [dev-dependencies]
 wiremock = "0.6.5"
