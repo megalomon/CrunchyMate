@@ -104,6 +104,7 @@ Farbige Flaggen im Format 4:3 (24 × 18 dp) für die Anzeige der Inhaltssprache 
 | `ic_flag_ru` | Flagge für Inhaltssprache ru-RU | 🇷🇺 | `flag-icons ru.svg` | flag-icons (https://github.com/lipis/flag-icons), MIT |
 | `ic_flag_sa` | Flagge für Inhaltssprache ar-SA | 🇸🇦 | `flag-icons sa.svg` | flag-icons (https://github.com/lipis/flag-icons), MIT |
 | `ic_flag_in` | Flagge für Inhaltssprache hi-IN | 🇮🇳 | `flag-icons in.svg` | flag-icons (https://github.com/lipis/flag-icons), MIT |
+| `ic_flag_boykisser` | Flagge für die App-Sprache „Boykisser“ | 🏳️‍🌈 | `Femboy_flag.svg` | Wikimedia Commons, https://commons.wikimedia.org/wiki/File:Femboy_flag.svg (Jay); CC0 1.0; auf 4:3 zugeschnitten |
 
 ## Umwandlung SVG in VectorDrawable
 
