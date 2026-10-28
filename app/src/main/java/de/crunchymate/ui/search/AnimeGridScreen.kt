@@ -82,7 +82,6 @@ fun AnimeGridDestination(
                 onQueryChange = viewModel::onQueryChange,
                 onGenreSelected = viewModel::onGenreSelected,
                 onLanguageSelected = viewModel::onLanguageSelected,
-                onWatchedSelected = viewModel::onWatchedSelected,
                 onSortSelected = viewModel::onSortSelected,
                 onTagTapped = viewModel::onTagTapped,
                 onTagRemoved = viewModel::onTagRemoved,

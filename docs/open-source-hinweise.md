@@ -17,8 +17,6 @@ Die Icons stammen aus den Material Design Icons der Pictogrammers (https://picto
 | `ic_meh_on` | https://pictogrammers.com/library/mdi/icon/emoticon-confused/ | Apache 2.0 |
 | `ic_meh_off` | https://pictogrammers.com/library/mdi/icon/emoticon-confused-outline/ | Apache 2.0 |
 | `ic_badge_score` | https://pictogrammers.com/library/mdi/icon/star-face/ | Apache 2.0 |
-| `ic_badge_dub` | https://pictogrammers.com/library/mdi/icon/microphone/ | Apache 2.0 |
-| `ic_badge_sub` | https://pictogrammers.com/library/mdi/icon/chat-processing/ | Apache 2.0 |
 | `ic_badge_boost` | https://pictogrammers.com/library/mdi/icon/circle/ | Apache 2.0 |
 | `ic_tag_prefer` | https://pictogrammers.com/library/mdi/icon/circle/ | Apache 2.0 |
 | `ic_tag_must` | https://pictogrammers.com/library/mdi/icon/plus-circle/ | Apache 2.0 |
@@ -28,7 +26,6 @@ Die Icons stammen aus den Material Design Icons der Pictogrammers (https://picto
 | `ic_sync_start` | https://pictogrammers.com/library/mdi/icon/timer-sync-outline/ | Apache 2.0 |
 | `ic_sync_cancel` | https://pictogrammers.com/library/mdi/icon/timer-cancel-outline/ | Apache 2.0 |
 | `ic_open_external` | https://pictogrammers.com/library/mdi/icon/open-in-new/ | Apache 2.0 |
-| `ic_dropdown` | https://pictogrammers.com/library/mdi/icon/form-dropdown/ | Apache 2.0 |
 | `ic_back` | https://pictogrammers.com/library/mdi/icon/backburger/ | Apache 2.0 |
 | `ic_state_empty` | https://pictogrammers.com/library/mdi/icon/cloud-question-outline/ | Apache 2.0 |
 | `ic_state_error` | https://pictogrammers.com/library/mdi/icon/timer-alert-outline/ | Apache 2.0 |

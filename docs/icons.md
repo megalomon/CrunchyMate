@@ -38,8 +38,6 @@ Tipp: Einige Motive können doppelt verwendet werden, etwa `ic_nav_watched` für
 | Datei | Bedeutung | Emoji-Entsprechung | Gelieferte Datei | Quelle/Lizenz |
 |---|---|---|---|---|
 | `ic_badge_score` | AniList-Bewertung in Prozent | ⭐ | `star-face.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/star-face/; Apache 2.0 (Pictogrammers Free License) |
-| `ic_badge_dub` | Synchronfassung in der gewählten Inhaltssprache vorhanden | 🎙️ | `microphone.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/microphone/; Apache 2.0 (Pictogrammers Free License) |
-| `ic_badge_sub` | Untertitel in der gewählten Inhaltssprache vorhanden | 💬 | `chat-processing.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/chat-processing/; Apache 2.0 (Pictogrammers Free License) |
 | `ic_badge_boost` | Anzahl der Treffer bei bevorzugten (Boost-)Tags | 🔵 | `circle.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/circle/; Apache 2.0 (Pictogrammers Free License) |
 
 ## Tag-Zustände
@@ -61,7 +59,6 @@ Jeder Tag wird per Tippen durchgeschaltet: neutral → Boost → Muss → Ausges
 | `ic_sync_start` | Synchronisation starten | ▶️ | `timer-sync-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/timer-sync-outline/; Apache 2.0 (Pictogrammers Free License) |
 | `ic_sync_cancel` | Laufende Synchronisation abbrechen | ⏹️ | `timer-cancel-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/timer-cancel-outline/; Apache 2.0 (Pictogrammers Free License) |
 | `ic_open_external` | Seite auf AniList im Browser öffnen | ↗️ | `open-in-new.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/open-in-new/; Apache 2.0 (Pictogrammers Free License) |
-| `ic_dropdown` | Auswahlliste eines Filter-Chips aufklappen | 🔽 | `form-dropdown.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/form-dropdown/; Apache 2.0 (Pictogrammers Free License) |
 | `ic_back` | Zurück aus der Detailansicht | ⬅️ | `backburger.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/backburger/; Apache 2.0 (Pictogrammers Free License) |
 
 ## Zustände

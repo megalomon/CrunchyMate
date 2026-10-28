@@ -23,7 +23,6 @@ import de.crunchymate.core.ffi.LanguageFilter
 import de.crunchymate.core.ffi.NameCount
 import de.crunchymate.core.ffi.SearchState
 import de.crunchymate.core.ffi.SortOrder
-import de.crunchymate.core.ffi.WatchedFilter
 import de.crunchymate.ui.tags.cycle
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -142,8 +141,6 @@ class SearchViewModel internal constructor(
     fun onGenreSelected(genre: String?) = updateSearch { it.copy(genre = genre) }
 
     fun onLanguageSelected(l: LanguageFilter) = updateSearch { it.copy(language = l) }
-
-    fun onWatchedSelected(w: WatchedFilter) = updateSearch { it.copy(watched = w) }
 
     fun onSortSelected(s: SortOrder) = updateSearch { it.copy(sort = s) }
 

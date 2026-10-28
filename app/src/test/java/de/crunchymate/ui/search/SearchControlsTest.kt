@@ -1,9 +1,13 @@
 package de.crunchymate.ui.search
 
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import de.crunchymate.R
@@ -33,38 +37,39 @@ class SearchControlsTest {
 
     private fun string(id: Int) = rule.activity.getString(id)
 
-    private fun state(activeTags: List<TagSelection> = emptyList()) =
-        SearchUiState(
-            search = SearchState("", null, LanguageFilter.ALL, WatchedFilter.ALL, SortOrder.TITLE, activeTags),
-            genres = listOf(NameCount("Comedy", COMEDY_COUNT)),
-            tags = listOf(NameCount("Magie", 3L)),
-            tagQuery = "",
-            visibleTags = listOf(NameCount("Magie", 3L)),
-            activeTags = activeTags,
-            total = 1L,
-            totalError = false,
-        )
+    private fun state(
+        activeTags: List<TagSelection> = emptyList(),
+        language: LanguageFilter = LanguageFilter.ALL,
+    ) = SearchUiState(
+        search = SearchState("", null, language, WatchedFilter.ALL, SortOrder.TITLE, activeTags),
+        genres = listOf(NameCount("Comedy", COMEDY_COUNT)),
+        tags = listOf(NameCount("Magie", 3L)),
+        tagQuery = "",
+        visibleTags = listOf(NameCount("Magie", 3L)),
+        activeTags = activeTags,
+        total = 1L,
+        totalError = false,
+    )
 
     private fun actions(
         onGenre: (String?) -> Unit = {},
+        onLanguage: (LanguageFilter) -> Unit = {},
+        onCleared: () -> Unit = {},
         onRemoved: (String) -> Unit = {},
     ) = SearchActions(
         onQueryChange = {},
         onGenreSelected = onGenre,
-        onLanguageSelected = {},
-        onWatchedSelected = {},
+        onLanguageSelected = onLanguage,
         onSortSelected = {},
         onTagTapped = {},
         onTagRemoved = onRemoved,
         onTagQueryChange = {},
-        onClearTags = {},
+        onClearTags = onCleared,
     )
 
     @Test
     fun dropdowns_showLabelAndCurrentValue() {
         rule.setContent { CrunchyMateTheme { SearchControls(state(), "", actions()) } }
-        rule.onNodeWithText(string(R.string.filter_watched_label)).assertIsDisplayed()
-        rule.onNodeWithText(string(R.string.filter_watched_all)).assertIsDisplayed()
         rule.onNodeWithText(string(R.string.filter_genre_all)).assertIsDisplayed()
         rule.onNodeWithText(string(R.string.sort_label)).assertIsDisplayed()
         rule.onNodeWithText(string(R.string.sort_title)).assertIsDisplayed()
@@ -80,17 +85,50 @@ class SearchControlsTest {
     }
 
     @Test
+    fun searchControls_offersNoWatchedFilter() {
+        rule.setContent { CrunchyMateTheme { SearchControls(state(), "", actions()) } }
+        rule.onNodeWithText("Gesehene").assertDoesNotExist()
+        rule.onNodeWithText("Mit anzeigen").assertDoesNotExist()
+    }
+
+    @Test
+    fun languageChips_toggleIndependently() {
+        val selected = mutableListOf<LanguageFilter>()
+        var language by mutableStateOf(LanguageFilter.ALL)
+        rule.setContent {
+            CrunchyMateTheme {
+                SearchControls(
+                    state(language = language),
+                    "",
+                    actions(onLanguage = {
+                        selected += it
+                        language = it
+                    }),
+                )
+            }
+        }
+        rule.onNodeWithText(string(R.string.filter_language_dub_chip)).performClick()
+        rule.onNodeWithText(string(R.string.filter_language_sub_chip)).performClick()
+        rule.onNodeWithText(string(R.string.filter_language_dub_chip)).performClick()
+        assertEquals(listOf(LanguageFilter.DUB, LanguageFilter.BOTH, LanguageFilter.SUB), selected)
+    }
+
+    @Test
     fun clearTagsButton_hiddenWithoutActiveTags() {
         rule.setContent { CrunchyMateTheme { SearchControls(state(), "", actions()) } }
-        rule.onNodeWithText(string(R.string.tags_reset)).assertDoesNotExist()
+        rule.onNodeWithContentDescription(string(R.string.tags_reset)).assertDoesNotExist()
     }
 
     @Test
     fun clearTagsButton_visibleWithActiveTagsAndChipRemovable() {
         var removed = ""
+        var cleared = 0
         val active = listOf(TagSelection("Magie", TagState.PREFER))
-        rule.setContent { CrunchyMateTheme { SearchControls(state(active), "", actions(onRemoved = { removed = it })) } }
-        rule.onNodeWithText(string(R.string.tags_reset)).assertIsDisplayed()
+        rule.setContent {
+            CrunchyMateTheme { SearchControls(state(active), "", actions(onRemoved = { removed = it }, onCleared = { cleared++ })) }
+        }
+        rule.onNodeWithContentDescription(string(R.string.tags_reset)).assertIsDisplayed().performClick()
+        assertEquals(1, cleared)
         val removeLabel = rule.activity.getString(R.string.tags_remove, "Magie")
         val click = rule.onNodeWithText("Magie").fetchSemanticsNode().config[SemanticsActions.OnClick]
         assertEquals(removeLabel, click.label)

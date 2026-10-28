@@ -7,14 +7,15 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,7 +24,6 @@ import androidx.compose.ui.res.stringResource
 import de.crunchymate.R
 import de.crunchymate.core.ffi.LanguageFilter
 import de.crunchymate.core.ffi.SortOrder
-import de.crunchymate.core.ffi.WatchedFilter
 import de.crunchymate.ui.components.FilterDropdown
 import de.crunchymate.ui.components.TagChip
 import de.crunchymate.ui.tags.stateOf
@@ -34,7 +34,6 @@ data class SearchActions(
     val onQueryChange: (String) -> Unit,
     val onGenreSelected: (String?) -> Unit,
     val onLanguageSelected: (LanguageFilter) -> Unit,
-    val onWatchedSelected: (WatchedFilter) -> Unit,
     val onSortSelected: (SortOrder) -> Unit,
     val onTagTapped: (String) -> Unit,
     val onTagRemoved: (String) -> Unit,
@@ -43,24 +42,6 @@ data class SearchActions(
 )
 
 // Kein else-Zweig: neue Enum-Werte sollen die Kompilierung brechen
-@StringRes
-private fun WatchedFilter.labelRes(): Int =
-    when (this) {
-        WatchedFilter.ALL -> R.string.filter_watched_all
-        WatchedFilter.UNWATCHED -> R.string.filter_watched_unwatched
-        WatchedFilter.WATCHED -> R.string.filter_watched_watched
-    }
-
-@StringRes
-private fun LanguageFilter.labelRes(): Int =
-    when (this) {
-        LanguageFilter.ALL -> R.string.filter_language_all
-        LanguageFilter.DUB -> R.string.filter_language_dub
-        LanguageFilter.SUB -> R.string.filter_language_sub
-        LanguageFilter.BOTH -> R.string.filter_language_both
-        LanguageFilter.ANY -> R.string.filter_language_any
-    }
-
 @StringRes
 private fun SortOrder.labelRes(): Int =
     when (this) {
@@ -116,47 +97,46 @@ private fun FilterDropdowns(
 ) {
     val allGenres = stringResource(R.string.filter_genre_all)
     val genreCounts = state.genres.associate { it.name to it.count }
-    Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
-            FilterDropdown(
-                label = stringResource(R.string.filter_watched_label),
-                options = WatchedFilter.entries,
-                selected = state.search.watched,
-                optionLabel = { stringResource(it.labelRes()) },
-                onSelect = actions.onWatchedSelected,
-                modifier = Modifier.weight(1f),
-            )
-            FilterDropdown(
-                label = stringResource(R.string.filter_genre_label),
-                options = listOf<String?>(null) + state.genres.map { it.name },
-                selected = state.search.genre,
-                optionLabel = { name ->
-                    val count = genreCounts[name]
-                    if (name == null || count == null) name ?: allGenres else stringResource(R.string.tag_label_with_count, name, count)
-                },
-                onSelect = actions.onGenreSelected,
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
-            FilterDropdown(
-                label = stringResource(R.string.filter_language_label),
-                options = LanguageFilter.entries,
-                selected = state.search.language,
-                optionLabel = { stringResource(it.labelRes()) },
-                onSelect = actions.onLanguageSelected,
-                modifier = Modifier.weight(1f),
-            )
-            FilterDropdown(
-                label = stringResource(R.string.sort_label),
-                options = SortOrder.entries,
-                selected = state.search.sort,
-                optionLabel = { stringResource(it.labelRes()) },
-                onSelect = actions.onSortSelected,
-                modifier = Modifier.weight(1f),
-            )
-        }
+    Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+        FilterDropdown(
+            label = stringResource(R.string.filter_genre_label),
+            options = listOf<String?>(null) + state.genres.map { it.name },
+            selected = state.search.genre,
+            optionLabel = { name ->
+                val count = genreCounts[name]
+                if (name == null || count == null) name ?: allGenres else stringResource(R.string.tag_label_with_count, name, count)
+            },
+            onSelect = actions.onGenreSelected,
+            modifier = Modifier.weight(1f),
+        )
+        FilterDropdown(
+            label = stringResource(R.string.sort_label),
+            options = SortOrder.entries,
+            selected = state.search.sort,
+            optionLabel = { stringResource(it.labelRes()) },
+            onSelect = actions.onSortSelected,
+            modifier = Modifier.weight(1f),
+        )
     }
+}
+
+@Composable
+private fun LanguageChips(
+    language: LanguageFilter,
+    onSelect: (LanguageFilter) -> Unit,
+) {
+    val sub = language.requiresSub()
+    val dub = language.requiresDub()
+    FilterChip(
+        selected = sub,
+        onClick = { onSelect(languageFilterOf(sub = !sub, dub = dub)) },
+        label = { Text(stringResource(R.string.filter_language_sub_chip)) },
+    )
+    FilterChip(
+        selected = dub,
+        onClick = { onSelect(languageFilterOf(sub = sub, dub = !dub)) },
+        label = { Text(stringResource(R.string.filter_language_dub_chip)) },
+    )
 }
 
 @Composable
@@ -174,13 +154,20 @@ private fun TagSection(
             label = { Text(stringResource(R.string.tags_filter_label)) },
         )
         if (state.activeTags.isNotEmpty()) {
-            TextButton(onClick = actions.onClearTags) { Text(stringResource(R.string.tags_reset)) }
+            IconButton(onClick = actions.onClearTags, modifier = Modifier.size(Dimens.TagResetButton)) {
+                Icon(
+                    painterResource(R.drawable.ic_tags_reset),
+                    contentDescription = stringResource(R.string.tags_reset),
+                    modifier = Modifier.size(Dimens.TagResetIcon),
+                )
+            }
         }
+        LanguageChips(state.search.language, actions.onLanguageSelected)
     }
     if (state.activeTags.isNotEmpty()) {
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
-            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
+            verticalArrangement = Arrangement.spacedBy(Dimens.TagChipRowGap),
         ) {
             state.activeTags.forEach { selection ->
                 TagChip(
@@ -198,7 +185,7 @@ private fun TagSection(
     FlowRow(
         modifier = Modifier.heightIn(max = Dimens.TagListMaxHeight).verticalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
-        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
+        verticalArrangement = Arrangement.spacedBy(Dimens.TagChipRowGap),
     ) {
         remaining.forEach { tag ->
             TagChip(name = tag.name, count = tag.count, state = null, onClick = { actions.onTagTapped(tag.name) })

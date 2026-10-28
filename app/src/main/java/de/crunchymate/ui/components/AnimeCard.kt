@@ -45,6 +45,30 @@ private const val TITLE_MAX_LINES = 2
 const val SCORE_BADGE_TAG = "score_badge"
 const val WATCHED_CIRCLE_TAG = "watched_circle"
 const val MEH_CIRCLE_TAG = "meh_circle"
+const val BOOST_BADGE_TAG = "boost_badge"
+
+// Mehr Ziffern passen nicht in den Kreis; ab hier zeigt die Kachel nur noch „+“
+private const val BOOST_BADGE_MAX_DIGIT = 9
+
+internal fun boostBadgeText(matches: Int): String = if (matches > BOOST_BADGE_MAX_DIGIT) "+" else matches.toString()
+
+@Composable
+private fun BoostBadge(matches: Int) {
+    val description = pluralStringResource(R.plurals.badge_boost_matches, matches, matches)
+    // Gleicher Durchmesser wie die Kreise der Schalter, damit alle Overlays fluchten
+    Box(
+        modifier =
+            Modifier
+                .testTag(BOOST_BADGE_TAG)
+                .size(Dimens.OverlayButton)
+                .clip(CircleShape)
+                .background(PosterOverlayBackground)
+                .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(boostBadgeText(matches), style = MaterialTheme.typography.labelSmall, color = PosterOverlayContent)
+    }
+}
 
 @Composable
 private fun OverlayBadge(
@@ -109,10 +133,7 @@ fun AnimeCard(
                     )
                 }
                 if (anime.preferMatches > 0) {
-                    OverlayBadge(
-                        R.drawable.ic_badge_boost,
-                        pluralStringResource(R.plurals.badge_boost_matches, anime.preferMatches, anime.preferMatches),
-                    )
+                    BoostBadge(anime.preferMatches)
                 }
             }
             OverlayToggle(

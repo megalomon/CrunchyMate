@@ -12,7 +12,6 @@ import de.crunchymate.core.ffi.CoreException
 import de.crunchymate.core.ffi.NameCount
 import de.crunchymate.core.ffi.TagSelection
 import de.crunchymate.core.ffi.TagState
-import de.crunchymate.core.ffi.WatchedFilter
 import de.crunchymate.core.sampleSettings
 import de.crunchymate.core.sampleSummary
 import kotlinx.coroutines.Dispatchers
@@ -221,17 +220,5 @@ class SearchViewModelTest {
             val state = f.viewModel.uiState.value
             assertTrue(state.totalError)
             assertEquals(null, state.total)
-        }
-
-    @Test
-    fun watchedSelection_updatesHideWatchedCoupling() =
-        runTest(dispatcher) {
-            val f = fixture()
-
-            f.viewModel.onWatchedSelected(WatchedFilter.UNWATCHED)
-            runCurrent()
-
-            assertEquals(WatchedFilter.UNWATCHED, f.store.settings.value.search.watched)
-            assertEquals(WatchedFilter.UNWATCHED, f.viewModel.uiState.value.search.watched)
         }
 }

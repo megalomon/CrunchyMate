@@ -95,16 +95,28 @@ class ComponentsTest {
     }
 
     @Test
-    fun animeCard_showsBoostBadgeOnlyWhenMatches() {
+    fun animeCard_showsBoostBadgeAsNumberOrPlus() {
         var matches by mutableIntStateOf(0)
         rule.setContent {
             CrunchyMateTheme { AnimeCard(anime(matches), "de-DE", {}, {}, {}) }
         }
-        val badge = rule.activity.resources.getQuantityString(R.plurals.badge_boost_matches, 2, 2)
-        rule.onNodeWithText(badge).assertDoesNotExist()
-        matches = 2
+        rule.onNodeWithTag(BOOST_BADGE_TAG, useUnmergedTree = true).assertDoesNotExist()
+        matches = 3
         rule.waitForIdle()
-        rule.onNodeWithText(badge).assertIsDisplayed()
+        rule.onNodeWithTag(BOOST_BADGE_TAG, useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("3", useUnmergedTree = true).assertIsDisplayed()
+        val description = rule.activity.resources.getQuantityString(R.plurals.badge_boost_matches, 3, 3)
+        rule.onNodeWithContentDescription(description, useUnmergedTree = true).assertIsDisplayed()
+        matches = 10
+        rule.waitForIdle()
+        rule.onNodeWithText("+", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("10", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun boostBadgeText_switchesToPlusAboveNine() {
+        assertEquals("9", boostBadgeText(9))
+        assertEquals("+", boostBadgeText(10))
     }
 
     @Test

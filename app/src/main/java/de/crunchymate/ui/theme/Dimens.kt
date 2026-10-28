@@ -36,5 +36,9 @@ object Dimens {
     val FilterFieldHeight = 48.dp
     val TagListMaxHeight = 120.dp
     val TagRemoveIcon = 18.dp
+    val TagChipHeight = 24.dp
+    val TagChipRowGap = 2.dp
+    val TagResetButton = 40.dp
+    val TagResetIcon = 20.dp
     val FilterFieldVerticalPadding = 4.dp
 }
