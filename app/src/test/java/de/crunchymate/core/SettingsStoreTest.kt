@@ -61,7 +61,9 @@ class SettingsStoreTest {
             val core = FakeCore(storedSettings = sampleSettings("en-US"))
             val store = SettingsStore(CoreGateway(core, dispatcher), this, dispatcher)
             assertEquals(sampleSettings("de-DE"), store.settings.value)
+            assertEquals(false, store.loaded.value)
             store.load()
             assertEquals("en-US", store.settings.value.contentLocale)
+            assertEquals(true, store.loaded.value)
         }
 }

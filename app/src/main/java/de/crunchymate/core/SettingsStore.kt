@@ -29,11 +29,17 @@ class SettingsStore(
     private val _settings = MutableStateFlow(defaultSettings())
     val settings: StateFlow<Settings> = _settings.asStateFlow()
 
+    private val _loaded = MutableStateFlow(false)
+
+    /** true, sobald der gespeicherte Stand gelesen wurde; ein erneutes Laden würde ungespeicherte Änderungen überschreiben. */
+    val loaded: StateFlow<Boolean> = _loaded.asStateFlow()
+
     private val lock = Any()
     private var saveJob: Job? = null
 
     suspend fun load() {
         _settings.value = gateway.loadSettings()
+        _loaded.value = true
     }
 
     fun update(transform: (Settings) -> Settings) {

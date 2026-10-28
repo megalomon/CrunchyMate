@@ -17,6 +17,7 @@ import de.crunchymate.core.ffi.SyncObserver
 import de.crunchymate.core.ffi.SyncRunState
 import de.crunchymate.core.ffi.SyncStatus
 import de.crunchymate.core.ffi.SyncSummary
+import de.crunchymate.core.ffi.TagRank
 import de.crunchymate.core.ffi.WatchedFilter
 
 /** In-Memory-Ersatz für den Rust-Kern; merkt sich Aufrufe und den aufrufenden Thread. */
@@ -32,6 +33,9 @@ class FakeCore(
     var queryThreadName: String? = null
     var queryError: Throwable? = null
     var saveError: Throwable? = null
+    var details: Map<String, AnimeDetail> = emptyMap()
+    var tagList: List<NameCount> = listOf(NameCount("Magie", 2L))
+    var currentStats: Stats? = null
 
     override fun queryAnime(
         filter: AnimeFilter,
@@ -44,7 +48,7 @@ class FakeCore(
         return AnimePage(items.drop(offset).take(limit), totalOverride ?: items.size.toLong())
     }
 
-    override fun getAnime(id: String): AnimeDetail? = null
+    override fun getAnime(id: String): AnimeDetail? = details[id]
 
     override fun setWatched(
         id: String,
@@ -62,9 +66,9 @@ class FakeCore(
 
     override fun listGenres(): List<NameCount> = listOf(NameCount("Action", 3L))
 
-    override fun listTags(): List<NameCount> = listOf(NameCount("Magie", 2L))
+    override fun listTags(): List<NameCount> = tagList
 
-    override fun stats(): Stats = Stats(items.size.toLong(), 0L, 0L, 0L, 0L)
+    override fun stats(): Stats = currentStats ?: Stats(items.size.toLong(), 0L, 0L, 0L, 0L)
 
     override fun settings(): Settings = storedSettings
 
@@ -103,3 +107,27 @@ fun sampleFilter() =
     )
 
 fun sampleSummary(id: String) = AnimeSummary(id, "Titel $id", "", 0, false, false, false, false, 0)
+
+fun sampleDetail(
+    id: String,
+    tags: List<TagRank> = emptyList(),
+) = AnimeDetail(
+    id = id,
+    title = "Titel $id",
+    titleRomaji = "",
+    titleEnglish = "",
+    description = "",
+    posterUrl = "",
+    bannerUrl = "",
+    episodeCount = 12,
+    launchYear = 2024,
+    isSubbed = true,
+    isDubbed = false,
+    hasTargetDub = false,
+    hasTargetSub = true,
+    watched = false,
+    isMeh = false,
+    genres = listOf("Action"),
+    tags = tags,
+    anilist = null,
+)

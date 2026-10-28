@@ -10,4 +10,7 @@ object Dimens {
     val BadgeIcon = 16.dp
     val EmptyStateIcon = 64.dp
     val BorderWidth = 1.dp
+    val GridCellMinWidth = 160.dp
+    val DetailPosterWidth = 120.dp
+    val DetailBannerHeight = 180.dp
 }
