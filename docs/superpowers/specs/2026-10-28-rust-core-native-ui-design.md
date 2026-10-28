@@ -13,6 +13,7 @@ CrunchyMate wird komplett renoviert. Der Go-Webserver und das JS/HTML/CSS-Fronte
 - Programmiersprache für die Logik ist Rust; Kotlin nur als dünne Schicht für UI und Android-Systemdienste.
 - `minSdk` 34, `targetSdk` 37, Zielversion 37.2 (siehe 4.4).
 - Einziges ABI: `arm64-v8a`.
+- Ausgabe als normales Einzel-APK, kein App-Bundle und keine Split-APKs (xapk/apkm).
 - Build über GitHub Actions; Nightly-Release, zusätzlich manuell auslösbar.
 - Funktionsumfang 1:1 wie die heutige Web-UI.
 - Mehrsprachigkeit von Anfang an vorbereitet; zum Start nur Deutsch.
