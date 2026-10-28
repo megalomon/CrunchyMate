@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.ktlint)
 }
 
+val ndkVersionPinned = providers.gradleProperty("crunchymate.ndkVersion").get()
 val baseVersion = providers.gradleProperty("crunchymate.baseVersion").get()
 val appVersionCode =
     providers
@@ -35,7 +36,7 @@ android {
             }
     }
     // AGP 9.4 nutzt sonst NDK r28; der Rust-Kern ist gegen r30 geprüft
-    ndkVersion = "30.0.16248370"
+    ndkVersion = ndkVersionPinned
 
     defaultConfig {
         applicationId = "de.crunchymate"
@@ -130,6 +131,7 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.work.testing)
+    testImplementation(libs.androidx.test.espresso.core)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
@@ -174,6 +176,7 @@ val checkRustToolchain by tasks.registering {
     description = "Prüft, ob cargo, cargo-ndk und das NDK verfügbar sind."
     val cargo = cargoExecutable
     val ndkPath = ndkDirectory.map { it.asFile }
+    val pinnedNdk = ndkVersionPinned
     doLast {
         fun succeeds(vararg command: String): Boolean =
             runCatching {
@@ -195,7 +198,7 @@ val checkRustToolchain by tasks.registering {
         if (!ndkPath.get().isDirectory) {
             throw GradleException(
                 "Das Android-NDK fehlt (erwartet in ${ndkPath.get()}). " +
-                    "Installieren mit: sdkmanager --install \"ndk;30.0.16248370\"",
+                    "Installieren mit: sdkmanager --install \"ndk;$pinnedNdk\"",
             )
         }
     }

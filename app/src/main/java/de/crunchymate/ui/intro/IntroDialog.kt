@@ -1,5 +1,6 @@
 package de.crunchymate.ui.intro
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
@@ -26,21 +27,31 @@ private val INTRO_PARAGRAPHS: List<Int> =
         R.string.intro_privacy,
     )
 
-/** Zeigt die Erststart-Info, bis sie bestätigt wurde; das Flag liegt in den Einstellungen und damit im Backup. */
+/**
+ * Zeigt die Erststart-Info, bis sie bestätigt wurde; das Flag liegt in den Einstellungen und damit im Backup.
+ * Zurück beendet die App, ohne das Flag zu setzen: der Dialog erscheint dann beim nächsten Start wieder.
+ */
 @Composable
 fun IntroDialogHost(settingsStore: SettingsStore) {
     val settings by settingsStore.settings.collectAsStateWithLifecycle()
+    val activity = LocalActivity.current
     if (!settings.introSeen) {
-        IntroDialog(onConfirm = { settingsStore.update { it.copy(introSeen = true) } })
+        IntroDialog(
+            onConfirm = { settingsStore.update { it.copy(introSeen = true) } },
+            onExit = { activity?.finish() },
+        )
     }
 }
 
 @Composable
-fun IntroDialog(onConfirm: () -> Unit) {
+fun IntroDialog(
+    onConfirm: () -> Unit,
+    onExit: () -> Unit,
+) {
     AlertDialog(
-        // Kein Wegtippen: die Info gilt erst mit der Bestätigung als gelesen
-        onDismissRequest = {},
-        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+        // Wegtippen neben den Dialog zählt nicht; nur Zurück verlässt die App, ohne die Info als gelesen zu markieren
+        onDismissRequest = onExit,
+        properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = false),
         title = { Text(stringResource(R.string.intro_title)) },
         text = {
             Column(

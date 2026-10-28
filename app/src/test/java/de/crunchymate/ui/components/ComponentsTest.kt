@@ -275,4 +275,31 @@ class ComponentsTest {
         assertEquals(1, watched)
         assertEquals(1, meh)
     }
+
+    @Test
+    fun animeCard_watchedTouchAreaLiesWithinPosterAndReachesPosterTop() {
+        var watched = 0
+        var meh = 0
+        rule.setContent {
+            CrunchyMateTheme {
+                Box(Modifier.width(CARD_WIDTH)) { AnimeCard(anime(), "de-DE", {}, { watched++ }, { meh++ }) }
+            }
+        }
+
+        fun bounds(node: androidx.compose.ui.test.SemanticsNodeInteraction) = node.getUnclippedBoundsInRoot()
+        val poster = bounds(rule.onNodeWithTag(IMAGE_PLACEHOLDER_TAG, useUnmergedTree = true))
+        val touch = bounds(rule.onNodeWithContentDescription(string(R.string.action_toggle_watched), useUnmergedTree = true))
+        assertTrue("Tippfläche ragt oben aus dem Poster", touch.top >= poster.top)
+        assertTrue("Tippfläche ragt rechts aus dem Poster", touch.right <= poster.right)
+
+        // Ein Tipp knapp über dem Kreis (im Randabstand zum Poster) muss noch treffen
+        val circleTop = bounds(rule.onNodeWithTag(WATCHED_CIRCLE_TAG, useUnmergedTree = true)).top
+        val density = rule.density.density
+        val aboveCircle = (circleTop - poster.top).value * density - 1f
+        rule.onNodeWithTag(WATCHED_CIRCLE_TAG, useUnmergedTree = true).performTouchInput {
+            click(Offset(centerX, -aboveCircle))
+        }
+        assertEquals(1, watched)
+        assertEquals(0, meh)
+    }
 }

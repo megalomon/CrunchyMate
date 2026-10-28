@@ -39,8 +39,13 @@ class SettingsStore(
     private var dirty = false
 
     suspend fun load() {
-        _settings.value = gateway.loadSettings().withoutLegacyWatchedFilter()
-        _loaded.value = true
+        val stored = gateway.loadSettings().withoutLegacyWatchedFilter()
+        synchronized(lock) {
+            // Änderungen vor dem Laden betrafen nur die Standardwerte und gelten nicht
+            dirty = false
+            _settings.value = stored
+            _loaded.value = true
+        }
     }
 
     fun update(transform: (Settings) -> Settings) {
@@ -65,7 +70,8 @@ class SettingsStore(
     private suspend fun persistIfDirty() {
         val snapshot =
             synchronized(lock) {
-                if (!dirty) return
+                // Vor dem Laden gäbe es nur die Standardwerte; sie dürfen den gespeicherten Stand nie überschreiben
+                if (!dirty || !_loaded.value) return
                 dirty = false
                 _settings.value
             }

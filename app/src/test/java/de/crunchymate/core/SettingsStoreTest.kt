@@ -26,6 +26,7 @@ class SettingsStoreTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val core = FakeCore()
             val store = SettingsStore(CoreGateway(core, dispatcher), this, dispatcher)
+            store.load()
 
             store.update { it.copy(contentLocale = "en-US") }
             assertEquals("en-US", store.settings.value.contentLocale)
@@ -49,6 +50,7 @@ class SettingsStoreTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val core = FakeCore().apply { saveError = CoreException.Database("x") }
             val store = SettingsStore(CoreGateway(core, dispatcher), this, dispatcher)
+            store.load()
 
             store.update { it.copy(contentLocale = "en-US") }
             advanceTimeBy(SAVE_DEBOUNCE + 1)
@@ -69,6 +71,7 @@ class SettingsStoreTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val core = FakeCore()
             val store = SettingsStore(CoreGateway(core, dispatcher), this, dispatcher)
+            store.load()
 
             store.update { it.copy(contentLocale = "en-US") }
             store.flush()
@@ -85,6 +88,7 @@ class SettingsStoreTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val core = FakeCore()
             val store = SettingsStore(CoreGateway(core, dispatcher), this, dispatcher)
+            store.load()
 
             store.flush()
             assertEquals(0, core.savedSettings.size)
@@ -121,5 +125,21 @@ class SettingsStoreTest {
             store.load()
             assertEquals("en-US", store.settings.value.contentLocale)
             assertEquals(true, store.loaded.value)
+        }
+
+    @Test
+    fun updateBeforeLoad_neverWritesDefaultsOverStoredSettings() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val core = FakeCore(storedSettings = sampleSettings("en-US"))
+            val store = SettingsStore(CoreGateway(core, dispatcher), this, dispatcher)
+
+            store.update { it.copy(introSeen = true) }
+            advanceTimeBy(SAVE_DEBOUNCE + 1)
+            runCurrent()
+            store.flush()
+
+            assertEquals(0, core.savedSettings.size)
+            assertEquals("en-US", core.storedSettings.contentLocale)
         }
 }

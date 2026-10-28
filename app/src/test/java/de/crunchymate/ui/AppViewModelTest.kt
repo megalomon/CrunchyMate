@@ -110,4 +110,20 @@ class AppViewModelTest {
 
             assertEquals(StartupState.Failed(null), viewModel.state.value)
         }
+
+    @Test
+    fun settingsLoadFails_endsInFailedStateAndNeverSavesDefaults() =
+        runTest(dispatcher) {
+            val core = FakeCore().apply { loadError = CoreException.Database("x") }
+            val store = storeFor(core)
+
+            val viewModel = AppViewModel({}, { store })
+            runCurrent()
+
+            assertEquals(StartupState.Failed(R.string.error_database), viewModel.state.value)
+            assertFalse(store.loaded.value)
+            store.update { it.copy(introSeen = true) }
+            store.flush()
+            assertEquals(0, core.savedSettings.size)
+        }
 }

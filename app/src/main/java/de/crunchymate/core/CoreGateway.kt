@@ -3,6 +3,7 @@ package de.crunchymate.core
 import de.crunchymate.core.ffi.AnimeDetail
 import de.crunchymate.core.ffi.AnimeFilter
 import de.crunchymate.core.ffi.AnimePage
+import de.crunchymate.core.ffi.CoreException
 import de.crunchymate.core.ffi.CoreInterface
 import de.crunchymate.core.ffi.NameCount
 import de.crunchymate.core.ffi.Settings
@@ -11,6 +12,7 @@ import de.crunchymate.core.ffi.SyncKind
 import de.crunchymate.core.ffi.SyncObserver
 import de.crunchymate.core.ffi.SyncStatus
 import de.crunchymate.core.ffi.SyncSummary
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -36,15 +38,15 @@ class CoreGateway(
         filter: AnimeFilter,
         offset: Int,
         limit: Int,
-    ): AnimePage = withContext(io) { core.queryAnime(filter, offset, limit) }
+    ): AnimePage = guarded { core.queryAnime(filter, offset, limit) }
 
-    suspend fun getAnime(id: String): AnimeDetail? = withContext(io) { core.getAnime(id) }
+    suspend fun getAnime(id: String): AnimeDetail? = guarded { core.getAnime(id) }
 
     suspend fun setWatched(
         id: String,
         watched: Boolean,
     ) {
-        withContext(io) { core.setWatched(id, watched) }
+        guarded { core.setWatched(id, watched) }
         notifyChanged()
     }
 
@@ -52,31 +54,44 @@ class CoreGateway(
         id: String,
         meh: Boolean,
     ) {
-        withContext(io) { core.setMeh(id, meh) }
+        guarded { core.setMeh(id, meh) }
         notifyChanged()
     }
 
-    suspend fun genres(): List<NameCount> = withContext(io) { core.listGenres() }
+    suspend fun genres(): List<NameCount> = guarded { core.listGenres() }
 
-    suspend fun tags(): List<NameCount> = withContext(io) { core.listTags() }
+    suspend fun tags(): List<NameCount> = guarded { core.listTags() }
 
-    suspend fun stats(): Stats = withContext(io) { core.stats() }
+    suspend fun stats(): Stats = guarded { core.stats() }
 
-    suspend fun syncStatus(kind: SyncKind): SyncStatus = withContext(io) { core.syncStatus(kind) }
+    suspend fun syncStatus(kind: SyncKind): SyncStatus = guarded { core.syncStatus(kind) }
 
     suspend fun syncedContentLocaleNow(): String? = syncStatus(SyncKind.CATALOG).contentLocale
 
-    suspend fun loadSettings(): Settings = withContext(io) { core.settings() }
+    suspend fun loadSettings(): Settings = guarded { core.settings() }
 
     suspend fun saveSettings(settings: Settings) {
-        withContext(io) { core.saveSettings(settings) }
+        guarded { core.saveSettings(settings) }
     }
 
-    suspend fun supportedContentLocales(): List<String> = withContext(io) { core.supportedContentLocales() }
+    suspend fun supportedContentLocales(): List<String> = guarded { core.supportedContentLocales() }
 
     suspend fun syncCatalog(observer: SyncObserver): SyncSummary = withContext(io) { core.syncCatalog(observer) }
 
     suspend fun enrichMetadata(observer: SyncObserver): SyncSummary = withContext(io) { core.enrichMetadata(observer) }
+
+    // Eine Rust-Panic kommt als InternalException und wäre für die ViewModels, die nur CoreException
+    // kennen, ein Absturz; so landet sie im gewohnten Fehlerpfad
+    private suspend fun <T> guarded(block: () -> T): T =
+        try {
+            withContext(io) { block() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: CoreException) {
+            throw e
+        } catch (e: Exception) {
+            throw CoreException.Internal(e::class.java.simpleName)
+        }
 
     fun notifyChanged() {
         _changes.tryEmit(Unit)

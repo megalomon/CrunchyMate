@@ -18,6 +18,7 @@ object SyncNotifications {
     const val NOTIFICATION_ID_CATALOG = 1
     const val NOTIFICATION_ID_METADATA = 2
     private const val OPEN_APP_REQUEST_CODE = 0
+    const val OPEN_APP_FLAGS = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
 
     fun notificationId(kind: SyncKind): Int =
         when (kind) {
@@ -82,12 +83,13 @@ object SyncNotifications {
             .build()
     }
 
-    // Tippen auf die Benachrichtigung bringt die App nach vorn, statt nichts zu tun
+    // Tippen holt den bestehenden Task nach vorn; CLEAR_TOP würde die laufende Activity neu erzeugen und
+    // Navigation und Scrollstand verwerfen
     private fun openAppIntent(context: Context): PendingIntent =
         PendingIntent.getActivity(
             context,
             OPEN_APP_REQUEST_CODE,
-            Intent(context, MainActivity::class.java).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            Intent(context, MainActivity::class.java).setFlags(OPEN_APP_FLAGS),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 

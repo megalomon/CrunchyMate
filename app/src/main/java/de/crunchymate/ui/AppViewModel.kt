@@ -44,24 +44,17 @@ class AppViewModel(
         viewModelScope.launch { _state.value = start() }
     }
 
-    private suspend fun start(): StartupState {
+    private suspend fun start(): StartupState =
         try {
             openCore()
+            val store = settingsStore()
+            // Ohne gelesenen Stand dürfte die App nie mit Standardwerten laufen: ein Speichern würde die echten überschreiben
+            if (!store.loaded.value) store.load()
+            StartupState.Ready
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(LOG_TAG, "Kern konnte nicht geöffnet werden: ${e::class.simpleName}")
-            return StartupState.Failed((e as? CoreException)?.messageRes())
+            Log.e(LOG_TAG, "Start fehlgeschlagen: ${e::class.simpleName}")
+            StartupState.Failed((e as? CoreException)?.messageRes())
         }
-        val store = settingsStore()
-        if (!store.loaded.value) {
-            try {
-                store.load()
-            } catch (e: CoreException) {
-                // Ohne gespeicherten Stand startet die Suche mit den Standardwerten
-                Log.w(LOG_TAG, "Einstellungen konnten nicht geladen werden: ${e::class.simpleName}")
-            }
-        }
-        return StartupState.Ready
-    }
 }

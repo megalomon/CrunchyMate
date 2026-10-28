@@ -33,5 +33,10 @@ class SyncNotificationsTest {
         assertTrue(shadow.isActivityIntent)
         assertEquals(MainActivity::class.java.name, shadow.savedIntent.component?.className)
         assertTrue(shadow.flags and PendingIntent.FLAG_IMMUTABLE != 0)
+        // Keine Neuerzeugung der laufenden Activity: kein CLEAR_TOP, dafür SINGLE_TOP
+        val intentFlags = shadow.savedIntent.flags
+        assertTrue(intentFlags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
+        assertTrue(intentFlags and Intent.FLAG_ACTIVITY_SINGLE_TOP != 0)
+        assertEquals(0, intentFlags and Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
 }

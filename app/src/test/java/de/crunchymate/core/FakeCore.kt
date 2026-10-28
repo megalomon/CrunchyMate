@@ -39,6 +39,7 @@ class FakeCore(
     var queryThreadName: String? = null
     var queryError: Throwable? = null
     var saveError: Throwable? = null
+    var loadError: Throwable? = null
     var details: Map<String, AnimeDetail> = emptyMap()
     var tagList: List<NameCount> = listOf(NameCount("Magie", 2L))
     var currentStats: Stats? = null
@@ -90,7 +91,10 @@ class FakeCore(
 
     override fun stats(): Stats = currentStats ?: Stats(items.size.toLong(), 0L, 0L, 0L, 0L, 0L, 0L)
 
-    override fun settings(): Settings = storedSettings
+    override fun settings(): Settings {
+        loadError?.let { throw it }
+        return storedSettings
+    }
 
     override fun saveSettings(settings: Settings) {
         saveError?.let { throw it }

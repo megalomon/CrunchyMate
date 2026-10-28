@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import de.crunchymate.R
 import de.crunchymate.core.ffi.AnimeSummary
 import de.crunchymate.ui.theme.Dimens
@@ -151,10 +152,11 @@ fun AnimeCard(
 }
 
 /**
- * Kleiner runder Schalter auf dem Poster. Die Berührfläche ist [Dimens.MinTouchTarget] hoch und breit, aber nicht
- * symmetrisch um den Kreis: Benachbarte Zeilen teilen sich die Lücke zwischen den Kreisen je zur Hälfte, damit sich
- * die Flächen nie überlappen. Der sichtbare Kreis sitzt mit Abstand [Dimens.OverlayInset] von der Ecke; [row]
- * stapelt die Kreise mit [Dimens.OverlayGap] Abstand.
+ * Kleiner runder Schalter auf dem Poster. Die Berührfläche liegt vollständig im Poster, weil das Poster
+ * Kindflächen am Rand abschneidet. Benachbarte Zeilen teilen sich die Lücke zwischen den Kreisen je zur Hälfte, damit
+ * sich die Flächen nie überlappen. Die erste Zeile beginnt deshalb am Posterrand und ist niedriger als
+ * [Dimens.MinTouchTarget]; die Breite beträgt [Dimens.MinTouchTarget] mit dem Kreis am rechten Rand im Abstand
+ * [Dimens.OverlayInset]. [row] stapelt die Kreise mit [Dimens.OverlayGap] Abstand.
  */
 @Composable
 private fun OverlayToggle(
@@ -166,18 +168,18 @@ private fun OverlayToggle(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val touchPadding = (Dimens.MinTouchTarget - Dimens.OverlayButton) / 2
     val rowStep = Dimens.OverlayButton + Dimens.OverlayGap
     val gapShare = Dimens.OverlayGap / 2
-    val freeSide = Dimens.MinTouchTarget - Dimens.OverlayButton - gapShare
+    val circleTop = Dimens.OverlayInset + rowStep * row
     val isFirstRow = row == 0
-    val above = if (isFirstRow) freeSide else gapShare
+    val areaTop = if (isFirstRow) 0.dp else circleTop - gapShare
+    val areaHeight = if (isFirstRow) circleTop + Dimens.OverlayButton + gapShare else Dimens.MinTouchTarget
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier =
             modifier
-                .offset(x = touchPadding - Dimens.OverlayInset, y = Dimens.OverlayInset + rowStep * row - above)
-                .size(Dimens.MinTouchTarget)
+                .offset(y = areaTop)
+                .size(width = Dimens.MinTouchTarget, height = areaHeight)
                 .clickable(interactionSource = interactionSource, indication = null, role = Role.Button, onClick = onClick)
                 .semantics {
                     contentDescription = description
@@ -186,8 +188,8 @@ private fun OverlayToggle(
     ) {
         Box(
             Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = above)
+                .align(Alignment.TopEnd)
+                .padding(top = circleTop - areaTop, end = Dimens.OverlayInset)
                 .size(Dimens.OverlayButton)
                 .clip(CircleShape)
                 .background(PosterOverlayBackground)

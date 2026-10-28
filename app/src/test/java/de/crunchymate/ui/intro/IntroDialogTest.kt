@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.espresso.Espresso
 import de.crunchymate.R
 import de.crunchymate.core.CoreGateway
 import de.crunchymate.core.FakeCore
@@ -62,5 +63,20 @@ class IntroDialogTest {
 
         rule.onNodeWithText(string(R.string.intro_title)).assertDoesNotExist()
         assertEquals(true, store.settings.value.introSeen)
+    }
+
+    @Test
+    fun back_finishesActivityWithoutSettingFlag() {
+        val core = FakeCore(storedSettings = sampleSettings(introSeen = false))
+        val store = loadedStore(core)
+        rule.setContent { CrunchyMateTheme { IntroDialogHost(store) } }
+
+        Espresso.pressBack()
+        rule.waitForIdle()
+
+        assertTrue(rule.activity.isFinishing)
+        assertEquals(false, store.settings.value.introSeen)
+        runBlocking { store.flush() }
+        assertEquals(0, core.savedSettings.size)
     }
 }

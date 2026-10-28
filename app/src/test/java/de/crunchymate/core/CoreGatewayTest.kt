@@ -93,4 +93,33 @@ class CoreGatewayTest {
             assertEquals("Action", gateway.genres().first().name)
             assertEquals("Magie", gateway.tags().first().name)
         }
+
+    @Test
+    fun nonCoreException_becomesInternalCoreException() =
+        runTest(UnconfinedTestDispatcher()) {
+            val core = FakeCore()
+            core.queryError =
+                de.crunchymate.core.ffi
+                    .InternalException("panic")
+            val gateway = CoreGateway(core, UnconfinedTestDispatcher(testScheduler))
+
+            val error = runCatching { gateway.queryAnime(sampleFilter(), 0, 10) }.exceptionOrNull()
+
+            assertTrue(error is de.crunchymate.core.ffi.CoreException.Internal)
+        }
+
+    @Test
+    fun coreException_passesThroughUnchanged() =
+        runTest(UnconfinedTestDispatcher()) {
+            val core = FakeCore()
+            val original =
+                de.crunchymate.core.ffi.CoreException
+                    .Database("kaputt")
+            core.queryError = original
+            val gateway = CoreGateway(core, UnconfinedTestDispatcher(testScheduler))
+
+            val error = runCatching { gateway.queryAnime(sampleFilter(), 0, 10) }.exceptionOrNull()
+
+            assertTrue(error === original)
+        }
 }
