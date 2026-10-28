@@ -13,6 +13,7 @@ import de.crunchymate.core.ffi.SyncRunState
 import de.crunchymate.core.ffi.SyncStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -28,6 +29,7 @@ import org.robolectric.annotation.Config
 
 private const val SDK = 35
 private const val TIMEOUT_MS = 10_000L
+private const val POLL_MS = 50L
 private const val FINISHED_AT = 1_700_000_000L
 
 @RunWith(RobolectricTestRunner::class)
@@ -62,11 +64,13 @@ class SyncSchedulerTest {
         runBlocking {
             scheduler.start(SyncKind.CATALOG)
             scheduler.start(SyncKind.CATALOG)
+            // Das Einreihen läuft asynchron; erst wenn der Eintrag lesbar ist, ist die Zählung stabil
+            withTimeout(TIMEOUT_MS) {
+                while (workManager.getWorkInfosForUniqueWork("sync-CATALOG").get().isEmpty()) delay(POLL_MS)
+            }
 
             assertEquals(1, workManager.getWorkInfosForUniqueWork("sync-CATALOG").get().size)
             assertEquals(1, activeInfos(SyncKind.CATALOG).size)
-            withTimeout(TIMEOUT_MS) { scheduler.observe(SyncKind.CATALOG).first { it.running } }
-            Unit
         }
 
     @Test
@@ -109,6 +113,18 @@ class SyncSchedulerTest {
             val stopped = withTimeout(TIMEOUT_MS) { scheduler.observe(SyncKind.CATALOG).first { !it.running } }
             assertFalse(stopped.running)
             assertEquals(40L, stopped.total)
+        }
+
+    @Test
+    fun observe_runningWithoutProgressShowsIndeterminateInsteadOfStoredCounts() =
+        runBlocking {
+            core.syncStatuses =
+                mapOf(SyncKind.CATALOG to SyncStatus(SyncKind.CATALOG, SyncRunState.COMPLETED, 3L, 40L, FINISHED_AT, null, "DE"))
+
+            scheduler.start(SyncKind.CATALOG)
+            val running = withTimeout(TIMEOUT_MS) { scheduler.observe(SyncKind.CATALOG).first { it.running } }
+            assertEquals(0L, running.done)
+            assertEquals(0L, running.total)
         }
 
     @Test

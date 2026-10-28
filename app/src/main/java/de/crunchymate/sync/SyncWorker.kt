@@ -1,8 +1,10 @@
 package de.crunchymate.sync
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.util.Log
+import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
@@ -45,7 +47,7 @@ class SyncWorker internal constructor(
         val kind = kind ?: return Result.failure()
         val gateway = gatewayProvider()
         SyncNotifications.ensureChannel(applicationContext)
-        updateForeground(kind, done = 0, total = 0)
+        startForeground(kind)
         // Der Kern ruft den Observer aus eigenen Threads; die StateFlow übergibt den jeweils neuesten Stand an die Coroutine
         val latest = MutableStateFlow<SyncProgress?>(null)
         val observer =
@@ -85,21 +87,30 @@ class SyncWorker internal constructor(
         progress: SyncProgress,
     ) {
         setProgress(workDataOf(KEY_DONE to progress.done, KEY_TOTAL to progress.total))
-        updateForeground(progress.kind, progress.done, progress.total)
+        updateNotification(progress.kind, progress.done, progress.total)
         gateway.notifyChanged()
     }
 
-    private suspend fun updateForeground(
-        kind: SyncKind,
-        done: Long,
-        total: Long,
-    ) {
+    private suspend fun startForeground(kind: SyncKind) {
         try {
-            setForeground(foregroundInfo(kind, done, total))
+            setForeground(foregroundInfo(kind, done = 0, total = 0))
         } catch (e: IllegalStateException) {
             // Ohne Vordergrunddienst läuft der Sync weiter, nur ohne Benachrichtigung
             Log.w(LOG_TAG, "Vordergrunddienst nicht verfügbar: ${e::class.simpleName}")
         }
+    }
+
+    // Wiederholtes setForeground würde jedes Mal den Dienst neu anmelden; ein Update der Benachrichtigung genügt
+    @SuppressLint("MissingPermission")
+    private fun updateNotification(
+        kind: SyncKind,
+        done: Long,
+        total: Long,
+    ) {
+        val manager = NotificationManagerCompat.from(applicationContext)
+        if (!manager.areNotificationsEnabled()) return
+        val info = foregroundInfo(kind, done, total)
+        manager.notify(info.notificationId, info.notification)
     }
 
     private fun foregroundInfo(

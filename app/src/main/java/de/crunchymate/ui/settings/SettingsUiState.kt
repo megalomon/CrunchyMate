@@ -11,4 +11,6 @@ data class SettingsUiState(
     val contentLocale: String,
     val availableLocales: List<String>,
     val hideWatched: Boolean,
+    /** Wahr, sobald die Inhaltssprache geändert wurde und noch kein Katalog-Sync seitdem lief. */
+    val contentLocaleChangePending: Boolean,
 )

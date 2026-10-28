@@ -40,7 +40,6 @@ fun SyncCard(
     onStart: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
-    description: String? = null,
 ) {
     Card(modifier.fillMaxWidth()) {
         Column(Modifier.padding(Dimens.SpaceMd), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
@@ -55,9 +54,6 @@ fun SyncCard(
                         Icon(painterResource(R.drawable.ic_sync_start), stringResource(R.string.sync_start))
                     }
                 }
-            }
-            description?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (state.total > 0) {
                 LinearProgressIndicator(progress = { state.done.toFloat() / state.total }, modifier = Modifier.fillMaxWidth())

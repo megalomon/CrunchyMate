@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vorübergehend: ic_dropdown und ic_tags_reset sind nach Task 15b ungenutzt; der Auftraggeber löscht beide Dateien, danach entfällt auch diese Datei. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/ic_dropdown,@drawable/ic_tags_reset" />

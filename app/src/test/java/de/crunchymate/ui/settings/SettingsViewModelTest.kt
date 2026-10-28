@@ -112,6 +112,21 @@ class SettingsViewModelTest {
         }
 
     @Test
+    fun settings_contentLocaleHint_onlyAfterChange() =
+        runTest(dispatcher) {
+            val f = fixture()
+            assertFalse(f.viewModel.uiState.value.contentLocaleChangePending)
+
+            f.viewModel.onContentLocaleChange(f.store.settings.value.contentLocale)
+            runCurrent()
+            assertFalse(f.viewModel.uiState.value.contentLocaleChangePending)
+
+            f.viewModel.onContentLocaleChange("en-US")
+            runCurrent()
+            assertTrue(f.viewModel.uiState.value.contentLocaleChangePending)
+        }
+
+    @Test
     fun settings_locales_loadedAsyncNotInConstructor() =
         runTest(dispatcher) {
             val core = FakeCore()

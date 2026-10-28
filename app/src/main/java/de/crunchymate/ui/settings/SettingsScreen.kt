@@ -44,7 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.crunchymate.R
 import de.crunchymate.core.ffi.Stats
 import de.crunchymate.core.ffi.SyncKind
-import de.crunchymate.ui.components.FilterDropdownChip
+import de.crunchymate.ui.components.FilterDropdown
 import de.crunchymate.ui.components.SyncCard
 import de.crunchymate.ui.theme.Dimens
 import java.util.IllformedLocaleException
@@ -82,14 +82,8 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd),
     ) {
         Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineSmall)
-        Text(
-            stringResource(R.string.settings_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         SyncCard(
             title = stringResource(R.string.settings_sync_catalog_title),
-            description = stringResource(R.string.settings_sync_catalog_description),
             state = state.catalog,
             onStart = { startWithPermission(SyncKind.CATALOG) },
             onCancel = { onCancelSync(SyncKind.CATALOG) },
@@ -101,7 +95,6 @@ fun SettingsScreen(
         )
         SyncCard(
             title = stringResource(R.string.settings_sync_metadata_title),
-            description = stringResource(R.string.settings_sync_metadata_description),
             state = state.metadata,
             onStart = { startWithPermission(SyncKind.METADATA) },
             onCancel = { onCancelSync(SyncKind.METADATA) },
@@ -141,27 +134,26 @@ private fun DisplaySettings(
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(Dimens.SpaceMd), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
             Text(stringResource(R.string.settings_display_heading), style = MaterialTheme.typography.titleMedium)
-            FilterDropdownChip(
+            FilterDropdown(
                 label = stringResource(R.string.settings_content_locale_label),
                 options = state.availableLocales,
                 selected = state.contentLocale,
                 optionLabel = { localeName(it) },
                 onSelect = onContentLocaleChange,
             )
-            Text(
-                stringResource(R.string.settings_content_locale_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (state.contentLocaleChangePending) {
+                Text(
+                    stringResource(R.string.settings_content_locale_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.settings_hide_watched), style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        stringResource(R.string.settings_hide_watched_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    stringResource(R.string.settings_hide_watched),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f),
+                )
                 Switch(checked = state.hideWatched, onCheckedChange = onHideWatchedChange)
             }
             OutlinedButton(onClick = { openAppLanguageSettings(context) }) {
