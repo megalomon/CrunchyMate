@@ -7,6 +7,7 @@ use crunchymate_core::db::anime::{apply_metadata, get_anime, stats, upsert_catal
 use crunchymate_core::db::images::{delete_image, image_stats, local_ref, record, ImageSlot};
 use crunchymate_core::db::Database;
 use crunchymate_core::error::CoreResult;
+use crunchymate_core::images::encode::DecodeLimits;
 use crunchymate_core::model::{
     AnimeFilter, CatalogItem, CatalogPage, LanguageFilter, MehFilter, MetadataItem, SortOrder,
     SyncKind, SyncPhase, SyncProgress, WatchedFilter,
@@ -30,6 +31,7 @@ fn fast() -> SyncConfig {
         catalog_page_delay: Duration::ZERO,
         metadata_batch_size: 10,
         metadata_batch_delay: Duration::ZERO,
+        ..SyncConfig::default()
     }
 }
 
@@ -115,6 +117,7 @@ async fn image_sync_downloads_only_missing_or_changed() {
         &fetcher,
         &TALL,
         SyncKind::Catalog,
+        &fast(),
         &Recorder::default(),
     )
     .await
@@ -130,6 +133,7 @@ async fn image_sync_downloads_only_missing_or_changed() {
         &fetcher,
         &TALL,
         SyncKind::Catalog,
+        &fast(),
         &Recorder::default(),
     )
     .await
@@ -147,6 +151,7 @@ async fn image_sync_downloads_only_missing_or_changed() {
         &fetcher,
         &TALL,
         SyncKind::Catalog,
+        &fast(),
         &Recorder::default(),
     )
     .await
@@ -174,6 +179,7 @@ async fn image_sync_counts_failures_and_retries_next_run() {
         &fetcher,
         &TALL,
         SyncKind::Catalog,
+        &fast(),
         &Recorder::default(),
     )
     .await
@@ -191,6 +197,7 @@ async fn image_sync_counts_failures_and_retries_next_run() {
         &fetcher,
         &TALL,
         SyncKind::Catalog,
+        &fast(),
         &Recorder::default(),
     )
     .await
@@ -214,6 +221,7 @@ async fn image_sync_reports_images_phase_progress() {
         &fetcher,
         &TALL,
         SyncKind::Metadata,
+        &fast(),
         &observer,
     )
     .await
@@ -241,8 +249,17 @@ async fn image_sync_cancel_keeps_completed_files() {
     // Reihenfolge nach Titel: a, b, c
     fetcher.block(&tall_url("b"));
     let observer = Recorder::default();
+    let config = fast();
     {
-        let future = run_image_sync(&db, &store, &fetcher, &TALL, SyncKind::Catalog, &observer);
+        let future = run_image_sync(
+            &db,
+            &store,
+            &fetcher,
+            &TALL,
+            SyncKind::Catalog,
+            &config,
+            &observer,
+        );
         tokio::pin!(future);
         tokio::select! {
             _ = &mut future => panic!("Sync darf nicht abschließen"),
@@ -268,6 +285,7 @@ async fn image_sync_cancel_keeps_completed_files() {
         &fetcher,
         &TALL,
         SyncKind::Catalog,
+        &fast(),
         &Recorder::default(),
     )
     .await
@@ -288,6 +306,7 @@ async fn image_sync_gc_removes_unreferenced() {
         &fetcher,
         &TALL,
         SyncKind::Catalog,
+        &fast(),
         &Recorder::default(),
     )
     .await
@@ -307,6 +326,7 @@ async fn image_sync_gc_removes_unreferenced() {
         &fetcher,
         &TALL,
         SyncKind::Catalog,
+        &fast(),
         &Recorder::default(),
     )
     .await
@@ -461,6 +481,7 @@ async fn query_returns_local_poster_path() {
         &fetcher,
         &TALL,
         SyncKind::Catalog,
+        &fast(),
         &Recorder::default(),
     )
     .await
@@ -502,6 +523,7 @@ async fn detail_banner_falls_back_to_wide_poster() {
         &fetcher,
         &both,
         SyncKind::Catalog,
+        &fast(),
         &Recorder::default(),
     )
     .await
@@ -534,6 +556,7 @@ async fn detail_banner_falls_back_to_wide_poster() {
         &fetcher,
         &[ImageSlot::Banner],
         SyncKind::Metadata,
+        &fast(),
         &Recorder::default(),
     )
     .await
@@ -559,6 +582,7 @@ async fn stats_include_image_totals() {
         &fetcher,
         &TALL,
         SyncKind::Catalog,
+        &fast(),
         &Recorder::default(),
     )
     .await
@@ -590,6 +614,7 @@ async fn image_sync_gc_removes_orphan_files_without_row() {
         &fetcher,
         &TALL,
         SyncKind::Catalog,
+        &fast(),
         &Recorder::default(),
     )
     .await
@@ -631,15 +656,25 @@ async fn concurrent_image_phases_do_not_fail_and_keep_files() {
     fetcher.serve("http://img/banner-1", webp_bytes("gleich"));
     let banner = [ImageSlot::Banner];
     let (observer_a, observer_b) = (Recorder::default(), Recorder::default());
+    let config = fast();
 
     let (first, second) = tokio::join!(
-        run_image_sync(&db, &store, &fetcher, &TALL, SyncKind::Catalog, &observer_a),
+        run_image_sync(
+            &db,
+            &store,
+            &fetcher,
+            &TALL,
+            SyncKind::Catalog,
+            &config,
+            &observer_a
+        ),
         run_image_sync(
             &db,
             &store,
             &fetcher,
             &banner,
             SyncKind::Metadata,
+            &config,
             &observer_b
         ),
     );
@@ -667,6 +702,7 @@ async fn image_sync_reports_empty_images_phase_when_nothing_pending() {
         &FakeFetcher::default(),
         &TALL,
         SyncKind::Catalog,
+        &fast(),
         &observer,
     )
     .await
@@ -675,24 +711,6 @@ async fn image_sync_reports_empty_images_phase_when_nothing_pending() {
         observer.events(),
         vec![(SyncKind::Catalog, SyncPhase::Images, 0, 0)]
     );
-}
-
-/// Stellt die Schreibrechte beim Verlassen wieder her, damit das Aufräumen gelingt.
-struct ReadOnly(std::path::PathBuf);
-
-impl ReadOnly {
-    fn set(path: std::path::PathBuf) -> Self {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o555)).unwrap();
-        Self(path)
-    }
-}
-
-impl Drop for ReadOnly {
-    fn drop(&mut self) {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(&self.0, std::fs::Permissions::from_mode(0o755));
-    }
 }
 
 #[tokio::test]
@@ -704,11 +722,11 @@ async fn image_sync_store_failure_is_fatal_but_corrupt_image_only_counted() {
     seed_three(&db, &fetcher);
     // a ist unlesbar und wird nur gezählt; b scheitert an der Ablage
     fetcher.serve(&tall_url("a"), b"kein Bild".to_vec());
-    let _lock = ReadOnly::set(dir.path().join("tmp"));
-    // Läuft der Test mit Root-Rechten, greift die Sperre nicht
-    if std::fs::File::create(dir.path().join("tmp").join("probe")).is_ok() {
-        return;
-    }
+    // Eine Datei anstelle des Temp-Verzeichnisses lässt jedes Schreiben scheitern, auch mit
+    // Root-Rechten (anders als entzogene Schreibrechte); der Test läuft daher immer wirklich
+    let tmp = dir.path().join("tmp");
+    std::fs::remove_dir_all(&tmp).unwrap();
+    std::fs::write(&tmp, b"kein Verzeichnis").unwrap();
 
     let result = run_image_sync(
         &db,
@@ -716,15 +734,106 @@ async fn image_sync_store_failure_is_fatal_but_corrupt_image_only_counted() {
         &fetcher,
         &TALL,
         SyncKind::Catalog,
+        &fast(),
         &Recorder::default(),
     )
     .await;
 
-    assert!(matches!(
-        result,
-        Err(crunchymate_core::error::CoreError::Database { .. })
-    ));
+    assert!(
+        matches!(
+            result,
+            Err(crunchymate_core::error::CoreError::Storage { .. })
+        ),
+        "{result:?}"
+    );
     assert!(reference(&db, "a", ImageSlot::PosterTall).is_none());
     assert!(reference(&db, "b", ImageSlot::PosterTall).is_none());
     assert_eq!(fetcher.calls().len(), 2);
+}
+
+fn small_jpeg(width: u32, height: u32) -> Vec<u8> {
+    let mut out = std::io::Cursor::new(Vec::new());
+    image::RgbImage::from_pixel(width, height, image::Rgb([200, 100, 50]))
+        .write_to(&mut out, image::ImageFormat::Jpeg)
+        .unwrap();
+    out.into_inner()
+}
+
+const LIMIT_BYTES: usize = 4096;
+
+#[tokio::test]
+async fn images_beyond_size_limits_are_skipped_and_counted() {
+    let db = Database::open_in_memory().unwrap();
+    let dir = TempDir::new("limits");
+    let store = dir.store();
+    let fetcher = FakeFetcher::default();
+    seed_three(&db, &fetcher);
+    // a: Datei zu groß, b: Abmessungen zu groß, c: passt
+    fetcher.serve(&tall_url("a"), webp_bytes(&"x".repeat(LIMIT_BYTES)));
+    fetcher.serve(&tall_url("b"), small_jpeg(64, 32));
+    fetcher.serve(&tall_url("c"), small_jpeg(16, 16));
+    let config = SyncConfig {
+        image_max_download_bytes: LIMIT_BYTES as u64,
+        image_decode_limits: DecodeLimits {
+            max_width: 32,
+            max_height: 32,
+            ..SyncConfig::default().image_decode_limits
+        },
+        ..fast()
+    };
+    assert!(
+        small_jpeg(64, 32).len() <= LIMIT_BYTES,
+        "Testbild b muss unter der Downloadgrenze liegen"
+    );
+
+    let summary = run_image_sync(
+        &db,
+        &store,
+        &fetcher,
+        &TALL,
+        SyncKind::Catalog,
+        &config,
+        &Recorder::default(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        (summary.downloaded, summary.failed, summary.skipped),
+        (1, 0, 2)
+    );
+    assert!(reference(&db, "a", ImageSlot::PosterTall).is_none());
+    assert!(reference(&db, "b", ImageSlot::PosterTall).is_none());
+    assert!(reference(&db, "c", ImageSlot::PosterTall).is_some());
+}
+
+#[tokio::test]
+async fn catalog_summary_reports_skipped_images() {
+    let db = Database::open_in_memory().unwrap();
+    let dir = TempDir::new("limits-catalog");
+    let fetcher = FakeFetcher::default();
+    fetcher.serve("http://img/t1", webp_bytes(&"x".repeat(200)));
+    let source = OnePage(vec![item("a1", "http://img/t1", "")]);
+    let config = SyncConfig {
+        image_max_download_bytes: 100,
+        ..fast()
+    };
+
+    let summary = run_catalog_sync(
+        &db,
+        &source,
+        &dir.store(),
+        &fetcher,
+        "de-DE",
+        &config,
+        &Recorder::default(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!((summary.failed_images, summary.skipped_images), (0, 1));
+    let status = db
+        .with_conn(|c| crunchymate_core::db::sync_state::status(c, SyncKind::Catalog))
+        .unwrap();
+    assert_eq!(status.last_summary, Some(summary));
 }

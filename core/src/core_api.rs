@@ -35,11 +35,13 @@ pub struct Core {
 // auch wenn Kotlin die Futures über seine Coroutines abfragt.
 #[uniffi::export(async_runtime = "tokio")]
 impl Core {
-    /// Öffnet die Datenbank und baut die echten Quellen auf, ohne Netzwerkzugriff.
-    /// Läufe, die beim letzten Prozessende noch liefen, gelten danach als abgebrochen.
+    /// Öffnet Katalog- und Nutzer-Datenbank und baut die echten Quellen auf, ohne
+    /// Netzwerkzugriff. Läufe, die beim letzten Prozessende noch liefen, gelten danach als
+    /// abgebrochen. `user_db_path` enthält Einstellungen und Markierungen und ist die einzige
+    /// Datei, die ins Backup gehört.
     #[uniffi::constructor]
-    pub fn new(db_path: String, image_dir: String) -> CoreResult<Arc<Self>> {
-        let db = Database::open(&db_path)?;
+    pub fn new(db_path: String, user_db_path: String, image_dir: String) -> CoreResult<Arc<Self>> {
+        let db = Database::open(&db_path, &user_db_path)?;
         db.with_conn(|conn| sync_state::reset_orphaned_runs(conn, now_unix()))?;
         let catalog = Arc::new(CrunchyrollSource::new()?);
         let metadata = Arc::new(AniListClient::new(

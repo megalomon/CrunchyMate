@@ -1,13 +1,13 @@
 mod common;
 
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use crunchymate_core::core_api::Core;
 use crunchymate_core::db::sync_state::mark_running;
 use crunchymate_core::db::Database;
-use crunchymate_core::error::CoreResult;
+use crunchymate_core::error::{CoreError, CoreResult};
+use crunchymate_core::images::store::ImageStore;
 use crunchymate_core::model::{
     AnimeFilter, CatalogItem, CatalogPage, LanguageFilter, MehFilter, MetadataItem, Settings,
     SortOrder, SyncKind, SyncProgress, SyncRunState, WatchedFilter,
@@ -26,6 +26,7 @@ fn fast() -> SyncConfig {
         catalog_page_delay: Duration::ZERO,
         metadata_batch_size: 10,
         metadata_batch_delay: Duration::ZERO,
+        ..SyncConfig::default()
     }
 }
 
@@ -127,46 +128,58 @@ fn core_with(catalog: Arc<FakeCatalog>) -> (Arc<Core>, TempDir) {
     (core, dir)
 }
 
-/// Temporäre Datenbankdatei, die samt WAL-Dateien beim Verlassen gelöscht wird.
-struct TempDbPath(PathBuf);
-
-impl TempDbPath {
-    fn new(name: &str) -> Self {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let file = format!("crunchymate-{name}-{}-{nanos}.db", std::process::id());
-        Self(std::env::temp_dir().join(file))
-    }
-
-    fn as_str(&self) -> &str {
-        self.0.to_str().unwrap()
-    }
+/// Katalog-, Nutzer-Datenbank und Bildordner in einem temporären Verzeichnis.
+struct AppFiles {
+    dir: TempDir,
 }
 
-impl Drop for TempDbPath {
-    fn drop(&mut self) {
+impl AppFiles {
+    fn new(name: &str) -> Self {
+        let dir = TempDir::new(name);
+        std::fs::create_dir_all(dir.path()).unwrap();
+        Self { dir }
+    }
+
+    fn path(&self, name: &str) -> String {
+        self.dir.path().join(name).to_string_lossy().into_owned()
+    }
+
+    fn catalog(&self) -> String {
+        self.path("crunchymate.db")
+    }
+
+    fn user(&self) -> String {
+        self.path("crunchymate-user.db")
+    }
+
+    fn open_core(&self, catalog: Arc<dyn CatalogSource>) -> Arc<Core> {
+        Core::with_sources(
+            Database::open(&self.catalog(), &self.user()).unwrap(),
+            catalog,
+            Arc::new(EmptyMetadata),
+            ImageStore::new(self.path("images")).unwrap(),
+            Arc::new(FakeFetcher::default()),
+            fast(),
+        )
+    }
+
+    /// Wie ein Neuaufbau des Caches: die Katalog-Datei verschwindet, die Nutzer-Datei bleibt.
+    fn delete_catalog(&self) {
         for suffix in ["", "-wal", "-shm"] {
-            let _ = std::fs::remove_file(format!("{}{suffix}", self.as_str()));
+            let _ = std::fs::remove_file(format!("{}{suffix}", self.catalog()));
         }
     }
 }
 
 #[tokio::test]
 async fn new_resets_orphaned_running_state() {
-    let path = TempDbPath::new("orphan");
+    let files = AppFiles::new("orphan");
     {
-        let db = Database::open(path.as_str()).unwrap();
+        let db = Database::open(&files.catalog(), &files.user()).unwrap();
         db.with_conn(|c| mark_running(c, SyncKind::Catalog, 5))
             .unwrap();
     }
-    let images = TempDir::new("orphan-images");
-    let core = Core::new(
-        path.as_str().to_string(),
-        images.path().to_string_lossy().into_owned(),
-    )
-    .unwrap();
+    let core = Core::new(files.catalog(), files.user(), files.path("images")).unwrap();
     let status = core.sync_status(SyncKind::Catalog).unwrap();
     assert_eq!(status.state, SyncRunState::Cancelled);
     assert!(status.last_finished_at.is_some());
@@ -174,6 +187,105 @@ async fn new_resets_orphaned_running_state() {
         core.sync_status(SyncKind::Metadata).unwrap().state,
         SyncRunState::Idle
     );
+}
+
+#[tokio::test]
+async fn new_rejects_database_from_newer_app_version() {
+    let files = AppFiles::new("too-new");
+    {
+        let conn = rusqlite::Connection::open(files.catalog()).unwrap();
+        conn.execute_batch("PRAGMA user_version = 999;").unwrap();
+    }
+    let result = Core::new(files.catalog(), files.user(), files.path("images"));
+    assert!(matches!(
+        result,
+        Err(CoreError::UnsupportedSchema { found: 999, .. })
+    ));
+}
+
+fn ids_where(core: &Core, watched: WatchedFilter, meh: MehFilter) -> Vec<String> {
+    let filter = AnimeFilter {
+        watched,
+        meh,
+        ..all_filter()
+    };
+    core.query_anime(filter, 0, 100)
+        .unwrap()
+        .items
+        .into_iter()
+        .map(|i| i.id)
+        .collect()
+}
+
+#[tokio::test]
+async fn restore_with_only_user_db_shows_marks_after_first_sync() {
+    // Altes Gerät: markieren, danach wird nur die Nutzer-Datei gesichert
+    let old_device = AppFiles::new("restore-old");
+    let core = old_device.open_core(Arc::new(FakeCatalog::new(&["a1", "a2", "a3"])));
+    core.sync_catalog(Arc::new(RecordingObserver::default()))
+        .await
+        .unwrap();
+    core.set_watched("a1".to_string(), true).unwrap();
+    core.set_meh("a3".to_string(), true).unwrap();
+    let saved = Settings {
+        content_locale: "en-US".to_string(),
+        ..Settings::default()
+    };
+    core.save_settings(saved.clone()).unwrap();
+    drop(core);
+
+    // Neues Gerät: nur die Nutzer-Datei ist wiederhergestellt, der Katalog fehlt
+    let new_device = AppFiles::new("restore-new");
+    std::fs::copy(old_device.user(), new_device.user()).unwrap();
+    let core = new_device.open_core(Arc::new(FakeCatalog::new(&["a1", "a2", "a3"])));
+    assert_eq!(core.settings().unwrap(), saved);
+    assert_eq!(core.stats().unwrap().total, 0);
+    assert!(ids_where(&core, WatchedFilter::Watched, MehFilter::Include).is_empty());
+
+    core.sync_catalog(Arc::new(RecordingObserver::default()))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        ids_where(&core, WatchedFilter::Watched, MehFilter::Include),
+        ["a1"]
+    );
+    assert_eq!(
+        ids_where(&core, WatchedFilter::All, MehFilter::Only),
+        ["a3"]
+    );
+    assert_eq!(
+        ids_where(&core, WatchedFilter::Unwatched, MehFilter::Hide),
+        ["a2"]
+    );
+    let stats = core.stats().unwrap();
+    assert_eq!((stats.total, stats.watched, stats.meh), (3, 1, 1));
+    assert!(core.get_anime("a1".to_string()).unwrap().unwrap().watched);
+}
+
+#[tokio::test]
+async fn rebuilding_catalog_db_keeps_every_mark() {
+    let files = AppFiles::new("rebuild");
+    let core = files.open_core(Arc::new(FakeCatalog::new(&["a1", "a2"])));
+    core.sync_catalog(Arc::new(RecordingObserver::default()))
+        .await
+        .unwrap();
+    core.set_watched("a1".to_string(), true).unwrap();
+    core.set_meh("a1".to_string(), true).unwrap();
+    core.set_meh("a2".to_string(), true).unwrap();
+    drop(core);
+
+    files.delete_catalog();
+    let core = files.open_core(Arc::new(FakeCatalog::new(&["a1", "a2"])));
+    assert_eq!(core.stats().unwrap().total, 0);
+    core.sync_catalog(Arc::new(RecordingObserver::default()))
+        .await
+        .unwrap();
+
+    let a1 = core.get_anime("a1".to_string()).unwrap().unwrap();
+    assert!(a1.watched && a1.is_meh);
+    let a2 = core.get_anime("a2".to_string()).unwrap().unwrap();
+    assert!(!a2.watched && a2.is_meh);
 }
 
 #[tokio::test]

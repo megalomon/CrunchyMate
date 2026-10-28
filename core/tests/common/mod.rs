@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
-use crunchymate_core::error::{CoreError, CoreResult};
-use crunchymate_core::images::fetch::ImageFetcher;
+use crunchymate_core::error::CoreError;
+use crunchymate_core::images::fetch::{FetchError, ImageFetcher};
 use crunchymate_core::images::store::ImageStore;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -79,24 +79,31 @@ impl FakeFetcher {
 
 #[async_trait::async_trait]
 impl ImageFetcher for FakeFetcher {
-    async fn fetch(&self, url: &str) -> CoreResult<Vec<u8>> {
+    async fn fetch(&self, url: &str, max_bytes: u64) -> Result<Vec<u8>, FetchError> {
         self.calls.lock().unwrap().push(url.to_string());
         if self.blocking.lock().unwrap().contains(url) {
             let never = tokio::sync::Notify::new();
             never.notified().await;
         }
         if self.failing.lock().unwrap().contains(url) {
-            return Err(CoreError::Network {
+            return Err(FetchError::Failed(CoreError::Network {
                 detail: "weg".to_string(),
-            });
+            }));
         }
-        self.bodies
+        let body = self
+            .bodies
             .lock()
             .unwrap()
             .get(url)
             .cloned()
-            .ok_or_else(|| CoreError::Network {
-                detail: format!("unbekannte URL {url}"),
-            })
+            .ok_or_else(|| {
+                FetchError::Failed(CoreError::Network {
+                    detail: format!("unbekannte URL {url}"),
+                })
+            })?;
+        if body.len() as u64 > max_bytes {
+            return Err(FetchError::TooLarge);
+        }
+        Ok(body)
     }
 }

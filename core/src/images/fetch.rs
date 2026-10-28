@@ -11,9 +11,29 @@ const MAX_REDIRECTS: usize = 10;
 /// Großzügig für große Banner auf langsamen Mobilfunkverbindungen.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
+#[derive(Debug)]
+pub enum FetchError {
+    /// Antwort größer als erlaubt; das Bild wird übersprungen.
+    TooLarge,
+    Failed(CoreError),
+}
+
+impl From<CoreError> for FetchError {
+    fn from(error: CoreError) -> Self {
+        FetchError::Failed(error)
+    }
+}
+
+impl From<reqwest::Error> for FetchError {
+    fn from(error: reqwest::Error) -> Self {
+        FetchError::Failed(error.into())
+    }
+}
+
 #[async_trait::async_trait]
 pub trait ImageFetcher: Send + Sync {
-    async fn fetch(&self, url: &str) -> CoreResult<Vec<u8>>;
+    /// Lädt höchstens `max_bytes` Bytes; eine größere Antwort ergibt `TooLarge`.
+    async fn fetch(&self, url: &str, max_bytes: u64) -> Result<Vec<u8>, FetchError>;
 }
 
 /// Lädt Bilder über einfache GET-Anfragen ohne besondere Header.
@@ -62,20 +82,31 @@ fn is_https(url: &str) -> bool {
 
 #[async_trait::async_trait]
 impl ImageFetcher for HttpImageFetcher {
-    async fn fetch(&self, url: &str) -> CoreResult<Vec<u8>> {
+    async fn fetch(&self, url: &str, max_bytes: u64) -> Result<Vec<u8>, FetchError> {
         if self.https_only && !is_https(url) {
-            return Err(CoreError::Network {
+            return Err(FetchError::Failed(CoreError::Network {
                 detail: "Nur https-Bildquellen erlaubt".to_string(),
-            });
+            }));
         }
-        let response = self.http.get(url).send().await?;
+        let mut response = self.http.get(url).send().await?;
         let status = response.status();
         if status != reqwest::StatusCode::OK {
-            return Err(CoreError::Network {
+            return Err(FetchError::Failed(CoreError::Network {
                 detail: format!("HTTP {status}"),
-            });
+            }));
         }
-        Ok(response.bytes().await?.to_vec())
+        if response.content_length().is_some_and(|len| len > max_bytes) {
+            return Err(FetchError::TooLarge);
+        }
+        // Die Längenangabe kann fehlen oder falsch sein; maßgeblich sind die tatsächlich gelesenen Bytes
+        let mut body = Vec::new();
+        while let Some(chunk) = response.chunk().await? {
+            body.extend_from_slice(&chunk);
+            if u64::try_from(body.len()).unwrap_or(u64::MAX) > max_bytes {
+                return Err(FetchError::TooLarge);
+            }
+        }
+        Ok(body)
     }
 }
 
@@ -86,6 +117,8 @@ mod tests {
 
     use super::*;
 
+    const LIMIT: u64 = 1024;
+
     #[tokio::test]
     async fn http_fetcher_non_200_is_network_error() {
         let server = MockServer::start().await;
@@ -94,9 +127,13 @@ mod tests {
             .mount(&server)
             .await;
         let fetcher = HttpImageFetcher::new_allowing_http().unwrap();
-        let result = fetcher.fetch(&format!("{}/x.jpg", server.uri())).await;
+        let result = fetcher
+            .fetch(&format!("{}/x.jpg", server.uri()), LIMIT)
+            .await;
         match result {
-            Err(CoreError::Network { detail }) => assert!(detail.contains("404"), "{detail}"),
+            Err(FetchError::Failed(CoreError::Network { detail })) => {
+                assert!(detail.contains("404"), "{detail}")
+            }
             other => panic!("Netzwerkfehler erwartet: {other:?}"),
         }
     }
@@ -109,8 +146,23 @@ mod tests {
             .mount(&server)
             .await;
         let fetcher = HttpImageFetcher::new_allowing_http().unwrap();
-        let bytes = fetcher.fetch(&server.uri()).await.unwrap();
+        let bytes = fetcher.fetch(&server.uri(), LIMIT).await.unwrap();
         assert_eq!(bytes, b"daten");
+    }
+
+    #[tokio::test]
+    async fn http_fetcher_rejects_body_over_limit() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(vec![0u8; 11]))
+            .mount(&server)
+            .await;
+        let fetcher = HttpImageFetcher::new_allowing_http().unwrap();
+        assert!(matches!(
+            fetcher.fetch(&server.uri(), 10).await,
+            Err(FetchError::TooLarge)
+        ));
+        assert_eq!(fetcher.fetch(&server.uri(), 11).await.unwrap().len(), 11);
     }
 
     #[tokio::test]
@@ -121,8 +173,10 @@ mod tests {
             "file:///etc/passwd",
             "ftp://h/x",
         ] {
-            match fetcher.fetch(url).await {
-                Err(CoreError::Network { detail }) => assert!(detail.contains("https"), "{detail}"),
+            match fetcher.fetch(url, LIMIT).await {
+                Err(FetchError::Failed(CoreError::Network { detail })) => {
+                    assert!(detail.contains("https"), "{detail}")
+                }
                 other => panic!("Netzwerkfehler erwartet: {other:?}"),
             }
         }

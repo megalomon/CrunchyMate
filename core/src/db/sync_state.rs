@@ -1,7 +1,7 @@
 use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::error::{CoreResult, ErrorCode};
-use crate::model::{SyncKind, SyncRunState, SyncStatus};
+use crate::model::{SyncKind, SyncRunState, SyncStatus, SyncSummary};
 
 // Stabile Textwerte in der Datenbank; bewusst unabhängig von Debug und Variantennamen.
 fn kind_str(kind: SyncKind) -> &'static str {
@@ -38,6 +38,10 @@ fn error_str(code: ErrorCode) -> &'static str {
         ErrorCode::Auth => "auth",
         ErrorCode::Parse => "parse",
         ErrorCode::Database => "database",
+        ErrorCode::UnsupportedSchema => "unsupported_schema",
+        ErrorCode::Storage => "storage",
+        ErrorCode::Incomplete => "incomplete",
+        ErrorCode::Internal => "internal",
         ErrorCode::Cancelled => "cancelled",
     }
 }
@@ -49,6 +53,10 @@ fn error_from_str(text: &str) -> Option<ErrorCode> {
         "auth" => Some(ErrorCode::Auth),
         "parse" => Some(ErrorCode::Parse),
         "database" => Some(ErrorCode::Database),
+        "unsupported_schema" => Some(ErrorCode::UnsupportedSchema),
+        "storage" => Some(ErrorCode::Storage),
+        "incomplete" => Some(ErrorCode::Incomplete),
+        "internal" => Some(ErrorCode::Internal),
         "cancelled" => Some(ErrorCode::Cancelled),
         _ => None,
     }
@@ -57,50 +65,61 @@ fn error_from_str(text: &str) -> Option<ErrorCode> {
 pub fn status(conn: &Connection, kind: SyncKind) -> CoreResult<SyncStatus> {
     let row = conn
         .query_row(
-            "SELECT state, done, total, last_finished_at, last_error, catalog_country
+            "SELECT state, done, total, last_finished_at, last_error, catalog_country,
+                    content_locale, last_processed, last_failed_batches, last_failed_images,
+                    last_skipped_images
              FROM sync_state WHERE kind = ?1",
             params![kind_str(kind)],
             |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, i64>(1)?,
-                    row.get::<_, i64>(2)?,
-                    row.get::<_, Option<i64>>(3)?,
-                    row.get::<_, Option<String>>(4)?,
-                    row.get::<_, Option<String>>(5)?,
-                ))
+                let last_summary = match row.get::<_, Option<i64>>(7)? {
+                    Some(processed) => Some(SyncSummary {
+                        processed,
+                        failed_batches: row.get::<_, Option<i32>>(8)?.unwrap_or(0),
+                        failed_images: row.get::<_, Option<i32>>(9)?.unwrap_or(0),
+                        skipped_images: row.get::<_, Option<i32>>(10)?.unwrap_or(0),
+                    }),
+                    None => None,
+                };
+                Ok(SyncStatus {
+                    kind,
+                    state: state_from_str(&row.get::<_, String>(0)?),
+                    done: row.get(1)?,
+                    total: row.get(2)?,
+                    last_finished_at: row.get(3)?,
+                    last_error: row
+                        .get::<_, Option<String>>(4)?
+                        .as_deref()
+                        .and_then(error_from_str),
+                    catalog_country: row.get(5)?,
+                    content_locale: row.get(6)?,
+                    last_summary,
+                })
             },
         )
         .optional()?;
-    Ok(match row {
-        Some((state, done, total, last_finished_at, last_error, catalog_country)) => SyncStatus {
-            kind,
-            state: state_from_str(&state),
-            done,
-            total,
-            last_finished_at,
-            last_error: last_error.as_deref().and_then(error_from_str),
-            catalog_country,
-        },
-        None => SyncStatus {
-            kind,
-            state: SyncRunState::Idle,
-            done: 0,
-            total: 0,
-            last_finished_at: None,
-            last_error: None,
-            catalog_country: None,
-        },
-    })
+    Ok(row.unwrap_or(SyncStatus {
+        kind,
+        state: SyncRunState::Idle,
+        done: 0,
+        total: 0,
+        last_finished_at: None,
+        last_error: None,
+        catalog_country: None,
+        content_locale: None,
+        last_summary: None,
+    }))
 }
 
-/// Startet einen Lauf: done = 0, Fehler gelöscht, catalog_country bleibt erhalten.
+/// Startet einen Lauf: done = 0, Fehler und Ergebnis des Vorlaufs gelöscht;
+/// catalog_country und content_locale bleiben erhalten.
 pub fn mark_running(conn: &Connection, kind: SyncKind, total: i64) -> CoreResult<()> {
     conn.execute(
         "INSERT INTO sync_state(kind, state, done, total, last_error)
          VALUES (?1, 'running', 0, ?2, NULL)
          ON CONFLICT(kind) DO UPDATE SET
-            state = 'running', done = 0, total = excluded.total, last_error = NULL",
+            state = 'running', done = 0, total = excluded.total, last_error = NULL,
+            last_processed = NULL, last_failed_batches = NULL, last_failed_images = NULL,
+            last_skipped_images = NULL",
         params![kind_str(kind), total],
     )?;
     Ok(())
@@ -115,22 +134,49 @@ pub fn update_progress(conn: &Connection, kind: SyncKind, done: i64, total: i64)
     Ok(())
 }
 
-/// Beendet einen Lauf; done/total bleiben erhalten.
+/// Beendet einen Lauf; done/total bleiben erhalten. `summary` ist das (Teil-)Ergebnis,
+/// soweit es feststeht; ohne bleibt das Ergebnis leer.
 pub fn mark_finished(
     conn: &Connection,
     kind: SyncKind,
     state: SyncRunState,
     error: Option<ErrorCode>,
+    summary: Option<&SyncSummary>,
     now: i64,
 ) -> CoreResult<()> {
     conn.execute(
-        "INSERT INTO sync_state(kind, state, last_finished_at, last_error)
-         VALUES (?1, ?2, ?3, ?4)
+        "INSERT INTO sync_state(kind, state, last_finished_at, last_error, last_processed,
+                                last_failed_batches, last_failed_images, last_skipped_images)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
          ON CONFLICT(kind) DO UPDATE SET
             state = excluded.state,
             last_finished_at = excluded.last_finished_at,
-            last_error = excluded.last_error",
-        params![kind_str(kind), state_str(state), now, error.map(error_str)],
+            last_error = excluded.last_error,
+            last_processed = excluded.last_processed,
+            last_failed_batches = excluded.last_failed_batches,
+            last_failed_images = excluded.last_failed_images,
+            last_skipped_images = excluded.last_skipped_images",
+        params![
+            kind_str(kind),
+            state_str(state),
+            now,
+            error.map(error_str),
+            summary.map(|s| s.processed),
+            summary.map(|s| s.failed_batches),
+            summary.map(|s| s.failed_images),
+            summary.map(|s| s.skipped_images),
+        ],
+    )?;
+    Ok(())
+}
+
+/// Hält die Inhaltssprache eines abgeschlossenen Katalog-Syncs fest; Grundlage für Flaggen
+/// und den Hinweis, dass nach einer Sprachänderung ein Sync aussteht.
+pub fn set_synced_content_locale(conn: &Connection, locale: &str) -> CoreResult<()> {
+    conn.execute(
+        "INSERT INTO sync_state(kind, content_locale) VALUES ('catalog', ?1)
+         ON CONFLICT(kind) DO UPDATE SET content_locale = excluded.content_locale",
+        params![locale],
     )?;
     Ok(())
 }
@@ -173,6 +219,8 @@ mod tests {
                 last_finished_at: None,
                 last_error: None,
                 catalog_country: None,
+                content_locale: None,
+                last_summary: None,
             }
         );
     }
@@ -185,11 +233,18 @@ mod tests {
             update_progress(c, SyncKind::Metadata, 4, 12)?;
             let s = status(c, SyncKind::Metadata)?;
             assert_eq!((s.state, s.done, s.total), (SyncRunState::Running, 4, 12));
+            let partial = SyncSummary {
+                processed: 3,
+                failed_batches: 1,
+                failed_images: 2,
+                skipped_images: 4,
+            };
             mark_finished(
                 c,
                 SyncKind::Metadata,
                 SyncRunState::Failed,
                 Some(ErrorCode::RateLimited),
+                Some(&partial),
                 500,
             )?;
             let s = status(c, SyncKind::Metadata)?;
@@ -197,10 +252,12 @@ mod tests {
             assert_eq!((s.done, s.total), (4, 12));
             assert_eq!(s.last_error, Some(ErrorCode::RateLimited));
             assert_eq!(s.last_finished_at, Some(500));
-            // Neuer Lauf setzt zurück und löscht den Fehler
+            assert_eq!(s.last_summary, Some(partial));
+            // Neuer Lauf setzt zurück und löscht Fehler und Ergebnis
             mark_running(c, SyncKind::Metadata, 7)?;
             let s = status(c, SyncKind::Metadata)?;
             assert_eq!((s.done, s.total, s.last_error), (0, 7, None));
+            assert_eq!(s.last_summary, None);
             Ok(())
         })
         .unwrap();
@@ -212,7 +269,14 @@ mod tests {
         db.with_conn(|c| {
             mark_running(c, SyncKind::Catalog, 5)?;
             mark_running(c, SyncKind::Metadata, 5)?;
-            mark_finished(c, SyncKind::Metadata, SyncRunState::Completed, None, 100)?;
+            mark_finished(
+                c,
+                SyncKind::Metadata,
+                SyncRunState::Completed,
+                None,
+                None,
+                100,
+            )?;
             reset_orphaned_runs(c, 999)?;
             let cat = status(c, SyncKind::Catalog)?;
             assert_eq!(cat.state, SyncRunState::Cancelled);
@@ -223,6 +287,39 @@ mod tests {
             Ok(())
         })
         .unwrap();
+    }
+
+    #[test]
+    fn synced_content_locale_survives_new_run() {
+        let db = Database::open_in_memory().unwrap();
+        db.with_conn(|c| {
+            set_synced_content_locale(c, "fr-FR")?;
+            mark_running(c, SyncKind::Catalog, 3)?;
+            let s = status(c, SyncKind::Catalog)?;
+            assert_eq!(s.content_locale.as_deref(), Some("fr-FR"));
+            assert_eq!(status(c, SyncKind::Metadata)?.content_locale, None);
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn every_error_code_roundtrips_through_storage() {
+        let codes = [
+            ErrorCode::Network,
+            ErrorCode::RateLimited,
+            ErrorCode::Auth,
+            ErrorCode::Parse,
+            ErrorCode::Database,
+            ErrorCode::UnsupportedSchema,
+            ErrorCode::Storage,
+            ErrorCode::Incomplete,
+            ErrorCode::Internal,
+            ErrorCode::Cancelled,
+        ];
+        for code in codes {
+            assert_eq!(error_from_str(error_str(code)), Some(code));
+        }
     }
 
     #[test]

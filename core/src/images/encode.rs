@@ -1,8 +1,8 @@
 //! Speicherformat der Bilder: WebP bleibt, JPEG/PNG werden zu WebP, wenn das kleiner ist.
 
-use image::ImageFormat;
+use std::io::Cursor;
 
-use crate::error::{CoreError, CoreResult};
+use image::{ImageError, ImageFormat, ImageReader, Limits};
 
 /// Qualitätsstufe für verlustbehaftetes WebP; ohne sichtbaren Verlust gegenüber der Quelle.
 pub const WEBP_QUALITY: f32 = 92.0;
@@ -17,6 +17,33 @@ const RIFF_MAGIC: &[u8] = b"RIFF";
 const WEBP_MAGIC: &[u8] = b"WEBP";
 /// Position der Kennung „WEBP“ hinter „RIFF“ und der Chunk-Länge.
 const WEBP_MAGIC_OFFSET: usize = 8;
+
+/// Obergrenzen für das Dekodieren; Werte stammen aus `SyncConfig`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DecodeLimits {
+    pub max_width: u32,
+    pub max_height: u32,
+    /// Speicher, den der Dekoder höchstens belegen darf; die RGBA-Kopie für WebP kommt hinzu.
+    pub max_alloc_bytes: u64,
+}
+
+impl DecodeLimits {
+    fn to_image_limits(self) -> Limits {
+        let mut limits = Limits::default();
+        limits.max_image_width = Some(self.max_width);
+        limits.max_image_height = Some(self.max_height);
+        limits.max_alloc = Some(self.max_alloc_bytes);
+        limits
+    }
+}
+
+#[derive(Debug)]
+pub enum EncodeError {
+    /// Bild überschreitet die Grenzen und wird übersprungen.
+    TooLarge,
+    /// Kein unterstütztes oder ein beschädigtes Bild.
+    Unreadable(String),
+}
 
 /// Zu speichernder Bildinhalt samt Dateiendung.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,7 +75,7 @@ fn detect(bytes: &[u8]) -> Option<SourceFormat> {
 }
 
 /// Bereitet einen Download für die Ablage vor. Rechenintensiv; gehört nicht auf einen Async-Thread.
-pub fn encode_for_storage(bytes: &[u8]) -> CoreResult<StoredImage> {
+pub fn encode_for_storage(bytes: &[u8], limits: DecodeLimits) -> Result<StoredImage, EncodeError> {
     let (format, original_ext) = match detect(bytes) {
         Some(SourceFormat::WebP) => {
             return Ok(StoredImage {
@@ -59,22 +86,22 @@ pub fn encode_for_storage(bytes: &[u8]) -> CoreResult<StoredImage> {
         Some(SourceFormat::Jpeg) => (ImageFormat::Jpeg, EXT_JPEG),
         Some(SourceFormat::Png) => (ImageFormat::Png, EXT_PNG),
         None => {
-            return Err(CoreError::Parse {
-                detail: "Unbekanntes Bildformat".to_string(),
-            })
+            return Err(EncodeError::Unreadable(
+                "Unbekanntes Bildformat".to_string(),
+            ))
         }
     };
-    let decoded =
-        image::load_from_memory_with_format(bytes, format).map_err(|e| CoreError::Parse {
-            detail: format!("Bild nicht lesbar: {e}"),
-        })?;
+    let mut reader = ImageReader::with_format(Cursor::new(bytes), format);
+    reader.limits(limits.to_image_limits());
+    let decoded = reader.decode().map_err(|e| match e {
+        ImageError::Limits(_) => EncodeError::TooLarge,
+        other => EncodeError::Unreadable(format!("Bild nicht lesbar: {other}")),
+    })?;
     // RGBA statt RGB, damit Transparenz aus PNGs erhalten bleibt
     let rgba = decoded.to_rgba8();
     let encoded = webp::Encoder::from_rgba(rgba.as_raw(), rgba.width(), rgba.height())
         .encode_simple(false, WEBP_QUALITY)
-        .map_err(|e| CoreError::Parse {
-            detail: format!("WebP-Kodierung fehlgeschlagen: {e:?}"),
-        })?;
+        .map_err(|e| EncodeError::Unreadable(format!("WebP-Kodierung fehlgeschlagen: {e:?}")))?;
     Ok(pick_smaller(bytes, original_ext, encoded.to_vec()))
 }
 
@@ -132,10 +159,16 @@ mod tests {
     use super::test_images::{jpeg, webp};
     use super::*;
 
+    const GENEROUS: DecodeLimits = DecodeLimits {
+        max_width: 4096,
+        max_height: 4096,
+        max_alloc_bytes: 128 * 1024 * 1024,
+    };
+
     #[test]
     fn encode_keeps_webp_unchanged() {
         let source = webp(1);
-        let stored = encode_for_storage(&source).unwrap();
+        let stored = encode_for_storage(&source, GENEROUS).unwrap();
         assert_eq!(stored.ext, EXT_WEBP);
         assert_eq!(stored.bytes, source);
     }
@@ -143,7 +176,7 @@ mod tests {
     #[test]
     fn encode_jpeg_to_smaller_webp() {
         let source = jpeg(1);
-        let stored = encode_for_storage(&source).unwrap();
+        let stored = encode_for_storage(&source, GENEROUS).unwrap();
         assert_eq!(stored.ext, EXT_WEBP);
         eprintln!(
             "JPEG {} Bytes -> WebP {} Bytes",
@@ -165,17 +198,51 @@ mod tests {
 
     #[test]
     fn encode_rejects_unknown_format() {
-        let result = encode_for_storage(b"GIF89a\x01\x00\x01\x00");
-        assert!(matches!(result, Err(CoreError::Parse { .. })));
+        let result = encode_for_storage(b"GIF89a\x01\x00\x01\x00", GENEROUS);
+        assert!(matches!(result, Err(EncodeError::Unreadable(_))));
         assert!(matches!(
-            encode_for_storage(b""),
-            Err(CoreError::Parse { .. })
+            encode_for_storage(b"", GENEROUS),
+            Err(EncodeError::Unreadable(_))
         ));
     }
 
     #[test]
     fn encode_rejects_truncated_jpeg() {
-        let result = encode_for_storage(&JPEG_MAGIC.repeat(2));
-        assert!(matches!(result, Err(CoreError::Parse { .. })));
+        let result = encode_for_storage(&JPEG_MAGIC.repeat(2), GENEROUS);
+        assert!(matches!(result, Err(EncodeError::Unreadable(_))));
+    }
+
+    #[test]
+    fn encode_rejects_images_beyond_limits() {
+        // Testbild ist 480 x 720
+        let source = jpeg(2);
+        for limits in [
+            DecodeLimits {
+                max_width: 479,
+                ..GENEROUS
+            },
+            DecodeLimits {
+                max_height: 719,
+                ..GENEROUS
+            },
+            DecodeLimits {
+                max_alloc_bytes: 1024,
+                ..GENEROUS
+            },
+        ] {
+            assert!(
+                matches!(
+                    encode_for_storage(&source, limits),
+                    Err(EncodeError::TooLarge)
+                ),
+                "{limits:?}"
+            );
+        }
+        let exact = DecodeLimits {
+            max_width: 480,
+            max_height: 720,
+            ..GENEROUS
+        };
+        assert!(encode_for_storage(&source, exact).is_ok());
     }
 }

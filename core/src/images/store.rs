@@ -110,7 +110,7 @@ fn hex(digest: &[u8]) -> String {
 }
 
 fn io_error(error: std::io::Error) -> CoreError {
-    CoreError::Database {
+    CoreError::Storage {
         detail: format!("Bildspeicher: {error}"),
     }
 }

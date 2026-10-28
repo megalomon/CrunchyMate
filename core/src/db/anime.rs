@@ -35,15 +35,22 @@ const UPDATE_ANILIST: &str = "
         anilist_status = ?7,
         anilist_banner_image = ?8,
         anilist_site_url = ?9,
-        anilist_synced_at = unixepoch()
+        anilist_synced_at = unixepoch(),
+        anilist_missed_at = NULL
     WHERE id = ?1";
 
 const SELECT_DETAIL: &str = "
-    SELECT id, title, anilist_title_romaji, anilist_title_english, description,
-           episode_count, launch_year,
-           is_subbed, is_dubbed, has_target_dub, has_target_sub, watched, is_meh,
-           anilist_id, anilist_score, anilist_status, anilist_site_url, anilist_description
-    FROM anime WHERE id = ?1";
+    SELECT a.id, a.title, a.anilist_title_romaji, a.anilist_title_english, a.description,
+           a.episode_count, a.launch_year, a.has_target_dub, a.has_target_sub,
+           COALESCE(m.watched, 0), COALESCE(m.is_meh, 0),
+           a.anilist_id, a.anilist_score, a.anilist_status, a.anilist_site_url,
+           a.anilist_description
+    FROM anime a LEFT JOIN userdata.marks m ON m.anime_id = a.id
+    WHERE a.id = ?1";
+
+// Eine Zeile ohne jede Markierung hat keinen Zweck mehr
+const DELETE_EMPTY_MARK: &str =
+    "DELETE FROM userdata.marks WHERE anime_id = ?1 AND watched = 0 AND is_meh = 0";
 
 pub fn upsert_catalog_page(tx: &Transaction, items: &[CatalogItem]) -> CoreResult<()> {
     let mut upsert = tx.prepare_cached(UPSERT_ANIME)?;
@@ -110,19 +117,29 @@ fn link_genres(tx: &Transaction, anime_id: &str, genres: &[String]) -> CoreResul
     Ok(())
 }
 
+/// Markierungen gelten auch für IDs, die (noch) nicht im Katalog stehen, etwa nach einer
+/// Wiederherstellung vor dem ersten Sync.
 pub fn set_watched(conn: &Connection, id: &str, watched: bool, now: i64) -> CoreResult<()> {
     conn.execute(
-        "UPDATE anime SET watched = ?2, watched_at = CASE WHEN ?2 THEN ?3 END WHERE id = ?1",
+        "INSERT INTO userdata.marks (anime_id, watched, watched_at)
+         VALUES (?1, ?2, CASE WHEN ?2 THEN ?3 END)
+         ON CONFLICT(anime_id) DO UPDATE SET
+             watched = excluded.watched, watched_at = excluded.watched_at",
         params![id, watched, now],
     )?;
+    conn.execute(DELETE_EMPTY_MARK, [id])?;
     Ok(())
 }
 
 pub fn set_meh(conn: &Connection, id: &str, meh: bool, now: i64) -> CoreResult<()> {
     conn.execute(
-        "UPDATE anime SET is_meh = ?2, meh_at = CASE WHEN ?2 THEN ?3 END WHERE id = ?1",
+        "INSERT INTO userdata.marks (anime_id, is_meh, meh_at)
+         VALUES (?1, ?2, CASE WHEN ?2 THEN ?3 END)
+         ON CONFLICT(anime_id) DO UPDATE SET
+             is_meh = excluded.is_meh, meh_at = excluded.meh_at",
         params![id, meh, now],
     )?;
+    conn.execute(DELETE_EMPTY_MARK, [id])?;
     Ok(())
 }
 
@@ -133,12 +150,12 @@ pub fn get_anime(
 ) -> CoreResult<Option<AnimeDetail>> {
     let detail = conn
         .query_row(SELECT_DETAIL, [id], |row| {
-            let anilist = match row.get::<_, Option<i64>>(13)? {
+            let anilist = match row.get::<_, Option<i64>>(11)? {
                 Some(_) => Some(AniListInfo {
-                    score: row.get(14)?,
-                    status: row.get(15)?,
-                    site_url: row.get(16)?,
-                    description: row.get(17)?,
+                    score: row.get(12)?,
+                    status: row.get(13)?,
+                    site_url: row.get(14)?,
+                    description: row.get(15)?,
                 }),
                 None => None,
             };
@@ -152,12 +169,10 @@ pub fn get_anime(
                 banner_path: String::new(),
                 episode_count: row.get(5)?,
                 launch_year: row.get(6)?,
-                is_subbed: row.get(7)?,
-                is_dubbed: row.get(8)?,
-                has_target_dub: row.get(9)?,
-                has_target_sub: row.get(10)?,
-                watched: row.get(11)?,
-                is_meh: row.get(12)?,
+                has_target_dub: row.get(7)?,
+                has_target_sub: row.get(8)?,
+                watched: row.get(9)?,
+                is_meh: row.get(10)?,
                 genres: Vec::new(),
                 tags: Vec::new(),
                 anilist,
@@ -236,14 +251,15 @@ pub fn list_tags(conn: &Connection) -> CoreResult<Vec<NameCount>> {
     )
 }
 
+/// Gezählt werden nur Markierungen von Einträgen im Katalog, passend zu den Tabs Gesehen und Meh.
 pub fn stats(conn: &Connection) -> CoreResult<Stats> {
     let stats = conn.query_row(
         "SELECT COUNT(*),
-                COALESCE(SUM(watched = 1), 0),
-                COALESCE(SUM(is_meh = 1), 0),
-                COALESCE(SUM(anilist_id IS NOT NULL), 0),
+                COALESCE(SUM(m.watched = 1), 0),
+                COALESCE(SUM(m.is_meh = 1), 0),
+                COALESCE(SUM(a.anilist_id IS NOT NULL), 0),
                 (SELECT COUNT(*) FROM tags)
-         FROM anime",
+         FROM anime a LEFT JOIN userdata.marks m ON m.anime_id = a.id",
         [],
         |row| {
             Ok(Stats {
@@ -265,13 +281,28 @@ pub fn stats(conn: &Connection) -> CoreResult<Stats> {
     })
 }
 
-pub fn unenriched(conn: &Connection) -> CoreResult<Vec<(String, String)>> {
-    let mut stmt =
-        conn.prepare_cached("SELECT id, title FROM anime WHERE anilist_id IS NULL ORDER BY title")?;
+/// Noch nicht angereicherte Einträge als (ID, Titel). Titel, deren letzte Suche nach
+/// `retry_missed_before` (Unix-Sekunden) ohne Treffer blieb, werden noch nicht erneut versucht.
+pub fn unenriched(
+    conn: &Connection,
+    retry_missed_before: i64,
+) -> CoreResult<Vec<(String, String)>> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT id, title FROM anime
+         WHERE anilist_id IS NULL AND (anilist_missed_at IS NULL OR anilist_missed_at <= ?1)
+         ORDER BY title, id",
+    )?;
     let rows = stmt
-        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .query_map([retry_missed_before], |row| Ok((row.get(0)?, row.get(1)?)))?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(rows)
+}
+
+/// Merkt sich eine Suche ohne Treffer, damit der Titel erst nach einer Frist erneut angefragt wird.
+pub fn mark_metadata_miss(tx: &Transaction, anime_id: &str, now: i64) -> CoreResult<()> {
+    tx.prepare_cached("UPDATE anime SET anilist_missed_at = ?2 WHERE id = ?1")?
+        .execute(params![anime_id, now])?;
+    Ok(())
 }
 
 pub fn count_enriched(conn: &Connection) -> CoreResult<u64> {
@@ -371,7 +402,11 @@ mod tests {
         assert_eq!(detail.anilist.unwrap().score, 80);
         assert_eq!(detail.tags.len(), 1);
         assert_eq!(
-            column_i64(&db, "SELECT watched_at FROM anime WHERE id = ?1", "a"),
+            column_i64(
+                &db,
+                "SELECT watched_at FROM userdata.marks WHERE anime_id = ?1",
+                "a"
+            ),
             Some(100)
         );
     }
@@ -381,9 +416,10 @@ mod tests {
         let db = Database::open_in_memory().unwrap();
         db.with_tx(|tx| upsert_catalog_page(tx, &[catalog_item("a", "A")]))
             .unwrap();
-        let sql = "SELECT watched_at FROM anime WHERE id = ?1";
+        let sql = "SELECT watched_at FROM userdata.marks WHERE anime_id = ?1";
         db.with_conn(|c| set_watched(c, "a", true, 123)).unwrap();
         assert_eq!(column_i64(&db, sql, "a"), Some(123));
+        db.with_conn(|c| set_meh(c, "a", true, 124)).unwrap();
         db.with_conn(|c| set_watched(c, "a", false, 456)).unwrap();
         assert_eq!(column_i64(&db, sql, "a"), None);
         db.with_conn(|c| set_watched(c, "unbekannt", true, 1))
@@ -395,12 +431,80 @@ mod tests {
         let db = Database::open_in_memory().unwrap();
         db.with_tx(|tx| upsert_catalog_page(tx, &[catalog_item("a", "A")]))
             .unwrap();
-        let sql = "SELECT meh_at FROM anime WHERE id = ?1";
+        let sql = "SELECT meh_at FROM userdata.marks WHERE anime_id = ?1";
         db.with_conn(|c| set_meh(c, "a", true, 123)).unwrap();
         assert_eq!(column_i64(&db, sql, "a"), Some(123));
+        db.with_conn(|c| set_watched(c, "a", true, 124)).unwrap();
         db.with_conn(|c| set_meh(c, "a", false, 456)).unwrap();
         assert_eq!(column_i64(&db, sql, "a"), None);
         db.with_conn(|c| set_meh(c, "unbekannt", true, 1)).unwrap();
+    }
+
+    fn mark_rows(db: &Database) -> i64 {
+        db.with_conn(|c| Ok(c.query_row("SELECT COUNT(*) FROM userdata.marks", [], |r| r.get(0))?))
+            .unwrap()
+    }
+
+    #[test]
+    fn unmarking_both_removes_mark_row() {
+        let db = Database::open_in_memory().unwrap();
+        db.with_conn(|c| {
+            set_watched(c, "a", true, 1)?;
+            set_meh(c, "a", true, 2)?;
+            set_watched(c, "a", false, 3)?;
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(mark_rows(&db), 1);
+        db.with_conn(|c| set_meh(c, "a", false, 4)).unwrap();
+        assert_eq!(mark_rows(&db), 0);
+    }
+
+    #[test]
+    fn marks_for_unknown_ids_appear_once_the_catalog_has_them() {
+        let db = Database::open_in_memory().unwrap();
+        db.with_conn(|c| set_watched(c, "spaeter", true, 5))
+            .unwrap();
+        assert_eq!(db.with_conn(stats).unwrap().watched, 0);
+        db.with_tx(|tx| upsert_catalog_page(tx, &[catalog_item("spaeter", "Später")]))
+            .unwrap();
+        let detail = db
+            .with_conn(|c| get_anime(c, &store(), "spaeter"))
+            .unwrap()
+            .unwrap();
+        assert!(detail.watched && !detail.is_meh);
+        assert_eq!(db.with_conn(stats).unwrap().watched, 1);
+    }
+
+    #[test]
+    fn metadata_miss_postpones_retry_until_deadline() {
+        let db = Database::open_in_memory().unwrap();
+        insert_all(
+            &db,
+            &[AnimeFixture::new("a", "A"), AnimeFixture::new("b", "B")],
+        )
+        .unwrap();
+        db.with_tx(|tx| mark_metadata_miss(tx, "a", 1_000)).unwrap();
+        let ids = |before: i64| -> Vec<String> {
+            db.with_conn(|c| unenriched(c, before))
+                .unwrap()
+                .into_iter()
+                .map(|(id, _)| id)
+                .collect()
+        };
+        assert_eq!(ids(999), ["b"]);
+        assert_eq!(ids(1_000), ["a", "b"]);
+        // Ein späterer Treffer löscht den Vermerk
+        db.with_tx(|tx| apply_metadata(tx, "a", &metadata(3, &[])))
+            .unwrap();
+        assert_eq!(
+            column_i64(
+                &db,
+                "SELECT anilist_missed_at FROM anime WHERE id = ?1",
+                "a"
+            ),
+            None
+        );
     }
 
     #[test]
@@ -493,7 +597,7 @@ mod tests {
             ],
         )
         .unwrap();
-        let list = db.with_conn(unenriched).unwrap();
+        let list = db.with_conn(|c| unenriched(c, 0)).unwrap();
         assert_eq!(
             list,
             vec![

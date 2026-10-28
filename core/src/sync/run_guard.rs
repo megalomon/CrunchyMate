@@ -1,11 +1,27 @@
 use crate::db::sync_state::{mark_finished, mark_running};
 use crate::db::Database;
-use crate::error::{CoreResult, ErrorCode};
-use crate::model::{SyncKind, SyncRunState};
+use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::model::{SyncKind, SyncRunState, SyncSummary};
 
 use super::now_unix;
 
-/// Hält einen laufenden Sync. Wird der Guard ohne `complete` verworfen
+/// Ergebnis eines Laufs; auch ein gescheiterter Lauf hat ein Teilergebnis, das gezählt wird.
+#[derive(Debug)]
+pub struct RunOutcome {
+    pub summary: SyncSummary,
+    pub error: Option<CoreError>,
+}
+
+impl RunOutcome {
+    pub fn failed(summary: SyncSummary, error: CoreError) -> Self {
+        Self {
+            summary,
+            error: Some(error),
+        }
+    }
+}
+
+/// Hält einen laufenden Sync. Wird der Guard ohne `finish` verworfen
 /// (z. B. weil die Future abgebrochen wurde), gilt der Lauf als abgebrochen.
 pub struct RunGuard<'a> {
     db: &'a Database,
@@ -24,29 +40,33 @@ impl<'a> RunGuard<'a> {
         })
     }
 
-    /// Schreibt den Abschluss des Laufs.
-    pub fn complete(mut self, state: SyncRunState, error: Option<ErrorCode>) -> CoreResult<()> {
+    /// Schließt den Lauf passend zum Ergebnis ab: `Completed` oder `Failed` mit Fehlercode,
+    /// jeweils mit Ergebnis. Scheitert das Schreiben nach einem Fehler, bleibt der ursprüngliche
+    /// Fehler maßgeblich.
+    pub fn finish(mut self, outcome: RunOutcome) -> CoreResult<SyncSummary> {
         self.finished = true;
-        let kind = self.kind;
-        self.db
-            .with_conn(|conn| mark_finished(conn, kind, state, error, now_unix()))
-    }
-}
-
-impl RunGuard<'_> {
-    /// Schließt den Lauf passend zum Ergebnis ab: `Completed` oder `Failed` mit Fehlercode.
-    /// Scheitert das Schreiben nach einem Fehler, bleibt der ursprüngliche Fehler maßgeblich.
-    pub fn finish<T>(self, result: CoreResult<T>) -> CoreResult<T> {
-        match result {
-            Ok(value) => {
-                self.complete(SyncRunState::Completed, None)?;
-                Ok(value)
+        let RunOutcome { summary, error } = outcome;
+        match error {
+            None => {
+                self.write(SyncRunState::Completed, None, &summary)?;
+                Ok(summary)
             }
-            Err(error) => {
-                let _ = self.complete(SyncRunState::Failed, Some(error.code()));
+            Some(error) => {
+                let _ = self.write(SyncRunState::Failed, Some(error.code()), &summary);
                 Err(error)
             }
         }
+    }
+
+    fn write(
+        &self,
+        state: SyncRunState,
+        error: Option<ErrorCode>,
+        summary: &SyncSummary,
+    ) -> CoreResult<()> {
+        let kind = self.kind;
+        self.db
+            .with_conn(|conn| mark_finished(conn, kind, state, error, Some(summary), now_unix()))
     }
 }
 
@@ -63,6 +83,7 @@ impl Drop for RunGuard<'_> {
                 kind,
                 SyncRunState::Cancelled,
                 Some(ErrorCode::Cancelled),
+                None,
                 now_unix(),
             )
         });

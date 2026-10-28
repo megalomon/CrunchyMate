@@ -65,11 +65,16 @@ fn main() {
     let target = std::env::args()
         .nth(1)
         .expect("Zielpfad der Fixture-Datenbank fehlt");
+    // Nur der Katalog wird ausgeliefert; die Nutzer-Datenbank legt die App beim Start selbst an
+    let scratch_user_db = format!("{target}.user-scratch");
     // Eine alte Datei samt WAL-Resten würde sonst Einträge mischen
-    for suffix in ["", "-wal", "-shm"] {
-        let _ = std::fs::remove_file(format!("{target}{suffix}"));
+    for path in [&target, &scratch_user_db] {
+        for suffix in ["", "-wal", "-shm", "-journal"] {
+            let _ = std::fs::remove_file(format!("{path}{suffix}"));
+        }
     }
-    let db = Database::open(&target).expect("Datenbank konnte nicht angelegt werden");
+    let db =
+        Database::open(&target, &scratch_user_db).expect("Datenbank konnte nicht angelegt werden");
     let items: Vec<CatalogItem> = FIXTURE_TITLES
         .iter()
         .enumerate()
@@ -85,4 +90,6 @@ fn main() {
         Ok(())
     })
     .expect("Journal-Modus konnte nicht umgestellt werden");
+    drop(db);
+    let _ = std::fs::remove_file(&scratch_user_db);
 }

@@ -1,4 +1,4 @@
-use crate::db::anime::{apply_metadata, unenriched};
+use crate::db::anime::{apply_metadata, mark_metadata_miss, unenriched};
 use crate::db::images::ImageSlot;
 use crate::db::sync_state::update_progress;
 use crate::db::Database;
@@ -9,10 +9,10 @@ use crate::model::{SyncKind, SyncPhase, SyncProgress, SyncSummary};
 use crate::remote::metadata_source::MetadataSource;
 
 use super::config::SyncConfig;
-use super::images::run_image_sync;
-use super::pause;
+use super::images::{images_may_follow, merge_image_result, run_image_sync};
 use super::progress::SyncObserver;
-use super::run_guard::RunGuard;
+use super::run_guard::{RunGuard, RunOutcome};
+use super::{catch_panic, now_unix, pause};
 
 const KIND: SyncKind = SyncKind::Metadata;
 const METADATA_IMAGE_SLOTS: [ImageSlot; 1] = [ImageSlot::Banner];
@@ -29,8 +29,10 @@ pub async fn run_enrichment(
     observer: &dyn SyncObserver,
 ) -> CoreResult<SyncSummary> {
     let guard = RunGuard::start(db, KIND, 0)?;
-    let result = enrich_all(db, source, store, fetcher, config, observer).await;
-    guard.finish(result)
+    let outcome = catch_panic(enrich_all(db, source, store, fetcher, config, observer))
+        .await
+        .unwrap_or_else(|error| RunOutcome::failed(SyncSummary::default(), error));
+    guard.finish(outcome)
 }
 
 async fn enrich_all(
@@ -40,11 +42,26 @@ async fn enrich_all(
     fetcher: &dyn ImageFetcher,
     config: &SyncConfig,
     observer: &dyn SyncObserver,
-) -> CoreResult<SyncSummary> {
-    let mut summary = enrich(db, source, config, observer).await?;
-    let images = run_image_sync(db, store, fetcher, &METADATA_IMAGE_SLOTS, KIND, observer).await?;
-    summary.failed_images = images.failed;
-    Ok(summary)
+) -> RunOutcome {
+    let mut summary = SyncSummary::default();
+    let error = enrich(db, source, config, observer, &mut summary)
+        .await
+        .err();
+    let mut outcome = RunOutcome { summary, error };
+    if images_may_follow(&outcome) {
+        let images = run_image_sync(
+            db,
+            store,
+            fetcher,
+            &METADATA_IMAGE_SLOTS,
+            KIND,
+            config,
+            observer,
+        )
+        .await;
+        merge_image_result(&mut outcome, images);
+    }
+    outcome
 }
 
 async fn enrich(
@@ -52,16 +69,13 @@ async fn enrich(
     source: &dyn MetadataSource,
     config: &SyncConfig,
     observer: &dyn SyncObserver,
-) -> CoreResult<SyncSummary> {
-    let pending = db.with_conn(unenriched)?;
+    summary: &mut SyncSummary,
+) -> CoreResult<()> {
+    let retry_secs = i64::try_from(config.metadata_miss_retry.as_secs()).unwrap_or(i64::MAX);
+    let pending = db.with_conn(|conn| unenriched(conn, now_unix().saturating_sub(retry_secs)))?;
     let total = len_i64(pending.len());
     db.with_conn(|conn| update_progress(conn, KIND, 0, total))?;
 
-    let mut summary = SyncSummary {
-        processed: 0,
-        failed_batches: 0,
-        failed_images: 0,
-    };
     let mut done: i64 = 0;
     // Batchgröße 0 ist für chunks() unzulässig
     let batches: Vec<_> = pending.chunks(config.metadata_batch_size.max(1)).collect();
@@ -71,12 +85,16 @@ async fn enrich(
         done += len_i64(batch.len());
         match source.search_batch(&titles).await {
             Ok(results) => {
+                let now = now_unix();
                 let applied = db.with_tx(|tx| {
                     let mut applied = 0;
                     for ((id, _), result) in batch.iter().zip(&results) {
-                        if let Some(item) = result {
-                            apply_metadata(tx, id, item)?;
-                            applied += 1;
+                        match result {
+                            Some(item) => {
+                                apply_metadata(tx, id, item)?;
+                                applied += 1;
+                            }
+                            None => mark_metadata_miss(tx, id, now)?,
                         }
                     }
                     update_progress(tx, KIND, done, total)?;
@@ -100,7 +118,7 @@ async fn enrich(
             pause(config.metadata_batch_delay).await;
         }
     }
-    Ok(summary)
+    Ok(())
 }
 
 fn len_i64(len: usize) -> i64 {

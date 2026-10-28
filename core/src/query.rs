@@ -10,6 +10,9 @@ use crate::model::{
     AnimeFilter, AnimePage, AnimeSummary, LanguageFilter, MehFilter, SortOrder, WatchedFilter,
 };
 
+/// Markierungen liegen in der Nutzer-Datenbank; ohne Zeile gilt ein Eintrag als unmarkiert.
+const MARKS_JOIN: &str = "LEFT JOIN userdata.marks m ON m.anime_id = a.id";
+
 /// Bausteine der Abfrage; Werte sind ausschließlich gebundene Parameter.
 struct BuiltQuery {
     where_sql: String,
@@ -79,21 +82,18 @@ fn build(filter: &AnimeFilter) -> BuiltQuery {
         LanguageFilter::Both => {
             conditions.push("(a.has_target_dub = 1 AND a.has_target_sub = 1)".to_string())
         }
-        LanguageFilter::Any => {
-            conditions.push("(a.has_target_dub = 1 OR a.has_target_sub = 1)".to_string())
-        }
     }
 
     match filter.watched {
         WatchedFilter::All => {}
-        WatchedFilter::Unwatched => conditions.push("a.watched = 0".to_string()),
-        WatchedFilter::Watched => conditions.push("a.watched = 1".to_string()),
+        WatchedFilter::Unwatched => conditions.push("COALESCE(m.watched, 0) = 0".to_string()),
+        WatchedFilter::Watched => conditions.push("m.watched = 1".to_string()),
     }
 
     match filter.meh {
         MehFilter::Include => {}
-        MehFilter::Hide => conditions.push("a.is_meh = 0".to_string()),
-        MehFilter::Only => conditions.push("a.is_meh = 1".to_string()),
+        MehFilter::Hide => conditions.push("COALESCE(m.is_meh, 0) = 0".to_string()),
+        MehFilter::Only => conditions.push("m.is_meh = 1".to_string()),
     }
 
     for tag in clean_names(&filter.must_tags) {
@@ -153,7 +153,10 @@ pub fn query_anime(
     let built = build(filter);
 
     let total: i64 = conn.query_row(
-        &format!("SELECT COUNT(*) FROM anime a{}", built.where_sql),
+        &format!(
+            "SELECT COUNT(*) FROM anime a {MARKS_JOIN}{}",
+            built.where_sql
+        ),
         params_from_iter(built.where_params.iter()),
         |row| row.get(0),
     )?;
@@ -167,11 +170,13 @@ pub fn query_anime(
             placeholders(built.prefer_params.len())
         )
     };
+    // prefer_matches dient nur der Sortierung und wird nicht ausgelesen
     let sql = format!(
         "SELECT a.id, a.title, \
-         a.anilist_score, a.has_target_dub, a.has_target_sub, a.watched, a.is_meh, \
+         a.anilist_score, a.has_target_dub, a.has_target_sub, \
+         COALESCE(m.watched, 0), COALESCE(m.is_meh, 0), \
          {prefer_select} AS prefer_matches, pi.hash, pi.ext, a.episode_count \
-         FROM anime a \
+         FROM anime a {MARKS_JOIN} \
          LEFT JOIN image_refs pr ON pr.anime_id = a.id AND pr.slot = '{poster_slot}' \
          LEFT JOIN images pi ON pi.hash = pr.hash{} ORDER BY {} LIMIT ? OFFSET ?",
         built.where_sql,
@@ -197,7 +202,6 @@ pub fn query_anime(
                 has_target_sub: row.get(4)?,
                 watched: row.get(5)?,
                 is_meh: row.get(6)?,
-                prefer_matches: row.get(7)?,
                 episode_count: row.get(10)?,
             })
         })?
@@ -426,29 +430,14 @@ mod tests {
     }
 
     #[test]
-    fn prefer_matches_reported_per_item() {
+    fn prefer_tags_order_by_match_count_within_title_sort() {
         let db = db();
         let mut f = base();
         f.prefer_tags = strs(&["Schule", "Magie"]);
-        let counts: Vec<_> = run(&db, &f)
-            .items
-            .iter()
-            .map(|i| (i.id.clone(), i.prefer_matches))
-            .collect();
-        assert_eq!(
-            counts,
-            [
-                ("a3", 2),
-                ("a1", 2),
-                ("a2", 1),
-                ("a7", 0),
-                ("a4", 0),
-                ("a6", 0)
-            ]
-            .map(|(i, c)| (i.to_string(), c))
-        );
+        // a3 und a1 je 2 Treffer (Titel A_B vor Über), a2 einer, dann ohne Treffer nach Titel
+        assert_eq!(ids(&db, &f), ["a3", "a1", "a2", "a7", "a4", "a6"]);
         f.prefer_tags = vec![];
-        assert!(run(&db, &f).items.iter().all(|i| i.prefer_matches == 0));
+        assert_eq!(ids(&db, &f), ids(&db, &base()));
     }
 
     #[test]
@@ -489,8 +478,6 @@ mod tests {
         assert_eq!(ids(&db, &f), ["a2", "a3", "a5"]);
         f.language = LanguageFilter::Both;
         assert_eq!(ids(&db, &f), ["a3"]);
-        f.language = LanguageFilter::Any;
-        assert_eq!(ids(&db, &f), ["a2", "a3", "a5", "a1"]);
     }
 
     #[test]

@@ -12,6 +12,19 @@ pub enum CoreError {
     Parse { detail: String },
     #[error("Datenbankfehler: {detail}")]
     Database { detail: String },
+    /// Datenbankdatei stammt aus einer neueren App-Version; ein stilles Weiterarbeiten
+    /// könnte deren Daten beschädigen.
+    #[error("Datenbankversion {found} ist neuer als die unterstützte {supported}")]
+    UnsupportedSchema { found: i32, supported: i32 },
+    /// Lesen oder Schreiben im Bildspeicher (Dateisystem) gescheitert.
+    #[error("Speicherfehler: {detail}")]
+    Storage { detail: String },
+    /// Der Katalog endete vor der angekündigten Gesamtzahl; Geladenes bleibt gespeichert.
+    #[error("Katalog unvollständig: {done} von {total} Einträgen")]
+    Incomplete { done: i64, total: i64 },
+    /// Programmfehler im Kern (Panic, abgebrochene Hintergrundaufgabe).
+    #[error("Interner Fehler: {detail}")]
+    Internal { detail: String },
     #[error("Abgebrochen")]
     Cancelled,
 }
@@ -23,6 +36,10 @@ pub enum ErrorCode {
     Auth,
     Parse,
     Database,
+    UnsupportedSchema,
+    Storage,
+    Incomplete,
+    Internal,
     Cancelled,
 }
 
@@ -34,6 +51,10 @@ impl CoreError {
             CoreError::Auth { .. } => ErrorCode::Auth,
             CoreError::Parse { .. } => ErrorCode::Parse,
             CoreError::Database { .. } => ErrorCode::Database,
+            CoreError::UnsupportedSchema { .. } => ErrorCode::UnsupportedSchema,
+            CoreError::Storage { .. } => ErrorCode::Storage,
+            CoreError::Incomplete { .. } => ErrorCode::Incomplete,
+            CoreError::Internal { .. } => ErrorCode::Internal,
             CoreError::Cancelled => ErrorCode::Cancelled,
         }
     }

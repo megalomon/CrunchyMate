@@ -27,6 +27,7 @@ fn fast() -> SyncConfig {
         catalog_page_delay: Duration::ZERO,
         metadata_batch_size: 10,
         metadata_batch_delay: Duration::ZERO,
+        ..SyncConfig::default()
     }
 }
 
@@ -293,13 +294,13 @@ async fn catalog_sync_stores_country() {
 }
 
 #[tokio::test]
-async fn catalog_sync_stops_on_empty_page() {
+async fn catalog_sync_empty_page_before_total_is_incomplete_not_completed() {
     let dir = TempDir::new("sync");
     let db = Database::open_in_memory().unwrap();
     // total behauptet 200, aber Seite 2 ist leer
     let source = FakeCatalog::pages(200, &[50, 0, 50]);
     let observer = Recorder::default();
-    run_catalog_sync(
+    let result = run_catalog_sync(
         &db,
         &source,
         &dir.store(),
@@ -308,13 +309,144 @@ async fn catalog_sync_stops_on_empty_page() {
         &fast(),
         &observer,
     )
-    .await
-    .unwrap();
+    .await;
+    assert!(
+        matches!(
+            result,
+            Err(CoreError::Incomplete {
+                done: 50,
+                total: 200
+            })
+        ),
+        "{result:?}"
+    );
     assert_eq!(source.calls.lock().unwrap().len(), 2);
     assert_eq!(anime_total(&db), 50);
     assert_eq!(observer.pairs(), vec![(50, 200)]);
     let s = db.with_conn(|c| status(c, SyncKind::Catalog)).unwrap();
-    assert_eq!(s.state, SyncRunState::Completed);
+    assert_eq!(s.state, SyncRunState::Failed);
+    assert_eq!(s.last_error, Some(ErrorCode::Incomplete));
+    assert_eq!(s.last_summary.map(|summary| summary.processed), Some(50));
+    // Ein unvollständiger Lauf bestimmt nicht die Sprache der Daten
+    assert_eq!(s.content_locale, None);
+}
+
+#[tokio::test]
+async fn catalog_sync_empty_catalog_completes() {
+    let dir = TempDir::new("sync");
+    let db = Database::open_in_memory().unwrap();
+    let source = FakeCatalog::pages(0, &[0]);
+    let summary = run_catalog_sync(
+        &db,
+        &source,
+        &dir.store(),
+        &FakeFetcher::default(),
+        "de-DE",
+        &fast(),
+        &Recorder::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(summary.processed, 0);
+}
+
+#[tokio::test]
+async fn completed_catalog_sync_stores_locale_and_summary() {
+    let dir = TempDir::new("sync");
+    let db = Database::open_in_memory().unwrap();
+    let source = FakeCatalog::pages(3, &[3]);
+    run_catalog_sync(
+        &db,
+        &source,
+        &dir.store(),
+        &FakeFetcher::default(),
+        "fr-FR",
+        &fast(),
+        &Recorder::default(),
+    )
+    .await
+    .unwrap();
+    let s = db.with_conn(|c| status(c, SyncKind::Catalog)).unwrap();
+    assert_eq!(s.content_locale.as_deref(), Some("fr-FR"));
+    assert_eq!(
+        s.last_summary,
+        Some(SyncSummary {
+            processed: 3,
+            ..SyncSummary::default()
+        })
+    );
+}
+
+/// Löst beim Abruf der Seite eine Panic aus, wie ein Programmfehler im Kern.
+struct PanickingCatalog;
+
+#[async_trait::async_trait]
+impl CatalogSource for PanickingCatalog {
+    async fn session_country(&self) -> CoreResult<String> {
+        Ok("DE".to_string())
+    }
+
+    async fn fetch_page(&self, _start: u32, _count: u32, _locale: &str) -> CoreResult<CatalogPage> {
+        panic!("Programmfehler im Test");
+    }
+}
+
+#[tokio::test]
+async fn panic_during_sync_is_recorded_as_internal_failure_not_cancelled() {
+    let dir = TempDir::new("sync");
+    let db = Database::open_in_memory().unwrap();
+    let result = run_catalog_sync(
+        &db,
+        &PanickingCatalog,
+        &dir.store(),
+        &FakeFetcher::default(),
+        "de-DE",
+        &fast(),
+        &Recorder::default(),
+    )
+    .await;
+    assert!(
+        matches!(result, Err(CoreError::Internal { .. })),
+        "{result:?}"
+    );
+    let s = db.with_conn(|c| status(c, SyncKind::Catalog)).unwrap();
+    assert_eq!(s.state, SyncRunState::Failed);
+    assert_eq!(s.last_error, Some(ErrorCode::Internal));
+}
+
+#[tokio::test]
+async fn failed_item_phase_still_loads_images_of_saved_entries() {
+    let dir = TempDir::new("sync");
+    let db = Database::open_in_memory().unwrap();
+    let mut first_page = items(0, 2);
+    first_page[0].poster_tall = "https://img/a000".to_string();
+    let source = FakeCatalog::new(vec![
+        PageReply::Page(CatalogPage {
+            total: 120,
+            items: first_page,
+        }),
+        PageReply::Fail(network()),
+    ]);
+    let fetcher = FakeFetcher::default();
+    fetcher.serve("https://img/a000", common::webp_bytes("a000"));
+
+    let result = run_catalog_sync(
+        &db,
+        &source,
+        &dir.store(),
+        &fetcher,
+        "de-DE",
+        &fast(),
+        &Recorder::default(),
+    )
+    .await;
+
+    assert!(matches!(result, Err(CoreError::Network { .. })));
+    assert_eq!(fetcher.calls(), vec!["https://img/a000".to_string()]);
+    assert_eq!(db.with_conn(stats).unwrap().image_count, 1);
+    let s = db.with_conn(|c| status(c, SyncKind::Catalog)).unwrap();
+    assert_eq!(s.state, SyncRunState::Failed);
+    assert_eq!(s.last_summary.map(|summary| summary.processed), Some(2));
 }
 
 #[tokio::test]
@@ -412,7 +544,8 @@ async fn enrichment_processes_only_unenriched() {
         SyncSummary {
             processed: 2,
             failed_batches: 0,
-            failed_images: 0
+            failed_images: 0,
+            skipped_images: 0
         }
     );
     assert_eq!(observer.pairs(), vec![(2, 2)]);
@@ -452,7 +585,8 @@ async fn enrichment_tolerates_failed_batch() {
         SyncSummary {
             processed: 5,
             failed_batches: 1,
-            failed_images: 0
+            failed_images: 0,
+            skipped_images: 0
         }
     );
     assert_eq!(observer.pairs(), vec![(10, 15), (15, 15)]);
@@ -492,6 +626,95 @@ async fn enrichment_aborts_on_rate_limit() {
     assert_eq!(db.with_conn(stats).unwrap().enriched, 10);
 }
 
+/// Findet nie einen Treffer und zählt die angefragten Titel.
+#[derive(Default)]
+struct NoMatches {
+    asked: Mutex<Vec<String>>,
+}
+
+#[async_trait::async_trait]
+impl MetadataSource for NoMatches {
+    async fn search_batch(&self, titles: &[String]) -> CoreResult<Vec<Option<MetadataItem>>> {
+        self.asked.lock().unwrap().extend_from_slice(titles);
+        Ok(vec![None; titles.len()])
+    }
+}
+
+#[tokio::test]
+async fn titles_without_match_are_not_searched_again_before_retry_period() {
+    let dir = TempDir::new("sync");
+    let db = Database::open_in_memory().unwrap();
+    seed(&db, 2);
+    let source = NoMatches::default();
+    let run = |config: SyncConfig| {
+        let db = &db;
+        let source = &source;
+        let store = dir.store();
+        async move {
+            run_enrichment(
+                db,
+                source,
+                &store,
+                &FakeFetcher::default(),
+                &config,
+                &Recorder::default(),
+            )
+            .await
+            .unwrap()
+        }
+    };
+
+    run(fast()).await;
+    assert_eq!(source.asked.lock().unwrap().len(), 2);
+    // Innerhalb der Frist bleibt der zweite Lauf ohne Anfrage
+    let summary = run(fast()).await;
+    assert_eq!(source.asked.lock().unwrap().len(), 2);
+    assert_eq!(summary.processed, 0);
+    assert_eq!(
+        db.with_conn(|c| status(c, SyncKind::Metadata))
+            .unwrap()
+            .total,
+        0
+    );
+    // Nach Ablauf der Frist wird erneut gesucht
+    run(SyncConfig {
+        metadata_miss_retry: Duration::ZERO,
+        ..fast()
+    })
+    .await;
+    assert_eq!(source.asked.lock().unwrap().len(), 4);
+}
+
+#[tokio::test]
+async fn failed_batch_is_not_treated_as_miss() {
+    let dir = TempDir::new("sync");
+    let db = Database::open_in_memory().unwrap();
+    seed(&db, 3);
+    let failing = FakeMetadata::new(vec![Some(network())]);
+    run_enrichment(
+        &db,
+        &failing,
+        &dir.store(),
+        &FakeFetcher::default(),
+        &fast(),
+        &Recorder::default(),
+    )
+    .await
+    .unwrap();
+    let source = FakeMetadata::new(Vec::new());
+    let summary = run_enrichment(
+        &db,
+        &source,
+        &dir.store(),
+        &FakeFetcher::default(),
+        &fast(),
+        &Recorder::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(summary.processed, 3);
+}
+
 #[tokio::test]
 async fn enrichment_uses_clean_batches_of_configured_size() {
     let dir = TempDir::new("sync");
@@ -523,4 +746,8 @@ fn default_config_matches_spec() {
     assert_eq!(config.catalog_page_delay, Duration::from_millis(100));
     assert_eq!(config.metadata_batch_size, 10);
     assert_eq!(config.metadata_batch_delay, Duration::from_millis(2100));
+    assert_eq!(
+        config.metadata_miss_retry,
+        Duration::from_secs(7 * 24 * 60 * 60)
+    );
 }
