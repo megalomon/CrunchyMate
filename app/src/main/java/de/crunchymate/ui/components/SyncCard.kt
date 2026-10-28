@@ -16,22 +16,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import de.crunchymate.R
 import de.crunchymate.core.messageRes
 import de.crunchymate.sync.SyncUiState
+import de.crunchymate.ui.theme.Dimens
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 
-private fun formatTimestamp(epochMillis: Long): String =
+private fun formatTimestamp(epochSeconds: Long): String =
     DateTimeFormatter
         .ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
         .withLocale(Locale.getDefault())
         .withZone(ZoneId.systemDefault())
-        .format(Instant.ofEpochMilli(epochMillis))
+        .format(Instant.ofEpochSecond(epochSeconds))
 
 @Composable
 fun SyncCard(
@@ -42,7 +42,7 @@ fun SyncCard(
     modifier: Modifier = Modifier,
 ) {
     Card(modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(Dimens.SpaceMd), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 if (state.running) {

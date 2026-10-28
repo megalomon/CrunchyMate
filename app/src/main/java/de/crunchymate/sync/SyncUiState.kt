@@ -2,7 +2,7 @@ package de.crunchymate.sync
 
 import de.crunchymate.core.ffi.ErrorCode
 
-/** Darstellungszustand der Synchronisation; Zeitpunkte als Epoch-Millisekunden. */
+/** Darstellungszustand der Synchronisation; Zeitpunkte als Unix-Sekunden (wie im Rust-Kern). */
 data class SyncUiState(
     val running: Boolean,
     val done: Long,

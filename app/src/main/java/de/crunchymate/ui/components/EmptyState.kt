@@ -14,9 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-
-private val EmptyStateIconSize = 64.dp
+import de.crunchymate.ui.theme.Dimens
 
 @Composable
 fun EmptyState(
@@ -26,14 +24,14 @@ fun EmptyState(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+        modifier = modifier.fillMaxSize().padding(Dimens.SpaceLg),
+        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
             painter = painterResource(icon),
             contentDescription = null,
-            modifier = Modifier.size(EmptyStateIconSize),
+            modifier = Modifier.size(Dimens.EmptyStateIcon),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)

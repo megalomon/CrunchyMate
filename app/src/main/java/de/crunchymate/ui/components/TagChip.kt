@@ -15,14 +15,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.unit.dp
 import de.crunchymate.R
 import de.crunchymate.core.ffi.TagState
 import de.crunchymate.ui.theme.CrunchyMateColors
+import de.crunchymate.ui.theme.Dimens
 import de.crunchymate.ui.theme.LocalCrunchyMateColors
 
 private const val SELECTED_CONTAINER_ALPHA = 0.25f
-private val SELECTED_BORDER_WIDTH = 1.dp
 
 @StringRes
 private fun TagState?.descriptionRes(): Int =
@@ -83,7 +82,7 @@ fun TagChip(
                 enabled = true,
                 selected = state != null,
                 selectedBorderColor = stateColor ?: Color.Transparent,
-                selectedBorderWidth = SELECTED_BORDER_WIDTH,
+                selectedBorderWidth = Dimens.BorderWidth,
             ),
     )
 }

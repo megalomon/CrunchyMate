@@ -3,6 +3,7 @@ package de.crunchymate.ui.components
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,13 +23,12 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import de.crunchymate.R
 import de.crunchymate.core.ffi.AnimeSummary
+import de.crunchymate.ui.theme.Dimens
 
 private const val POSTER_ASPECT_RATIO = 2f / 3f
-private val BadgeIconSize = 16.dp
 
 @Composable
 private fun Badge(
@@ -40,9 +40,9 @@ private fun Badge(
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
     ) {
-        Icon(painterResource(icon), contentDescription = description, modifier = Modifier.size(BadgeIconSize))
+        Icon(painterResource(icon), contentDescription = description, modifier = Modifier.size(Dimens.BadgeIcon))
         Text(text, style = MaterialTheme.typography.labelSmall)
     }
 }
@@ -62,9 +62,12 @@ fun AnimeCard(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxWidth().aspectRatio(POSTER_ASPECT_RATIO),
         )
-        Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.padding(Dimens.SpaceSm), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXs)) {
             Text(anime.title, style = MaterialTheme.typography.titleSmall, maxLines = 2)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
+                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
+            ) {
                 if (anime.anilistScore > 0) {
                     Badge(
                         R.drawable.ic_badge_score,
@@ -78,9 +81,7 @@ fun AnimeCard(
                 if (anime.hasTargetSub) {
                     Badge(R.drawable.ic_badge_sub, stringResource(R.string.badge_sub), stringResource(R.string.badge_sub_description))
                 }
-            }
-            if (anime.preferMatches > 0) {
-                Row {
+                if (anime.preferMatches > 0) {
                     Badge(
                         R.drawable.ic_badge_boost,
                         pluralStringResource(R.plurals.badge_boost_matches, anime.preferMatches, anime.preferMatches),

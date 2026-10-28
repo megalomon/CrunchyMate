@@ -18,8 +18,8 @@ data class CrunchyMateColors(
     val tagExclude: Color,
 )
 
-private val DarkExtendedColors = CrunchyMateColors(TagPreferBlue, TagMustGreen, TagExcludeOrange)
-private val LightExtendedColors = CrunchyMateColors(LightTagPreferBlue, LightTagMustGreen, LightTagExcludeOrange)
+private val DarkExtendedColors = CrunchyMateColors(TagPreferBlue, TagMustGreen, TagExcludeRed)
+private val LightExtendedColors = CrunchyMateColors(LightTagPreferBlue, LightTagMustGreen, LightTagExcludeRed)
 
 val LocalCrunchyMateColors = staticCompositionLocalOf { DarkExtendedColors }
 

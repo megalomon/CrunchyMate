@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- DayNight folgt dem Systemmodus, damit der Fensterhintergrund zum Compose-Schema passt -->
+    <style name="Theme.CrunchyMate" parent="@android:style/Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>

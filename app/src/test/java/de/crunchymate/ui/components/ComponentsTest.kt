@@ -23,17 +23,24 @@ import de.crunchymate.sync.SyncUiState
 import de.crunchymate.ui.theme.CrunchyMateTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
 
 private const val SDK = 35
-private val CARD_WIDTH = 120.dp
+private const val TIMESTAMP_SECONDS = 1_700_000_000L
+private val CARD_WIDTH = 160.dp
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [SDK])
+@Config(sdk = [SDK], qualifiers = "w411dp-h891dp")
 class ComponentsTest {
     @get:Rule
     val rule = createAndroidComposeRule<ComponentActivity>()
@@ -90,7 +97,7 @@ class ComponentsTest {
         var meh = 0
         var opened = 0
         rule.setContent {
-            // Schmale Karte, damit die Schalter im kleinen Robolectric-Bildschirm sichtbar bleiben
+            // Realistische Rasterzellenbreite auf einem Telefon-Bildschirm
             CrunchyMateTheme {
                 Box(Modifier.width(CARD_WIDTH)) { AnimeCard(anime(), { opened++ }, { watched++ }, { meh++ }) }
             }
@@ -118,8 +125,23 @@ class ComponentsTest {
     }
 
     @Test
+    fun syncCard_formatsLastFinishedFromUnixSeconds() {
+        val state = SyncUiState(false, 0, 0, TIMESTAMP_SECONDS, null)
+        rule.setContent { CrunchyMateTheme { SyncCard("Katalog", state, {}, {}) } }
+        val expected =
+            DateTimeFormatter
+                .ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+                .withLocale(Locale.getDefault())
+                .withZone(ZoneId.systemDefault())
+                .format(Instant.ofEpochSecond(TIMESTAMP_SECONDS))
+        rule.onNodeWithText(rule.activity.getString(R.string.sync_last_finished, expected)).assertIsDisplayed()
+        // 2023 statt Jahr 55841 bei fälschlicher Millisekunden-Deutung
+        assertTrue(expected.contains("2023"))
+    }
+
+    @Test
     fun syncCard_showsLastErrorText() {
-        val state = SyncUiState(false, 0, 0, 1_700_000_000_000L, ErrorCode.NETWORK)
+        val state = SyncUiState(false, 0, 0, TIMESTAMP_SECONDS, ErrorCode.NETWORK)
         rule.setContent { CrunchyMateTheme { SyncCard("Katalog", state, {}, {}) } }
         assertNotNull(
             rule.onNodeWithText(rule.activity.getString(R.string.sync_last_error, string(R.string.error_network))).fetchSemanticsNode(),
