@@ -3,7 +3,6 @@
 package de.crunchymate.core
 
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher

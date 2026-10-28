@@ -23,6 +23,7 @@ import de.crunchymate.core.ffi.WatchedFilter
 class FakeCore(
     var items: List<AnimeSummary> = emptyList(),
     var storedSettings: Settings = sampleSettings(),
+    private val totalOverride: Long? = null,
 ) : CoreInterface {
     val watchedCalls = mutableListOf<Pair<String, Boolean>>()
     val mehCalls = mutableListOf<Pair<String, Boolean>>()
@@ -30,6 +31,7 @@ class FakeCore(
     val queryCalls = mutableListOf<Triple<AnimeFilter, Int, Int>>()
     var queryThreadName: String? = null
     var queryError: Throwable? = null
+    var saveError: Throwable? = null
 
     override fun queryAnime(
         filter: AnimeFilter,
@@ -39,7 +41,7 @@ class FakeCore(
         queryThreadName = Thread.currentThread().name
         queryCalls += Triple(filter, offset, limit)
         queryError?.let { throw it }
-        return AnimePage(items.drop(offset).take(limit), items.size.toLong())
+        return AnimePage(items.drop(offset).take(limit), totalOverride ?: items.size.toLong())
     }
 
     override fun getAnime(id: String): AnimeDetail? = null
@@ -67,6 +69,7 @@ class FakeCore(
     override fun settings(): Settings = storedSettings
 
     override fun saveSettings(settings: Settings) {
+        saveError?.let { throw it }
         savedSettings += settings
         storedSettings = settings
     }

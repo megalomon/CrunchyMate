@@ -1,5 +1,6 @@
 package de.crunchymate.core
 
+import de.crunchymate.core.ffi.CoreException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
@@ -30,6 +31,26 @@ class SettingsStoreTest {
             advanceTimeBy(2)
             runCurrent()
             assertEquals(1, core.savedSettings.size)
+            assertEquals("fr-FR", core.savedSettings.single().contentLocale)
+        }
+
+    @Test
+    fun saveFailure_keepsStateAndLaterUpdateSavesAgain() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val core = FakeCore().apply { saveError = CoreException.Database("x") }
+            val store = SettingsStore(CoreGateway(core, dispatcher), this, dispatcher)
+
+            store.update { it.copy(contentLocale = "en-US") }
+            advanceTimeBy(SAVE_DEBOUNCE + 1)
+            runCurrent()
+            assertEquals(0, core.savedSettings.size)
+            assertEquals("en-US", store.settings.value.contentLocale)
+
+            core.saveError = null
+            store.update { it.copy(contentLocale = "fr-FR") }
+            advanceTimeBy(SAVE_DEBOUNCE + 1)
+            runCurrent()
             assertEquals("fr-FR", core.savedSettings.single().contentLocale)
         }
 

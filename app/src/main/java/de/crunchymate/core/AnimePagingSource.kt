@@ -18,6 +18,7 @@ class AnimePagingSource(
         return try {
             val page = gateway.queryAnime(filter, offset, params.loadSize)
             val next = offset + page.items.size
+            // Leere Seite trotz total > offset: Katalog ist geschrumpft, sonst Endlosladen
             LoadResult.Page(
                 data = page.items,
                 prevKey = null,

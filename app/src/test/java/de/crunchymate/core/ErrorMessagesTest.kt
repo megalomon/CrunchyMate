@@ -4,6 +4,7 @@ import de.crunchymate.R
 import de.crunchymate.core.ffi.CoreException
 import de.crunchymate.core.ffi.ErrorCode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class ErrorMessagesTest {
@@ -11,7 +12,7 @@ class ErrorMessagesTest {
     fun errorMessages_mapEveryErrorCode() {
         val resources = ErrorCode.entries.map { it.messageRes() }
         assertEquals(ErrorCode.entries.size, resources.toSet().size)
-        assertEquals(false, R.string.error_unknown in resources)
+        assertFalse(R.string.error_unknown in resources)
     }
 
     @Test

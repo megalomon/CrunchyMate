@@ -60,6 +60,11 @@ android {
         }
     }
 
+    testOptions {
+        // android.util.Log liefert in JVM-Tests Standardwerte statt Fehler
+        unitTests.isReturnDefaultValues = true
+    }
+
     lint {
         abortOnError = true
         error += listOf("HardcodedText", "MissingTranslation", "UnusedResources")
@@ -90,7 +95,6 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.androidx.paging.testing)
 }
 
 // Rust-Kern bauen und Kotlin-Bindings erzeugen

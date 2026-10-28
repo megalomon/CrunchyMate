@@ -1,5 +1,7 @@
 package de.crunchymate.core
 
+import android.util.Log
+import de.crunchymate.core.ffi.CoreException
 import de.crunchymate.core.ffi.LanguageFilter
 import de.crunchymate.core.ffi.SearchState
 import de.crunchymate.core.ffi.Settings
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 const val SAVE_DEBOUNCE = 500L
+private const val LOG_TAG = "CrunchyMate"
 
 /** Hält die Einstellungen im Speicher und schreibt Änderungen verzögert in den Kern. */
 class SettingsStore(
@@ -26,6 +29,7 @@ class SettingsStore(
     private val _settings = MutableStateFlow(defaultSettings())
     val settings: StateFlow<Settings> = _settings.asStateFlow()
 
+    private val lock = Any()
     private var saveJob: Job? = null
 
     suspend fun load() {
@@ -34,12 +38,19 @@ class SettingsStore(
 
     fun update(transform: (Settings) -> Settings) {
         _settings.update(transform)
-        saveJob?.cancel()
-        saveJob =
-            scope.launch(io) {
-                delay(SAVE_DEBOUNCE)
-                gateway.saveSettings(_settings.value)
-            }
+        synchronized(lock) {
+            saveJob?.cancel()
+            saveJob =
+                scope.launch(io) {
+                    delay(SAVE_DEBOUNCE)
+                    try {
+                        gateway.saveSettings(_settings.value)
+                    } catch (e: CoreException) {
+                        // Der Stand bleibt im Speicher; die nächste Änderung versucht das Speichern erneut
+                        Log.w(LOG_TAG, "Einstellungen konnten nicht gespeichert werden: ${e::class.simpleName}")
+                    }
+                }
+        }
     }
 
     private companion object {
