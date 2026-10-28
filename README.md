@@ -1,5 +1,9 @@
 # CrunchyMate
 
+> **Disclaimer:** CrunchyMate steht in keiner Verbindung zu Crunchyroll und wird von Crunchyroll weder unterstützt, gesponsert noch geprüft. Alle Markennamen gehören ihren jeweiligen Inhabern.
+
+> **Vibe-coded:** Diese App ist mit KI-Assistenz entstanden, ohne klassische Code-Prüfung durch Menschen. Die Nutzung erfolgt auf eigenes Risiko.
+
 CrunchyMate ist eine Android-App zum Durchsuchen, Filtern und Verfolgen des KnusperBrötchen-Anime-Katalogs. Der Katalog wird mit Bewertungen, Genres und Tags von AniList angereichert und lokal gespeichert. Die Fachlogik steckt in einem Rust-Kern (über UniFFI angebunden), die Oberfläche ist mit Jetpack Compose gebaut.
 
 ## Funktionsumfang
@@ -38,7 +42,23 @@ Voraussetzungen:
 ./gradlew assembleDebug
 ```
 
-Die APK liegt danach unter `app/build/outputs/apk/debug/app-debug.apk`. Gradle baut den Rust-Kern dabei selbst und erzeugt die Kotlin-Bindings. Eine signierte Release-APK entsteht lokal wie in `docs/release-signing.md` beschrieben.
+Die APK liegt danach unter `app/build/outputs/apk/debug/app-debug.apk`. Gradle baut den Rust-Kern dabei selbst und erzeugt die Kotlin-Bindings.
+
+## Release-Builds
+
+Gradle legt die Signing-Konfiguration `release` nur an, wenn die Umgebungsvariable `SIGNING_KEYSTORE_PATH` gesetzt ist (siehe `app/build.gradle.kts`); ohne sie entsteht eine unsignierte APK. Gradle-Properties sind dafür nicht vorgesehen, es zählen ausschließlich diese Umgebungsvariablen:
+
+```bash
+export SIGNING_KEYSTORE_PATH=/pfad/zu/release.jks
+export SIGNING_STORE_PASSWORD=...
+export SIGNING_KEY_PASSWORD=...
+export SIGNING_KEY_ALIAS=crunchymate
+./gradlew assembleRelease
+```
+
+Die APK liegt danach unter `app/build/outputs/apk/release/app-release.apk`. Schlüsselerzeugung, Secrets und Prüfung mit `apksigner` stehen in `docs/release-signing.md`.
+
+Der Workflow `nightly.yml` baut täglich um 03:00 UTC (nur bei neuen Commits) eine signierte APK und veröffentlicht sie als Pre-Release `nightly` auf GitHub.
 
 ## Tests und Prüfungen
 
@@ -50,6 +70,10 @@ bash scripts/run-device-tests.sh
 ```
 
 `scripts/run-device-tests.sh` baut App und Test-APK, installiert beide mit `adb install -r` auf einem angeschlossenen Gerät und führt die Smoke-Tests aus. Sie nutzen eine eigene Datenbank und einen eigenen Bilderordner, vorhandene Nutzerdaten bleiben unberührt. Live-Tests gegen KnusperBrötchen (`core/tests/crispybun_live.rs`) sind mit `#[ignore]` markiert und laufen nur auf Anforderung.
+
+## Lizenz
+
+CrunchyMate steht unter der Apache License 2.0, siehe `LICENSE`. Die Lizenzen der verwendeten Bibliotheken, Icons und Flaggen stehen in `docs/open-source-hinweise.md` und in der App unter Einstellungen.
 
 ## Weitere Dokumentation
 
