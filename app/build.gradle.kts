@@ -37,6 +37,8 @@ android {
         ndk {
             abiFilters += "arm64-v8a"
         }
+
+        testInstrumentationRunner = "de.crunchymate.CrunchyMateTestRunner"
     }
 
     // Signierung nur, wenn SIGNING_KEYSTORE_PATH gesetzt ist (CI, lokaler Test); sonst unsignierte APK
@@ -123,6 +125,11 @@ dependencies {
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }
 
 // Rust-Kern bauen und Kotlin-Bindings erzeugen
@@ -223,4 +230,27 @@ tasks.named("preBuild") {
 // mustRunAfter genügt für die Task-Validierung, ohne ktlint vom Rust-Build abhängig zu machen.
 tasks.withType<org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask>().configureEach {
     mustRunAfter(generateUniffiBindings)
+}
+
+// Fixture-Datenbank für die Geräte-Tests: kommt als Asset in die Test-APK
+
+val fixtureDbFile = layout.buildDirectory.file("fixture/fixture.db")
+
+val generateFixtureDb =
+    tasks.register<Exec>("generateFixtureDb") {
+        group = "rust"
+        description = "Erzeugt die Fixture-Datenbank für die Geräte-Tests."
+        inputs.files(rustInputs).withPathSensitivity(PathSensitivity.RELATIVE)
+        inputs.file(repoRoot.resolve("core/examples/make_fixture_db.rs")).withPathSensitivity(PathSensitivity.RELATIVE)
+        outputs.dir(fixtureDbFile.map { it.asFile.parentFile })
+        workingDir = repoRoot
+        val target = fixtureDbFile.get().asFile
+        commandLine(cargoExecutable, "run", "-p", "crunchymate-core", "--example", "make_fixture_db", "--", target.path)
+        doFirst { target.parentFile.mkdirs() }
+    }
+
+androidComponents.onVariants { variant ->
+    variant.androidTest?.sources?.assets?.addGeneratedSourceDirectory(generateFixtureDb) {
+        objects.directoryProperty().fileValue(fixtureDbFile.get().asFile.parentFile)
+    }
 }
