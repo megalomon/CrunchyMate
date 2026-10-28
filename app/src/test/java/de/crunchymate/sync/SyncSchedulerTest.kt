@@ -11,8 +11,9 @@ import de.crunchymate.core.ffi.SyncPhase
 import de.crunchymate.core.ffi.SyncProgress
 import de.crunchymate.core.ffi.SyncRunState
 import de.crunchymate.core.ffi.SyncStatus
+import de.crunchymate.core.ffi.SyncSummary
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -35,13 +36,18 @@ private const val FINISHED_AT = 1_700_000_000L
 class SyncSchedulerTest {
     private val core = FakeCore()
     private val gateway = CoreGateway(core, Dispatchers.IO)
+
+    // Hält die blockierten Läufe stark erreichbar: Eine Coroutine, die nur auf blockedRun.await() wartet, hat
+    // keinen Halter und wird vom GC eingesammelt; dann scheitert ihre WorkManager-Zukunft mit
+    // FutureGarbageCollectedException und die Arbeit steht auf FAILED statt RUNNING
+    private val blockedRun = CompletableDeferred<SyncSummary>()
     private lateinit var workManager: WorkManager
     private lateinit var scheduler: SyncScheduler
 
     @Before
     fun setUp() {
         // Läufe blockieren, bis der Test sie abbricht
-        core.syncBehavior = { _, _ -> awaitCancellation() }
+        core.syncBehavior = { _, _ -> blockedRun.await() }
         workManager = initTestWorkManager(ApplicationProvider.getApplicationContext(), gateway)
         scheduler = SyncScheduler(workManager, gateway)
     }
@@ -94,7 +100,7 @@ class SyncSchedulerTest {
                 )
             core.syncBehavior = { kind, observer ->
                 observer.onProgress(SyncProgress(kind, SyncPhase.ITEMS, 5L, 10L))
-                awaitCancellation()
+                blockedRun.await()
             }
 
             val idle = scheduler.observe(SyncKind.CATALOG).first()
