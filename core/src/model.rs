@@ -172,6 +172,9 @@ pub struct Settings {
     /// Erststart-Info bestätigt; fehlt in älteren Ständen und gilt dann als nicht gesehen.
     #[serde(deserialize_with = "lenient")]
     pub intro_seen: bool,
+    /// Dunkles Theme mit reinem Schwarz unabhängig von der Systemeinstellung; fehlt in älteren Ständen und gilt dann als aus.
+    #[serde(deserialize_with = "lenient")]
+    pub oled_mode: bool,
 }
 
 /// Unlesbarer Wert ergibt den Standard des Typs.
@@ -217,6 +220,7 @@ impl Default for Settings {
             content_locale: DEFAULT_CONTENT_LOCALE.to_string(),
             search: SearchState::default(),
             intro_seen: false,
+            oled_mode: false,
         }
     }
 }

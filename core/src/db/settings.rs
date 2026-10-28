@@ -148,7 +148,7 @@ mod tests {
         serde_json::to_string(value).unwrap()
     }
 
-    const GOLDEN_SETTINGS: &str = r#"{"content_locale":"en-US","search":{"query":"Größe","genre":"Action","language":"Both","watched":"Unwatched","sort":"Episodes","tags":[{"name":"Isekai","state":"Prefer"},{"name":"Magie","state":"Must"},{"name":"Horror","state":"Exclude"}]},"intro_seen":true}"#;
+    const GOLDEN_SETTINGS: &str = r#"{"content_locale":"en-US","search":{"query":"Größe","genre":"Action","language":"Both","watched":"Unwatched","sort":"Episodes","tags":[{"name":"Isekai","state":"Prefer"},{"name":"Magie","state":"Must"},{"name":"Horror","state":"Exclude"}]},"intro_seen":true,"oled_mode":true}"#;
 
     fn golden_settings() -> Settings {
         Settings {
@@ -166,6 +166,7 @@ mod tests {
                 ],
             },
             intro_seen: true,
+            oled_mode: true,
         }
     }
 
@@ -181,6 +182,24 @@ mod tests {
         assert_eq!(s.content_locale, "en-US");
         assert_eq!(s.search.query, "Größe");
         assert_eq!(s.search.sort, SortOrder::Score);
+    }
+
+    #[test]
+    fn settings_without_oled_flag_load_as_off() {
+        let db = Database::open_in_memory().unwrap();
+        store_raw(&db, r#"{"content_locale":"en-US","intro_seen":true}"#);
+        let s = db.with_conn(load).unwrap();
+        assert!(!s.oled_mode);
+        assert!(s.intro_seen);
+    }
+
+    #[test]
+    fn unreadable_oled_flag_loads_as_off() {
+        let db = Database::open_in_memory().unwrap();
+        store_raw(&db, r#"{"content_locale":"fr-FR","oled_mode":"an"}"#);
+        let s = db.with_conn(load).unwrap();
+        assert!(!s.oled_mode);
+        assert_eq!(s.content_locale, "fr-FR");
     }
 
     #[test]
