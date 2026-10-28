@@ -121,7 +121,7 @@
     <string name="intro_privacy">The app collects no diagnostic or usage data. After the sync it works completely offline.</string>
     <string name="intro_confirm">Got it</string>
     <string name="action_back">Back</string>
-    <string name="settings_licenses">Open-source licenses</string>
+    <string name="settings_licenses">Licenses</string>
     <string name="settings_info">About</string>
     <string name="licenses_title">Open-source licenses</string>
     <string name="licenses_texts_heading">License texts</string>
