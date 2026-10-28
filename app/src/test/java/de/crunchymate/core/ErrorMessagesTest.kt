@@ -22,6 +22,10 @@ class ErrorMessagesTest {
         assertEquals(ErrorCode.AUTH.messageRes(), CoreException.Auth("x").messageRes())
         assertEquals(ErrorCode.PARSE.messageRes(), CoreException.Parse("x").messageRes())
         assertEquals(ErrorCode.DATABASE.messageRes(), CoreException.Database("x").messageRes())
+        assertEquals(ErrorCode.UNSUPPORTED_SCHEMA.messageRes(), CoreException.UnsupportedSchema(4, 3).messageRes())
+        assertEquals(ErrorCode.STORAGE.messageRes(), CoreException.Storage("x").messageRes())
+        assertEquals(ErrorCode.INCOMPLETE.messageRes(), CoreException.Incomplete(1L, 2L).messageRes())
+        assertEquals(ErrorCode.INTERNAL.messageRes(), CoreException.Internal("x").messageRes())
         assertEquals(ErrorCode.CANCELLED.messageRes(), CoreException.Cancelled().messageRes())
         assertEquals(R.string.error_unknown, IllegalStateException().messageRes())
     }

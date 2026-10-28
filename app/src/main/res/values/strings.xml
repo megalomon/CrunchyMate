@@ -6,6 +6,10 @@
     <string name="error_auth">Anmeldung beim Dienst fehlgeschlagen.</string>
     <string name="error_parse">Die Antwort des Servers war unerwartet.</string>
     <string name="error_database">Fehler in der lokalen Datenbank.</string>
+    <string name="error_unsupported_schema">Daten stammen aus einer neueren App-Version.</string>
+    <string name="error_storage">Gerätespeicher nicht beschreibbar.</string>
+    <string name="error_incomplete">Katalog unvollständig geladen.</string>
+    <string name="error_internal">Interner Fehler.</string>
     <string name="error_cancelled">Abgebrochen.</string>
     <string name="error_unknown">Unbekannter Fehler.</string>
     <string name="tag_state_none">Nicht ausgewählt</string>
@@ -37,6 +41,18 @@
     <string name="sync_last_finished">Zuletzt abgeschlossen: %1$s</string>
     <string name="sync_never_finished">Noch nicht abgeschlossen</string>
     <string name="sync_last_error">Letzter Fehler: %1$s</string>
+    <plurals name="sync_failed_images">
+        <item quantity="one">%1$d Bild fehlgeschlagen</item>
+        <item quantity="other">%1$d Bilder fehlgeschlagen</item>
+    </plurals>
+    <plurals name="sync_skipped_images">
+        <item quantity="one">%1$d Bild zu groß</item>
+        <item quantity="other">%1$d Bilder zu groß</item>
+    </plurals>
+    <plurals name="sync_failed_batches">
+        <item quantity="one">%1$d Anfrage fehlgeschlagen</item>
+        <item quantity="other">%1$d Anfragen fehlgeschlagen</item>
+    </plurals>
     <string name="detail_not_found">Dieser Anime ist nicht im lokalen Katalog vorhanden.</string>
     <string name="nav_search">Suche</string>
     <string name="nav_watched">Gesehen</string>

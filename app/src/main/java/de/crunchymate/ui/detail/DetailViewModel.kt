@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import de.crunchymate.R
 import de.crunchymate.core.CoreGateway
 import de.crunchymate.core.SettingsStore
+import de.crunchymate.core.dataLocale
 import de.crunchymate.core.ffi.AnimeDetail
 import de.crunchymate.core.ffi.CoreException
 import de.crunchymate.core.ffi.TagSelection
@@ -26,7 +27,7 @@ data class DetailUiState(
     val loading: Boolean,
     @StringRes val error: Int?,
     val tagStates: List<TagSelection>,
-    /** Sprache, für die die Flagge die Verfügbarkeit der Fassung zeigt. */
+    /** Sprache der gespeicherten Daten, für die die Flagge die Verfügbarkeit der Fassung zeigt. */
     val contentLocale: String,
 )
 
@@ -44,8 +45,8 @@ class DetailViewModel(
     private val load = MutableStateFlow(LoadState(anime = null, loading = true, error = null))
 
     val uiState: StateFlow<DetailUiState> =
-        combine(load, settingsStore.settings) { state, settings ->
-            DetailUiState(state.anime, state.loading, state.error, settings.search.tags, settings.contentLocale)
+        combine(load, settingsStore.settings, gateway.dataLocale(settingsStore.settings)) { state, settings, locale ->
+            DetailUiState(state.anime, state.loading, state.error, settings.search.tags, locale)
         }.stateIn(
             viewModelScope,
             SharingStarted.Eagerly,

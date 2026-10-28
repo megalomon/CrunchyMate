@@ -1,6 +1,7 @@
 package de.crunchymate.core
 
 import de.crunchymate.core.ffi.CoreException
+import de.crunchymate.core.ffi.WatchedFilter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
@@ -79,6 +80,26 @@ class SettingsStoreTest {
 
             store.flush()
             assertEquals(0, core.savedSettings.size)
+        }
+
+    @Test
+    fun load_mapsLegacyWatchedOnlyFilterToAll() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val legacy = sampleSettings().let { it.copy(search = it.search.copy(watched = WatchedFilter.WATCHED)) }
+            val store = SettingsStore(CoreGateway(FakeCore(storedSettings = legacy), dispatcher), this, dispatcher)
+            store.load()
+            assertEquals(WatchedFilter.ALL, store.settings.value.search.watched)
+        }
+
+    @Test
+    fun load_keepsHideWatched() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val hidden = sampleSettings().let { it.copy(search = it.search.copy(watched = WatchedFilter.UNWATCHED)) }
+            val store = SettingsStore(CoreGateway(FakeCore(storedSettings = hidden), dispatcher), this, dispatcher)
+            store.load()
+            assertEquals(WatchedFilter.UNWATCHED, store.settings.value.search.watched)
         }
 
     @Test

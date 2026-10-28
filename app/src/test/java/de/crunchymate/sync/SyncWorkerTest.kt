@@ -51,7 +51,7 @@ class SyncWorkerTest {
             core.syncBehavior = { kind, observer ->
                 kinds += kind
                 observer.onProgress(SyncProgress(kind, SyncPhase.ITEMS, 1L, 2L))
-                SyncSummary(2L, 0, 0)
+                SyncSummary(2L, 0, 0, 0)
             }
 
             val result = worker(SyncKind.METADATA).doWork()
@@ -69,6 +69,18 @@ class SyncWorkerTest {
 
             assertTrue(result is ListenableWorker.Result.Failure)
             assertEquals("RATE_LIMITED", result.outputData.getString(SyncWorker.KEY_ERROR))
+        }
+
+    @Test
+    fun worker_unexpectedException_returnsFailureWithInternalCode() =
+        runBlocking {
+            // So meldet UniFFI eine Rust-Panic: keine CoreException
+            core.syncBehavior = { _, _ -> throw IllegalStateException("Panic im Kern") }
+
+            val result = worker(SyncKind.CATALOG).doWork()
+
+            assertTrue(result is ListenableWorker.Result.Failure)
+            assertEquals("INTERNAL", result.outputData.getString(SyncWorker.KEY_ERROR))
         }
 
     @Test

@@ -11,6 +11,7 @@ import de.crunchymate.core.ffi.SyncKind
 import de.crunchymate.core.ffi.SyncRunState
 import de.crunchymate.core.ffi.SyncStatus
 import de.crunchymate.core.ffi.WatchedFilter
+import de.crunchymate.core.sampleSettings
 import de.crunchymate.sync.SyncScheduler
 import de.crunchymate.sync.initTestWorkManager
 import de.crunchymate.ui.search.GridMode
@@ -128,19 +129,50 @@ class SettingsViewModelTest {
             )
         }
 
-    @Test
-    fun settings_contentLocaleHint_onlyAfterChange() =
-        runTest(dispatcher) {
-            val f = fixture()
-            assertFalse(f.viewModel.uiState.value.contentLocaleChangePending)
+    private fun syncedCatalog(locale: String?) =
+        mapOf(SyncKind.CATALOG to SyncStatus(SyncKind.CATALOG, SyncRunState.COMPLETED, 0L, 0L, null, null, "DE", locale, null))
 
-            f.viewModel.onContentLocaleChange(f.store.settings.value.contentLocale)
-            runCurrent()
+    @Test
+    fun settings_contentLocaleHint_followsLocaleOfSyncedData() =
+        runTest(dispatcher) {
+            val core = FakeCore().apply { syncStatuses = syncedCatalog("de-DE") }
+            val f = fixture(core)
             assertFalse(f.viewModel.uiState.value.contentLocaleChangePending)
 
             f.viewModel.onContentLocaleChange("en-US")
             runCurrent()
             assertTrue(f.viewModel.uiState.value.contentLocaleChangePending)
+
+            // Ein abgeschlossener Sync mit der neuen Sprache beendet den Hinweis
+            core.syncStatuses = syncedCatalog("en-US")
+            f.gateway.notifyChanged()
+            runCurrent()
+            assertFalse(f.viewModel.uiState.value.contentLocaleChangePending)
+
+            // Zurück zur Sprache der Daten: kein Hinweis nötig
+            core.syncStatuses = syncedCatalog("de-DE")
+            f.gateway.notifyChanged()
+            runCurrent()
+            assertTrue(f.viewModel.uiState.value.contentLocaleChangePending)
+            f.viewModel.onContentLocaleChange("de-DE")
+            runCurrent()
+            assertFalse(f.viewModel.uiState.value.contentLocaleChangePending)
+        }
+
+    @Test
+    fun settings_contentLocaleHint_survivesNewViewModel() =
+        runTest(dispatcher) {
+            // Prozessende oder Bildschirmwechsel: der Hinweis ergibt sich wieder aus dem Kern
+            val core = FakeCore(storedSettings = sampleSettings("en-US")).apply { syncStatuses = syncedCatalog("de-DE") }
+            val f = fixture(core)
+            assertTrue(f.viewModel.uiState.value.contentLocaleChangePending)
+        }
+
+    @Test
+    fun settings_contentLocaleHint_absentBeforeFirstSync() =
+        runTest(dispatcher) {
+            val f = fixture(FakeCore(storedSettings = sampleSettings("en-US")))
+            assertFalse(f.viewModel.uiState.value.contentLocaleChangePending)
         }
 
     @Test
@@ -167,7 +199,9 @@ class SettingsViewModelTest {
             val core =
                 FakeCore().apply {
                     syncStatuses =
-                        mapOf(SyncKind.CATALOG to SyncStatus(SyncKind.CATALOG, SyncRunState.COMPLETED, 0L, 0L, null, null, "DE"))
+                        mapOf(
+                            SyncKind.CATALOG to SyncStatus(SyncKind.CATALOG, SyncRunState.COMPLETED, 0L, 0L, null, null, "DE", null, null),
+                        )
                     currentStats = Stats(total = 5, watched = 1, meh = 2, enriched = 3, tags = 4, imageCount = 0, imageBytes = 0)
                 }
             val f = fixture(core)

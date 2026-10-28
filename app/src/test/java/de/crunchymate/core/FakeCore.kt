@@ -43,7 +43,7 @@ class FakeCore(
 
     /** Ersatz für den Rust-Sync; Standard: sofort fertig ohne Fortschritt. */
     @Volatile
-    var syncBehavior: suspend (SyncKind, SyncObserver) -> SyncSummary = { _, _ -> SyncSummary(0L, 0, 0) }
+    var syncBehavior: suspend (SyncKind, SyncObserver) -> SyncSummary = { _, _ -> SyncSummary(0L, 0, 0, 0) }
 
     override fun queryAnime(
         filter: AnimeFilter,
@@ -100,7 +100,7 @@ class FakeCore(
     }
 
     override fun syncStatus(kind: SyncKind): SyncStatus =
-        syncStatuses[kind] ?: SyncStatus(kind, SyncRunState.IDLE, 0L, 0L, null, null, null)
+        syncStatuses[kind] ?: SyncStatus(kind, SyncRunState.IDLE, 0L, 0L, null, null, null, null, null)
 
     override suspend fun syncCatalog(observer: SyncObserver): SyncSummary = syncBehavior(SyncKind.CATALOG, observer)
 
@@ -126,7 +126,7 @@ fun sampleFilter() =
         emptyList(),
     )
 
-fun sampleSummary(id: String) = AnimeSummary(id, "Titel $id", "", 0, false, false, false, false, 0, 0)
+fun sampleSummary(id: String) = AnimeSummary(id, "Titel $id", "", 0, false, false, false, false, 0)
 
 fun sampleDetail(
     id: String,
@@ -141,8 +141,6 @@ fun sampleDetail(
     bannerPath = "",
     episodeCount = 12,
     launchYear = 2024,
-    isSubbed = true,
-    isDubbed = false,
     hasTargetDub = false,
     hasTargetSub = true,
     watched = false,

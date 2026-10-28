@@ -14,7 +14,6 @@ fun languageFilterOf(
         else -> LanguageFilter.ALL
     }
 
-// ANY wird in der UI nicht angeboten und erscheint wie ALL (beide Chips aus); der Wert bleibt bis zum nächsten Tippen erhalten
 fun LanguageFilter.requiresSub(): Boolean = this == LanguageFilter.SUB || this == LanguageFilter.BOTH
 
 fun LanguageFilter.requiresDub(): Boolean = this == LanguageFilter.DUB || this == LanguageFilter.BOTH

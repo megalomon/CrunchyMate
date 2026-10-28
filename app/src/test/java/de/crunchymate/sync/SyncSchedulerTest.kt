@@ -96,7 +96,7 @@ class SyncSchedulerTest {
             core.syncStatuses =
                 mapOf(
                     SyncKind.CATALOG to
-                        SyncStatus(SyncKind.CATALOG, SyncRunState.FAILED, 3L, 40L, FINISHED_AT, ErrorCode.RATE_LIMITED, "DE"),
+                        SyncStatus(SyncKind.CATALOG, SyncRunState.FAILED, 3L, 40L, FINISHED_AT, ErrorCode.RATE_LIMITED, "DE", null, null),
                 )
             core.syncBehavior = { kind, observer ->
                 observer.onProgress(SyncProgress(kind, SyncPhase.ITEMS, 5L, 10L))
@@ -120,7 +120,9 @@ class SyncSchedulerTest {
     fun observe_runningWithoutProgressShowsIndeterminateInsteadOfStoredCounts() =
         runBlocking {
             core.syncStatuses =
-                mapOf(SyncKind.CATALOG to SyncStatus(SyncKind.CATALOG, SyncRunState.COMPLETED, 3L, 40L, FINISHED_AT, null, "DE"))
+                mapOf(
+                    SyncKind.CATALOG to SyncStatus(SyncKind.CATALOG, SyncRunState.COMPLETED, 3L, 40L, FINISHED_AT, null, "DE", null, null),
+                )
 
             scheduler.start(SyncKind.CATALOG)
             val running = withTimeout(TIMEOUT_MS) { scheduler.observe(SyncKind.CATALOG).first { it.running } }
@@ -132,9 +134,57 @@ class SyncSchedulerTest {
     fun catalogCountry_comesFromCatalogStatus() =
         runBlocking {
             core.syncStatuses =
-                mapOf(SyncKind.CATALOG to SyncStatus(SyncKind.CATALOG, SyncRunState.COMPLETED, 0L, 0L, null, null, "DE"))
+                mapOf(SyncKind.CATALOG to SyncStatus(SyncKind.CATALOG, SyncRunState.COMPLETED, 0L, 0L, null, null, "DE", null, null))
 
             assertEquals("DE", scheduler.catalogCountry.first())
+        }
+
+    @Test
+    fun observe_workerCrashShowsErrorInsteadOfCancelled() =
+        runBlocking {
+            // Der Kern hat den Lauf beim Verwerfen der Future als abgebrochen vermerkt
+            core.syncStatuses =
+                mapOf(
+                    SyncKind.CATALOG to
+                        SyncStatus(SyncKind.CATALOG, SyncRunState.CANCELLED, 3L, 40L, FINISHED_AT, ErrorCode.CANCELLED, "DE", null, null),
+                )
+            core.syncBehavior = { _, _ -> throw IllegalStateException("Panic im Kern") }
+
+            scheduler.start(SyncKind.CATALOG).result.get()
+            val state =
+                withTimeout(TIMEOUT_MS) {
+                    scheduler.observe(SyncKind.CATALOG).first { !it.running && it.lastError != null }
+                }
+
+            assertEquals(ErrorCode.INTERNAL, state.lastError)
+            assertFalse(state.cancelled)
+        }
+
+    @Test
+    fun observe_reportsCountsOfLastRunOnlyWhenIdle() =
+        runBlocking {
+            core.syncStatuses =
+                mapOf(
+                    SyncKind.METADATA to
+                        SyncStatus(
+                            SyncKind.METADATA,
+                            SyncRunState.COMPLETED,
+                            5L,
+                            5L,
+                            FINISHED_AT,
+                            null,
+                            null,
+                            null,
+                            SyncSummary(5L, 2, 12, 1),
+                        ),
+                )
+
+            val idle = scheduler.observe(SyncKind.METADATA).first()
+            assertEquals(Triple(2, 12, 1), Triple(idle.failedBatches, idle.failedImages, idle.skippedImages))
+
+            scheduler.start(SyncKind.METADATA)
+            val running = withTimeout(TIMEOUT_MS) { scheduler.observe(SyncKind.METADATA).first { it.running } }
+            assertEquals(Triple(0, 0, 0), Triple(running.failedBatches, running.failedImages, running.skippedImages))
         }
 
     @Test
@@ -143,9 +193,9 @@ class SyncSchedulerTest {
             core.syncStatuses =
                 mapOf(
                     SyncKind.CATALOG to
-                        SyncStatus(SyncKind.CATALOG, SyncRunState.CANCELLED, 3L, 40L, FINISHED_AT, ErrorCode.CANCELLED, "DE"),
+                        SyncStatus(SyncKind.CATALOG, SyncRunState.CANCELLED, 3L, 40L, FINISHED_AT, ErrorCode.CANCELLED, "DE", null, null),
                     SyncKind.METADATA to
-                        SyncStatus(SyncKind.METADATA, SyncRunState.FAILED, 1L, 2L, FINISHED_AT, ErrorCode.NETWORK, null),
+                        SyncStatus(SyncKind.METADATA, SyncRunState.FAILED, 1L, 2L, FINISHED_AT, ErrorCode.NETWORK, null, null, null),
                 )
 
             val cancelled = scheduler.observe(SyncKind.CATALOG).first()

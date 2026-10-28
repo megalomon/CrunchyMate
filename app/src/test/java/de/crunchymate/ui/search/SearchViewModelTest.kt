@@ -10,6 +10,9 @@ import de.crunchymate.core.ffi.AnimeFilter
 import de.crunchymate.core.ffi.AnimeSummary
 import de.crunchymate.core.ffi.CoreException
 import de.crunchymate.core.ffi.NameCount
+import de.crunchymate.core.ffi.SyncKind
+import de.crunchymate.core.ffi.SyncRunState
+import de.crunchymate.core.ffi.SyncStatus
 import de.crunchymate.core.ffi.TagSelection
 import de.crunchymate.core.ffi.TagState
 import de.crunchymate.core.sampleSettings
@@ -51,6 +54,7 @@ class SearchViewModelTest {
         val viewModel: SearchViewModel,
         val sources: List<PagingSource<Int, AnimeSummary>>,
         val pagingFilters: List<AnimeFilter>,
+        val gateway: CoreGateway,
     )
 
     private suspend fun TestScope.fixture(
@@ -68,8 +72,36 @@ class SearchViewModelTest {
                 AnimePagingSource(gateway, filter).also { sources += it }
             }
         runCurrent()
-        return Fixture(core, store, viewModel, sources, pagingFilters)
+        return Fixture(core, store, viewModel, sources, pagingFilters, gateway)
     }
+
+    @Test
+    fun contentLocale_showsLocaleOfSyncedDataUntilNextSync() =
+        runTest(dispatcher) {
+            val core = FakeCore(storedSettings = sampleSettings("de-DE"))
+            core.syncStatuses =
+                mapOf(SyncKind.CATALOG to SyncStatus(SyncKind.CATALOG, SyncRunState.COMPLETED, 0L, 0L, null, null, "DE", "de-DE", null))
+            val f = fixture(core)
+            assertEquals("de-DE", f.viewModel.contentLocale.value)
+
+            // Die Sub/Dub-Merkmale gelten weiter für Deutsch, bis ein Sync mit der neuen Sprache lief
+            f.store.update { it.copy(contentLocale = "fr-FR") }
+            runCurrent()
+            assertEquals("de-DE", f.viewModel.contentLocale.value)
+
+            core.syncStatuses =
+                mapOf(SyncKind.CATALOG to SyncStatus(SyncKind.CATALOG, SyncRunState.COMPLETED, 0L, 0L, null, null, "FR", "fr-FR", null))
+            f.gateway.notifyChanged()
+            runCurrent()
+            assertEquals("fr-FR", f.viewModel.contentLocale.value)
+        }
+
+    @Test
+    fun contentLocale_beforeFirstSyncIsTheConfiguredOne() =
+        runTest(dispatcher) {
+            val f = fixture(FakeCore(storedSettings = sampleSettings("en-US")))
+            assertEquals("en-US", f.viewModel.contentLocale.value)
+        }
 
     @Test
     fun tagTap_cyclesAndPersistsViaSettingsStore() =

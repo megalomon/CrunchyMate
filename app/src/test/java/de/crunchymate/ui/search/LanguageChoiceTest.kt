@@ -14,15 +14,9 @@ class LanguageChoiceTest {
     }
 
     @Test
-    fun requires_roundTripsForOfferedValues() {
-        LanguageFilter.entries.filter { it != LanguageFilter.ANY }.forEach {
+    fun requires_roundTripsForAllValues() {
+        LanguageFilter.entries.forEach {
             assertEquals(it, languageFilterOf(it.requiresSub(), it.requiresDub()))
         }
-    }
-
-    @Test
-    fun any_showsBothChipsOff() {
-        assertEquals(false, LanguageFilter.ANY.requiresSub())
-        assertEquals(false, LanguageFilter.ANY.requiresDub())
     }
 }

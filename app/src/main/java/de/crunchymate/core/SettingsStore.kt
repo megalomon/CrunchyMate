@@ -39,7 +39,7 @@ class SettingsStore(
     private var dirty = false
 
     suspend fun load() {
-        _settings.value = gateway.loadSettings()
+        _settings.value = gateway.loadSettings().withoutLegacyWatchedFilter()
         _loaded.value = true
     }
 
@@ -79,6 +79,14 @@ class SettingsStore(
     }
 
     private companion object {
+        /**
+         * Früher konnte die Suche auf „nur gesehene“ stehen; heute gibt es dafür den Tab Gesehen und in den
+         * Einstellungen nur „Gesehene ausblenden“. Ein gespeichertes WATCHED zeigte sonst bei ausgeschaltetem
+         * Schalter nur Gesehene.
+         */
+        fun Settings.withoutLegacyWatchedFilter(): Settings =
+            if (search.watched == WatchedFilter.WATCHED) copy(search = search.copy(watched = WatchedFilter.ALL)) else this
+
         /** Entspricht dem Standard des Rust-Kerns. */
         fun defaultSettings() =
             Settings(

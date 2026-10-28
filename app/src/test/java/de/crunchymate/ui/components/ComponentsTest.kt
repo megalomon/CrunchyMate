@@ -71,7 +71,6 @@ class ComponentsTest {
         hasTargetSub = true,
         watched = false,
         isMeh = false,
-        preferMatches = 0,
         episodeCount = 128,
     )
 
@@ -148,6 +147,16 @@ class ComponentsTest {
         assertNotNull(
             rule.onNodeWithText(rule.activity.getString(R.string.sync_last_error, string(R.string.error_network))).fetchSemanticsNode(),
         )
+    }
+
+    @Test
+    fun syncCard_showsOnlyPositiveCountsOfLastRun() {
+        val state = SyncUiState(false, 5, 5, TIMESTAMP_SECONDS, null, failedImages = 12, skippedImages = 1)
+        rule.setContent { CrunchyMateTheme { SyncCard("Katalog", SyncKind.CATALOG, state, {}, {}) } }
+        val resources = rule.activity.resources
+        rule.onNodeWithText(resources.getQuantityString(R.plurals.sync_failed_images, 12, 12)).assertIsDisplayed()
+        rule.onNodeWithText(resources.getQuantityString(R.plurals.sync_skipped_images, 1, 1)).assertIsDisplayed()
+        rule.onNodeWithText(resources.getQuantityString(R.plurals.sync_failed_batches, 0, 0)).assertDoesNotExist()
     }
 
     @Test

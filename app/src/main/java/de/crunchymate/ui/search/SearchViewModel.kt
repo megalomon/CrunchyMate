@@ -16,6 +16,7 @@ import de.crunchymate.core.AnimePagingSource
 import de.crunchymate.core.CoreGateway
 import de.crunchymate.core.PAGE_SIZE
 import de.crunchymate.core.SettingsStore
+import de.crunchymate.core.dataLocale
 import de.crunchymate.core.ffi.AnimeFilter
 import de.crunchymate.core.ffi.AnimeSummary
 import de.crunchymate.core.ffi.CoreException
@@ -94,11 +95,10 @@ class SearchViewModel internal constructor(
                 Pager(PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = true), pagingSourceFactory = factory).flow
             }.cachedIn(viewModelScope)
 
-    /** Sprache, für die die Karten die Verfügbarkeit der Fassung anzeigen. */
+    /** Sprache der gespeicherten Daten, für die die Karten die Verfügbarkeit der Fassung anzeigen. */
     val contentLocale: StateFlow<String> =
-        settingsStore.settings
-            .map { it.contentLocale }
-            .distinctUntilChanged()
+        gateway
+            .dataLocale(settingsStore.settings)
             .stateIn(viewModelScope, SharingStarted.Eagerly, settingsStore.settings.value.contentLocale)
 
     val uiState: StateFlow<SearchUiState> =

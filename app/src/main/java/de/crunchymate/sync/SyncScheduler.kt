@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import de.crunchymate.core.CoreGateway
 import de.crunchymate.core.ffi.CoreException
+import de.crunchymate.core.ffi.ErrorCode
 import de.crunchymate.core.ffi.SyncKind
 import de.crunchymate.core.ffi.SyncPhase
 import de.crunchymate.core.ffi.SyncRunState
@@ -52,7 +53,7 @@ class SyncScheduler(
 
     fun observe(kind: SyncKind): Flow<SyncUiState> =
         combine(workManager.getWorkInfosForUniqueWorkFlow(uniqueName(kind)), changesWithStart) { infos, _ -> infos }
-            .mapLatest { infos -> toUiState(infos.firstOrNull { it.isActive() }, status(kind)) }
+            .mapLatest { infos -> toUiState(infos.firstOrNull { it.isActive() }, workerError(infos), status(kind)) }
             .distinctUntilChanged()
 
     val anyRunning: Flow<Boolean> =
@@ -74,14 +75,28 @@ class SyncScheduler(
             null
         }
 
+    // WorkManager entfernt beim erneuten Einreihen die beendete Arbeit; die Liste beschreibt also den letzten Lauf
+    private fun workerError(infos: List<WorkInfo>): ErrorCode? =
+        infos
+            .firstOrNull { it.state == WorkInfo.State.FAILED }
+            ?.outputData
+            ?.getString(SyncWorker.KEY_ERROR)
+            ?.let { name -> ErrorCode.entries.find { it.name == name } }
+
     private fun toUiState(
         active: WorkInfo?,
+        workerError: ErrorCode?,
         status: SyncStatus?,
     ): SyncUiState {
         val progressDone = active?.progress?.getLong(SyncWorker.KEY_DONE, NO_PROGRESS) ?: NO_PROGRESS
         val progressTotal = active?.progress?.getLong(SyncWorker.KEY_TOTAL, NO_PROGRESS) ?: NO_PROGRESS
         val phase = active?.progress?.getString(SyncWorker.KEY_PHASE)?.let { name -> SyncPhase.entries.find { it.name == name } }
         val hasProgress = progressDone != NO_PROGRESS && progressTotal != NO_PROGRESS
+        val coreFailed = status?.state == SyncRunState.FAILED
+        // Scheitert der Worker an einem Fehler, den der Kern nicht festhalten konnte, verwürfe dieser den Lauf als
+        // abgebrochen; maßgeblich ist dann der Fehler des Workers
+        val workerFailure = workerError.takeIf { active == null && !coreFailed }
+        val summary = status?.lastSummary.takeIf { active == null }
         return SyncUiState(
             running = active != null,
             // Läuft die Arbeit, aber ohne erste Meldung, wären die Zähler des Vorlaufs irreführend
@@ -89,9 +104,12 @@ class SyncScheduler(
             total = if (hasProgress) progressTotal else idleCount(active, status?.total),
             lastFinishedAt = status?.lastFinishedAt,
             // Der Kern speichert auch beim Abbruch einen Fehlercode; angezeigt wird er nur bei echtem Fehlschlag
-            lastError = status?.lastError?.takeIf { status.state == SyncRunState.FAILED },
-            cancelled = active == null && status?.state == SyncRunState.CANCELLED,
+            lastError = if (coreFailed) status?.lastError else workerFailure,
+            cancelled = active == null && status?.state == SyncRunState.CANCELLED && workerFailure == null,
             phase = phase ?: SyncPhase.ITEMS,
+            failedImages = summary?.failedImages ?: 0,
+            skippedImages = summary?.skippedImages ?: 0,
+            failedBatches = summary?.failedBatches ?: 0,
         )
     }
 

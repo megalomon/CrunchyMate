@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import de.crunchymate.R
 import de.crunchymate.core.ffi.SyncKind
@@ -101,6 +102,24 @@ fun SyncCard(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
+            LastRunCounts(state)
         }
     }
+}
+
+// Nur Zähler über 0, damit die Karte im Normalfall knapp bleibt
+@Composable
+private fun LastRunCounts(state: SyncUiState) {
+    listOf(
+        R.plurals.sync_failed_batches to state.failedBatches,
+        R.plurals.sync_failed_images to state.failedImages,
+        R.plurals.sync_skipped_images to state.skippedImages,
+    ).filter { (_, count) -> count > 0 }
+        .forEach { (text, count) ->
+            Text(
+                pluralStringResource(text, count, count),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 }

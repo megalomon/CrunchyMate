@@ -14,6 +14,10 @@ fun ErrorCode.messageRes(): Int =
         ErrorCode.AUTH -> R.string.error_auth
         ErrorCode.PARSE -> R.string.error_parse
         ErrorCode.DATABASE -> R.string.error_database
+        ErrorCode.UNSUPPORTED_SCHEMA -> R.string.error_unsupported_schema
+        ErrorCode.STORAGE -> R.string.error_storage
+        ErrorCode.INCOMPLETE -> R.string.error_incomplete
+        ErrorCode.INTERNAL -> R.string.error_internal
         ErrorCode.CANCELLED -> R.string.error_cancelled
     }
 
@@ -25,6 +29,10 @@ val CoreException.code: ErrorCode
             is CoreException.Auth -> ErrorCode.AUTH
             is CoreException.Parse -> ErrorCode.PARSE
             is CoreException.Database -> ErrorCode.DATABASE
+            is CoreException.UnsupportedSchema -> ErrorCode.UNSUPPORTED_SCHEMA
+            is CoreException.Storage -> ErrorCode.STORAGE
+            is CoreException.Incomplete -> ErrorCode.INCOMPLETE
+            is CoreException.Internal -> ErrorCode.INTERNAL
             is CoreException.Cancelled -> ErrorCode.CANCELLED
         }
 

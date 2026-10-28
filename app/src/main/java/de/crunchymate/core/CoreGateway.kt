@@ -64,6 +64,8 @@ class CoreGateway(
 
     suspend fun syncStatus(kind: SyncKind): SyncStatus = withContext(io) { core.syncStatus(kind) }
 
+    suspend fun syncedContentLocaleNow(): String? = syncStatus(SyncKind.CATALOG).contentLocale
+
     suspend fun loadSettings(): Settings = withContext(io) { core.settings() }
 
     suspend fun saveSettings(settings: Settings) {

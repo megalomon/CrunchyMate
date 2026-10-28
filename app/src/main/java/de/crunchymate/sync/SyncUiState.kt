@@ -17,6 +17,10 @@ data class SyncUiState(
     val cancelled: Boolean = false,
     /** Phase des laufenden Laufs; Done und Total beziehen sich auf diese Phase. */
     val phase: SyncPhase = SyncPhase.ITEMS,
+    /** Zähler des letzten beendeten Laufs; während eines Laufs 0. */
+    val failedImages: Int = 0,
+    val skippedImages: Int = 0,
+    val failedBatches: Int = 0,
 ) {
     companion object {
         val Idle = SyncUiState(running = false, done = 0, total = 0, lastFinishedAt = null, lastError = null)

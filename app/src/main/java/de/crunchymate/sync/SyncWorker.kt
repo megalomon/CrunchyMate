@@ -14,10 +14,12 @@ import de.crunchymate.CrunchyMateApplication
 import de.crunchymate.core.CoreGateway
 import de.crunchymate.core.code
 import de.crunchymate.core.ffi.CoreException
+import de.crunchymate.core.ffi.ErrorCode
 import de.crunchymate.core.ffi.SyncKind
 import de.crunchymate.core.ffi.SyncObserver
 import de.crunchymate.core.ffi.SyncPhase
 import de.crunchymate.core.ffi.SyncProgress
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,6 +92,12 @@ class SyncWorker internal constructor(
             Result.success()
         } catch (e: CoreException) {
             Result.failure(workDataOf(KEY_ERROR to e.code.name))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Etwa eine Rust-Panic, die UniFFI als InternalException meldet: ein Fehler, kein Abbruch durch den Nutzer
+            Log.e(LOG_TAG, "Sync mit unerwartetem Fehler beendet: ${e::class.simpleName}")
+            Result.failure(workDataOf(KEY_ERROR to ErrorCode.INTERNAL.name))
         } finally {
             if (foregroundStarted) {
                 NotificationManagerCompat.from(applicationContext).cancel(SyncNotifications.notificationId(kind))

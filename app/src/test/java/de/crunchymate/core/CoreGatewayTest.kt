@@ -38,7 +38,7 @@ class CoreGatewayTest {
             core.syncBehavior = { kind, _ ->
                 kinds += kind
                 de.crunchymate.core.ffi
-                    .SyncSummary(0L, 0, 0)
+                    .SyncSummary(0L, 0, 0, 0)
             }
             val gateway = CoreGateway(core, UnconfinedTestDispatcher(testScheduler))
             val observer =
