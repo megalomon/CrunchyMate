@@ -208,7 +208,7 @@ fn parse_page(json: &Value, locale: &str) -> CoreResult<CatalogPage> {
         .get("total")
         .and_then(Value::as_u64)
         .map(saturating_u32)
-        .unwrap_or(0);
+        .ok_or_else(|| parse_error("Katalogantwort ohne total"))?;
     let items: Vec<CatalogItem> = data
         .iter()
         .filter_map(parse_series)
@@ -292,4 +292,26 @@ fn parse_series(item: &Value) -> Option<RawSeries> {
         subtitle_locales: string_list(meta, "subtitle_locales"),
         categories: string_list(meta, "tenant_categories"),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn parse_page_without_total_is_parse_error() {
+        let json = json!({ "data": [] });
+        assert!(matches!(
+            parse_page(&json, "de-DE"),
+            Err(CoreError::Parse { .. })
+        ));
+    }
+
+    #[test]
+    fn parse_page_with_total_keeps_it() {
+        let json = json!({ "data": [], "total": 7 });
+        assert_eq!(parse_page(&json, "de-DE").unwrap().total, 7);
+    }
 }

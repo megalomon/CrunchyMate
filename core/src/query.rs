@@ -126,7 +126,9 @@ fn build(filter: &AnimeFilter) -> BuiltQuery {
         SortOrder::Episodes => order.push("a.episode_count DESC"),
         SortOrder::Year => order.push("a.launch_year DESC"),
     }
+    // Die ID macht die Reihenfolge bei gleichen Titeln eindeutig; ohne sie kann Offset-Paging Einträge doppeln oder auslassen
     order.push("a.title COLLATE NOCASE ASC");
+    order.push("a.id ASC");
 
     BuiltQuery {
         where_sql: if conditions.is_empty() {
@@ -501,6 +503,20 @@ mod tests {
         assert_eq!(ids(&db, &f), ["a2", "a3", "a6", "a1", "a4", "a7"]);
         f.sort = SortOrder::Year;
         assert_eq!(ids(&db, &f), ["a3", "a6", "a1", "a4", "a2", "a7"]);
+    }
+
+    #[test]
+    fn equal_titles_are_ordered_by_id() {
+        let db = Database::open_in_memory().unwrap();
+        insert_all(
+            &db,
+            &[
+                AnimeFixture::new("b2", "Gleich"),
+                AnimeFixture::new("b1", "gleich"),
+            ],
+        )
+        .unwrap();
+        assert_eq!(ids(&db, &base()), ["b1", "b2"]);
     }
 
     #[test]
