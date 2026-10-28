@@ -627,6 +627,15 @@ mod tests {
             Database::open(&catalog, &user),
             Err(CoreError::UnsupportedSchema { found, .. }) if found == USER_SCHEMA_VERSION + 1
         ));
+        // Weder Katalog noch Nutzer-Datenbank wurden angefasst
+        let catalog_conn = Connection::open(&catalog).unwrap();
+        assert_eq!(version(&catalog_conn, MAIN_SCHEMA), 0);
+        let catalog_tables: i64 = catalog_conn
+            .query_row("SELECT COUNT(*) FROM sqlite_master", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(catalog_tables, 0, "der Katalog bleibt leer");
+        let user_conn = Connection::open(&user).unwrap();
+        assert_eq!(version(&user_conn, MAIN_SCHEMA), USER_SCHEMA_VERSION + 1);
     }
 
     #[test]
