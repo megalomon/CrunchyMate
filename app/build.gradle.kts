@@ -39,9 +39,23 @@ android {
         }
     }
 
+    // Signierung nur, wenn SIGNING_KEYSTORE_PATH gesetzt ist (CI, lokaler Test); sonst unsignierte APK
+    val signingKeystorePath = providers.environmentVariable("SIGNING_KEYSTORE_PATH").orNull
+    if (signingKeystorePath != null) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(signingKeystorePath)
+                storePassword = providers.environmentVariable("SIGNING_STORE_PASSWORD").orNull
+                keyAlias = providers.environmentVariable("SIGNING_KEY_ALIAS").orNull
+                keyPassword = providers.environmentVariable("SIGNING_KEY_PASSWORD").orNull
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
