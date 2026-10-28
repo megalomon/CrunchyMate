@@ -57,9 +57,7 @@ impl AniListClient {
     pub const DEFAULT_ENDPOINT: &'static str = "https://graphql.anilist.co";
 
     pub fn new(endpoint: String, retry: RetryConfig) -> CoreResult<Self> {
-        let http = reqwest::Client::builder()
-            .timeout(REQUEST_TIMEOUT)
-            .build()?;
+        let http = super::http::http_client_builder(REQUEST_TIMEOUT)?.build()?;
         Ok(Self {
             endpoint,
             http,

@@ -51,9 +51,7 @@ impl CrunchyrollSource {
 
     /// Wie `new`, aber mit frei wählbaren Endpunkten (für Tests).
     pub fn with_endpoints(auth_url: String, browse_url: String) -> CoreResult<Self> {
-        let http = reqwest::Client::builder()
-            .timeout(REQUEST_TIMEOUT)
-            .build()?;
+        let http = super::http::http_client_builder(REQUEST_TIMEOUT)?.build()?;
         Ok(Self {
             http,
             auth_url,
