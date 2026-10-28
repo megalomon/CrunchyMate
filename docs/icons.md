@@ -76,6 +76,8 @@ Jeder Tag wird per Tippen durchgeschaltet: neutral → Boost → Muss → Ausges
 | `ic_stat_meh` | Anzahl als „Meh“ markierter Anime | 😒 | `emoticon-confused.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/emoticon-confused/; Apache 2.0 (Pictogrammers Free License) |
 | `ic_stat_enriched` | Anzahl der mit AniList-Daten angereicherten Anime | ✨ | `account-eye-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/account-eye-outline/; Apache 2.0 (Pictogrammers Free License) |
 | `ic_stat_tags` | Anzahl bekannter Tags | 🏷️ | `book-arrow-down-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/book-arrow-down-outline/; Apache 2.0 (Pictogrammers Free License) |
+| `ic_stat_images` | Anzahl lokal gespeicherter Bilder | 🖼️ | `image-multiple-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/image-multiple-outline/; Apache 2.0 (Pictogrammers Free License) |
+| `ic_stat_storage` | Speicherplatz der lokal gespeicherten Bilder | 💾 | `harddisk.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/harddisk/; Apache 2.0 (Pictogrammers Free License) |
 
 ## System
 

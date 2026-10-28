@@ -185,7 +185,6 @@ private data class StatItem(
 @Composable
 private fun StatsSection(stats: Stats) {
     val context = LocalContext.current
-    // Platzhalter, bis die Icons ic_stat_images und ic_stat_storage geliefert sind
     val items =
         listOf(
             StatItem(R.drawable.ic_stat_total, R.string.stat_total, stats.total.toString()),
@@ -193,9 +192,9 @@ private fun StatsSection(stats: Stats) {
             StatItem(R.drawable.ic_stat_meh, R.string.stat_meh, stats.meh.toString()),
             StatItem(R.drawable.ic_stat_enriched, R.string.stat_enriched, stats.enriched.toString()),
             StatItem(R.drawable.ic_stat_tags, R.string.stat_tags, stats.tags.toString()),
-            StatItem(R.drawable.ic_stat_total, R.string.stat_images, stats.imageCount.toString()),
+            StatItem(R.drawable.ic_stat_images, R.string.stat_images, stats.imageCount.toString()),
             StatItem(
-                R.drawable.ic_stat_total,
+                R.drawable.ic_stat_storage,
                 R.string.stat_image_storage,
                 Formatter.formatShortFileSize(context, stats.imageBytes),
             ),

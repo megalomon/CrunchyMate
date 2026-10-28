@@ -32,6 +32,8 @@ Die Icons stammen aus den Material Design Icons der Pictogrammers (https://picto
 | `ic_stat_watched` | https://pictogrammers.com/library/mdi/icon/account-eye-outline/ | Apache 2.0 |
 | `ic_stat_meh` | https://pictogrammers.com/library/mdi/icon/emoticon-confused/ | Apache 2.0 |
 | `ic_stat_tags` | https://pictogrammers.com/library/mdi/icon/book-arrow-down-outline/ | Apache 2.0 |
+| `ic_stat_images` | https://pictogrammers.com/library/mdi/icon/image-multiple-outline/ | Apache 2.0 |
+| `ic_stat_storage` | https://pictogrammers.com/library/mdi/icon/harddisk/ | Apache 2.0 |
 | `ic_notification_sync` | https://pictogrammers.com/library/mdi/icon/timer-sync-outline/ | Apache 2.0 |
 | `ic_stat_enriched` | https://pictogrammers.com/library/mdi/icon/account-eye-outline/ | Apache 2.0 |
 | `ic_launcher_foreground` | https://pictogrammers.com/library/mdi/icon/movie-roll/ | Apache 2.0 |
