@@ -1,0 +1,46 @@
+package de.crunchymate.core
+
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class SettingsStoreTest {
+    @Test
+    fun settingsStore_updateIsVisibleImmediately_andSavedOnceAfterDebounce() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val core = FakeCore()
+            val store = SettingsStore(CoreGateway(core, dispatcher), this, dispatcher)
+
+            store.update { it.copy(contentLocale = "en-US") }
+            assertEquals("en-US", store.settings.value.contentLocale)
+            advanceTimeBy(100)
+            store.update { it.copy(contentLocale = "fr-FR") }
+            assertEquals("fr-FR", store.settings.value.contentLocale)
+
+            advanceTimeBy(499)
+            runCurrent()
+            assertEquals(0, core.savedSettings.size)
+
+            advanceTimeBy(2)
+            runCurrent()
+            assertEquals(1, core.savedSettings.size)
+            assertEquals("fr-FR", core.savedSettings.single().contentLocale)
+        }
+
+    @Test
+    fun load_replacesDefaultWithStoredSettings() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val core = FakeCore(storedSettings = sampleSettings("en-US"))
+            val store = SettingsStore(CoreGateway(core, dispatcher), this, dispatcher)
+            assertEquals(sampleSettings("de-DE"), store.settings.value)
+            store.load()
+            assertEquals("en-US", store.settings.value.contentLocale)
+        }
+}

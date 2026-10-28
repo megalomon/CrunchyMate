@@ -82,10 +82,15 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.paging.common)
     // Android braucht das AAR mit den nativen JNA-Bibliotheken statt des JVM-JARs
     implementation(libs.jna) {
         artifact { type = "aar" }
     }
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.paging.testing)
 }
 
 // Rust-Kern bauen und Kotlin-Bindings erzeugen

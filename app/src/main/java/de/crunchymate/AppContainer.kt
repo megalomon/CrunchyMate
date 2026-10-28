@@ -1,8 +1,13 @@
 package de.crunchymate
 
 import android.content.Context
+import de.crunchymate.core.CoreGateway
+import de.crunchymate.core.SettingsStore
 import de.crunchymate.core.ffi.Core
 import de.crunchymate.core.ffi.CoreInterface
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class AppContainer(
     context: Context,
@@ -15,6 +20,12 @@ class AppContainer(
         dbFile.parentFile?.mkdirs()
         Core(dbFile.path)
     }
+
+    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    val gateway by lazy { CoreGateway(core, Dispatchers.IO) }
+
+    val settingsStore by lazy { SettingsStore(gateway, applicationScope, Dispatchers.IO) }
 
     private companion object {
         const val DB_NAME = "crunchymate.db"

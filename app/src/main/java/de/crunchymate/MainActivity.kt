@@ -9,7 +9,6 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.lifecycleScope
 import de.crunchymate.core.ffi.CoreException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -22,9 +21,9 @@ class MainActivity : ComponentActivity() {
 
     private fun logCatalogTotal() {
         val container = (application as CrunchyMateApplication).container
-        lifecycleScope.launch(Dispatchers.IO) {
+        lifecycleScope.launch {
             try {
-                Log.i(LOG_TAG, "Anime im Katalog: ${container.core.stats().total}")
+                Log.i(LOG_TAG, "Anime im Katalog: ${container.gateway.stats().total}")
             } catch (e: CoreException) {
                 Log.e(LOG_TAG, "Statistik konnte nicht geladen werden", e)
             }

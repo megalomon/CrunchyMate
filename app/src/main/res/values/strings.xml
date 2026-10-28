@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="de">
     <string name="app_name">CrunchyMate</string>
+    <string name="error_network">Keine Verbindung zum Server.</string>
+    <string name="error_rate_limited">Zu viele Anfragen. Bitte später erneut versuchen.</string>
+    <string name="error_auth">Anmeldung beim Dienst fehlgeschlagen.</string>
+    <string name="error_parse">Die Antwort des Servers war unerwartet.</string>
+    <string name="error_database">Fehler in der lokalen Datenbank.</string>
+    <string name="error_cancelled">Abgebrochen.</string>
+    <string name="error_unknown">Unbekannter Fehler.</string>
 </resources>
