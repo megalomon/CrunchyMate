@@ -71,7 +71,9 @@ class SettingsViewModel(
             .launchIn(viewModelScope)
     }
 
-    fun onStartSync(kind: SyncKind) = scheduler.start(kind)
+    fun onStartSync(kind: SyncKind) {
+        scheduler.start(kind)
+    }
 
     fun onCancelSync(kind: SyncKind) = scheduler.cancel(kind)
 

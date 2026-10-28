@@ -17,5 +17,6 @@ object Dimens {
     val StatTileIcon = 24.dp
     val FilterFieldHeight = 48.dp
     val TagListMaxHeight = 120.dp
-    val TagRemoveIcon = 16.dp
+    val TagRemoveIcon = 18.dp
+    val FilterFieldVerticalPadding = 4.dp
 }

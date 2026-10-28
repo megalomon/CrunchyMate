@@ -13,7 +13,6 @@ import de.crunchymate.core.ffi.SyncRunState
 import de.crunchymate.core.ffi.SyncStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -29,7 +28,6 @@ import org.robolectric.annotation.Config
 
 private const val SDK = 35
 private const val TIMEOUT_MS = 10_000L
-private const val POLL_MS = 50L
 private const val FINISHED_AT = 1_700_000_000L
 
 @RunWith(RobolectricTestRunner::class)
@@ -62,22 +60,19 @@ class SyncSchedulerTest {
     @Test
     fun start_twice_enqueuesSingleWork() =
         runBlocking {
-            scheduler.start(SyncKind.CATALOG)
-            scheduler.start(SyncKind.CATALOG)
-            // Das Einreihen läuft asynchron; erst wenn der Eintrag lesbar ist, ist die Zählung stabil
-            withTimeout(TIMEOUT_MS) {
-                while (workManager.getWorkInfosForUniqueWork("sync-CATALOG").get().isEmpty()) delay(POLL_MS)
-            }
-
-            assertEquals(1, workManager.getWorkInfosForUniqueWork("sync-CATALOG").get().size)
-            assertEquals(1, activeInfos(SyncKind.CATALOG).size)
+            scheduler.start(SyncKind.CATALOG).result.get()
+            scheduler.start(SyncKind.CATALOG).result.get()
+            withTimeout(TIMEOUT_MS) { scheduler.observe(SyncKind.CATALOG).first { it.running } }
+            // Die Flow-Abfrage ist die, auf die sich die App stützt; sie liefert den Zustand nach dem Einreihen
+            val infos = withTimeout(TIMEOUT_MS) { workManager.getWorkInfosForUniqueWorkFlow("sync-CATALOG").first { it.isNotEmpty() } }
+            assertEquals(1, infos.size)
         }
 
     @Test
     fun catalogAndMetadata_canRunInParallel() =
         runBlocking {
-            scheduler.start(SyncKind.CATALOG)
-            scheduler.start(SyncKind.METADATA)
+            scheduler.start(SyncKind.CATALOG).result.get()
+            scheduler.start(SyncKind.METADATA).result.get()
 
             assertEquals(1, activeInfos(SyncKind.CATALOG).size)
             assertEquals(1, activeInfos(SyncKind.METADATA).size)

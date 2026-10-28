@@ -7,18 +7,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.unit.Dp
 import de.crunchymate.R
 import de.crunchymate.core.ffi.TagState
 import de.crunchymate.ui.theme.CrunchyMateColors
@@ -63,27 +62,25 @@ fun TagChip(
 ) {
     val description = stringResource(state.descriptionRes())
     val stateColor = state?.color(LocalCrunchyMateColors.current)
-    // Ohne Mindest-Touchfläche bleiben die Chips so niedrig wie in der Web-Ansicht
-    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
-        TagFilterChip(label, state, stateColor, description, onClick, onRemove, modifier)
-    }
-}
-
-@Composable
-private fun TagFilterChip(
-    label: String,
-    state: TagState?,
-    stateColor: Color?,
-    description: String,
-    onClick: () -> Unit,
-    onRemove: (() -> Unit)?,
-    modifier: Modifier,
-) {
+    val removeLabel = stringResource(R.string.tags_remove, label)
     FilterChip(
         selected = state != null,
         onClick = onClick,
         label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-        modifier = modifier.semantics { stateDescription = description },
+        modifier =
+            modifier.semantics {
+                stateDescription = description
+                // Das Entfernen-Symbol ist für Screenreader Teil des Chips; die Aktion steht daher hier
+                if (onRemove != null) {
+                    customActions =
+                        listOf(
+                            CustomAccessibilityAction(removeLabel) {
+                                onRemove()
+                                true
+                            },
+                        )
+                }
+            },
         leadingIcon =
             state?.let {
                 { Icon(painterResource(it.iconRes()), contentDescription = null, Modifier.size(FilterChipDefaults.IconSize)) }
@@ -93,7 +90,7 @@ private fun TagFilterChip(
                 {
                     Icon(
                         painterResource(R.drawable.ic_clear),
-                        contentDescription = stringResource(R.string.tags_remove, label),
+                        contentDescription = null,
                         modifier = Modifier.size(Dimens.TagRemoveIcon).clickable(onClick = it),
                     )
                 }

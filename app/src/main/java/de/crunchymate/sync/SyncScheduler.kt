@@ -3,6 +3,7 @@ package de.crunchymate.sync
 import android.util.Log
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.Operation
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -34,13 +35,14 @@ class SyncScheduler(
 ) {
     private val changesWithStart = gateway.changes.onStart { emit(Unit) }
 
-    fun start(kind: SyncKind) {
+    /** Der Rückgabewert erlaubt, das Einreihen abzuwarten. */
+    fun start(kind: SyncKind): Operation {
         val request =
             OneTimeWorkRequestBuilder<SyncWorker>()
                 .setInputData(workDataOf(SyncWorker.KEY_KIND to kind.name))
                 .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .build()
-        workManager.enqueueUniqueWork(uniqueName(kind), ExistingWorkPolicy.KEEP, request)
+        return workManager.enqueueUniqueWork(uniqueName(kind), ExistingWorkPolicy.KEEP, request)
     }
 
     fun cancel(kind: SyncKind) {

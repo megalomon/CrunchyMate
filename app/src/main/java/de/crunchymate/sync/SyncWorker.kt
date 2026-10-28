@@ -25,6 +25,13 @@ import kotlinx.coroutines.launch
 
 /** Höchstens eine Fortschrittsmeldung pro Intervall: Der Kern meldet je Seite bzw. Batch. */
 const val PROGRESS_THROTTLE = 1_000L
+
+/** Fortschritts-Updates nur, wenn der Vordergrunddienst läuft und Benachrichtigungen erlaubt sind. */
+internal fun shouldPostUpdate(
+    foregroundStarted: Boolean,
+    notificationsEnabled: Boolean,
+): Boolean = foregroundStarted && notificationsEnabled
+
 private const val LOG_TAG = "CrunchyMate"
 
 /**
@@ -38,6 +45,10 @@ class SyncWorker internal constructor(
 ) : CoroutineWorker(context, params) {
     constructor(context: Context, params: WorkerParameters) :
         this(context, params, { (context.applicationContext as CrunchyMateApplication).container.gateway })
+
+    // Ohne Vordergrunddienst gäbe es niemanden, der eine per notify gesendete Benachrichtigung wieder entfernt
+    @Volatile
+    private var foregroundStarted = false
 
     private val kind: SyncKind? = inputData.getString(KEY_KIND)?.let { name -> SyncKind.entries.find { it.name == name } }
 
@@ -78,6 +89,9 @@ class SyncWorker internal constructor(
         } catch (e: CoreException) {
             Result.failure(workDataOf(KEY_ERROR to e.code.name))
         } finally {
+            if (foregroundStarted) {
+                NotificationManagerCompat.from(applicationContext).cancel(SyncNotifications.notificationId(kind))
+            }
             gateway.notifyChanged()
         }
     }
@@ -94,13 +108,15 @@ class SyncWorker internal constructor(
     private suspend fun startForeground(kind: SyncKind) {
         try {
             setForeground(foregroundInfo(kind, done = 0, total = 0))
+            foregroundStarted = true
         } catch (e: IllegalStateException) {
             // Ohne Vordergrunddienst läuft der Sync weiter, nur ohne Benachrichtigung
             Log.w(LOG_TAG, "Vordergrunddienst nicht verfügbar: ${e::class.simpleName}")
         }
     }
 
-    // Wiederholtes setForeground würde jedes Mal den Dienst neu anmelden; ein Update der Benachrichtigung genügt
+    // Wiederholtes setForeground würde jedes Mal den Dienst neu anmelden; ein Update der Benachrichtigung genügt.
+    // MissingPermission ist unterdrückt, weil areNotificationsEnabled() die Berechtigung vor notify() prüft.
     @SuppressLint("MissingPermission")
     private fun updateNotification(
         kind: SyncKind,
@@ -108,7 +124,7 @@ class SyncWorker internal constructor(
         total: Long,
     ) {
         val manager = NotificationManagerCompat.from(applicationContext)
-        if (!manager.areNotificationsEnabled()) return
+        if (!shouldPostUpdate(foregroundStarted, manager.areNotificationsEnabled())) return
         val info = foregroundInfo(kind, done, total)
         manager.notify(info.notificationId, info.notification)
     }

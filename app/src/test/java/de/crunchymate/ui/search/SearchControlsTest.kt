@@ -1,9 +1,9 @@
 package de.crunchymate.ui.search
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import de.crunchymate.R
@@ -91,7 +91,10 @@ class SearchControlsTest {
         val active = listOf(TagSelection("Magie", TagState.PREFER))
         rule.setContent { CrunchyMateTheme { SearchControls(state(active), "", actions(onRemoved = { removed = it })) } }
         rule.onNodeWithText(string(R.string.tags_reset)).assertIsDisplayed()
-        rule.onNodeWithContentDescription(rule.activity.getString(R.string.tags_remove, "Magie"), useUnmergedTree = true).performClick()
+        val removeLabel = rule.activity.getString(R.string.tags_remove, "Magie")
+        val actions = rule.onNodeWithText("Magie").fetchSemanticsNode().config[SemanticsActions.CustomActions]
+        val action = actions.single { it.label == removeLabel }
+        rule.runOnIdle { action.action() }
         assertEquals("Magie", removed)
     }
 }
