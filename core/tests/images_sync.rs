@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use crunchymate_core::db::anime::{apply_metadata, get_anime, stats, upsert_catalog_page};
-use crunchymate_core::db::images::{image_stats, local_ref, ImageSlot};
+use crunchymate_core::db::images::{delete_image, image_stats, local_ref, record, ImageSlot};
 use crunchymate_core::db::Database;
 use crunchymate_core::error::CoreResult;
 use crunchymate_core::model::{
@@ -570,4 +570,109 @@ async fn stats_include_image_totals() {
         .map(|id| webp_bytes(id).len() as i64)
         .sum();
     assert_eq!((s.image_count, s.image_bytes), (3, expected_bytes));
+}
+
+#[tokio::test]
+async fn image_sync_gc_removes_orphan_files_without_row() {
+    let db = Database::open_in_memory().unwrap();
+    let dir = TempDir::new("orphan");
+    let store = dir.store();
+    let fetcher = FakeFetcher::default();
+    seed_three(&db, &fetcher);
+    let orphan = store.path(&"ab".repeat(32), "webp");
+    std::fs::write(&orphan, b"Rest eines Abbruchs").unwrap();
+    let foreign = dir.path().join("notiz.txt");
+    std::fs::write(&foreign, b"fremd").unwrap();
+
+    run_image_sync(
+        &db,
+        &store,
+        &fetcher,
+        &TALL,
+        SyncKind::Catalog,
+        &Recorder::default(),
+    )
+    .await
+    .unwrap();
+
+    assert!(!orphan.exists());
+    assert!(foreign.exists());
+    assert_eq!(file_count(&dir), 4);
+}
+
+#[test]
+fn conditional_delete_keeps_row_that_got_a_new_ref() {
+    let db = Database::open_in_memory().unwrap();
+    seed(&db, &[item("a", "", "")]);
+    db.with_tx(|tx| record(tx, "a", ImageSlot::Banner, "http://b", "h1", "webp", 5))
+        .unwrap();
+    assert!(!db.with_conn(|c| delete_image(c, "h1")).unwrap());
+    assert!(reference(&db, "a", ImageSlot::Banner).is_some());
+}
+
+#[tokio::test]
+async fn concurrent_image_phases_do_not_fail_and_keep_files() {
+    let db = Database::open_in_memory().unwrap();
+    let dir = TempDir::new("concurrent");
+    let store = dir.store();
+    let fetcher = FakeFetcher::default();
+    // Gleicher Inhalt in zwei Arten: beide Läufe teilen sich Hash und Datei
+    seed(
+        &db,
+        &[
+            item("a", "http://img/t", ""),
+            item("b", "http://img/t2", ""),
+        ],
+    );
+    db.with_tx(|tx| apply_metadata(tx, "a", &metadata(1)))
+        .unwrap();
+    fetcher.serve("http://img/t", webp_bytes("gleich"));
+    fetcher.serve("http://img/t2", webp_bytes("zwei"));
+    fetcher.serve("http://img/banner-1", webp_bytes("gleich"));
+    let banner = [ImageSlot::Banner];
+    let (observer_a, observer_b) = (Recorder::default(), Recorder::default());
+
+    let (first, second) = tokio::join!(
+        run_image_sync(&db, &store, &fetcher, &TALL, SyncKind::Catalog, &observer_a),
+        run_image_sync(
+            &db,
+            &store,
+            &fetcher,
+            &banner,
+            SyncKind::Metadata,
+            &observer_b
+        ),
+    );
+
+    assert_eq!(first.unwrap().failed, 0);
+    assert_eq!(second.unwrap().failed, 0);
+    for (id, slot) in [
+        ("a", ImageSlot::PosterTall),
+        ("b", ImageSlot::PosterTall),
+        ("a", ImageSlot::Banner),
+    ] {
+        let (hash, ext) = reference(&db, id, slot).unwrap();
+        assert!(store.path(&hash, &ext).exists());
+    }
+}
+
+#[tokio::test]
+async fn image_sync_reports_empty_images_phase_when_nothing_pending() {
+    let db = Database::open_in_memory().unwrap();
+    let dir = TempDir::new("empty");
+    let observer = Recorder::default();
+    run_image_sync(
+        &db,
+        &dir.store(),
+        &FakeFetcher::default(),
+        &TALL,
+        SyncKind::Catalog,
+        &observer,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        observer.events(),
+        vec![(SyncKind::Catalog, SyncPhase::Images, 0, 0)]
+    );
 }

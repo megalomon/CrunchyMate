@@ -13,6 +13,8 @@ use crate::error::{CoreError, CoreResult};
 
 /// Unterverzeichnis für halb geschriebene Dateien; nur dort können Reste eines Abbruchs liegen.
 const TMP_DIR: &str = "tmp";
+/// Länge eines SHA-256 in Hex-Schreibweise.
+const HASH_HEX_LEN: usize = 64;
 const TMP_SUFFIX: &str = ".part";
 
 #[derive(Debug, Clone)]
@@ -20,6 +22,8 @@ pub struct ImageStore {
     dir: PathBuf,
     // Eindeutige Temp-Namen auch bei gleichzeitigen Schreibvorgängen desselben Inhalts
     next_tmp: Arc<AtomicU64>,
+    // Bild-Phasen verschiedener Läufe dürfen sich bei Ablage und Aufräumen nicht überschneiden
+    phase_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl ImageStore {
@@ -37,7 +41,34 @@ impl ImageStore {
         Ok(Self {
             dir,
             next_tmp: Arc::new(AtomicU64::new(0)),
+            phase_lock: Arc::new(tokio::sync::Mutex::new(())),
         })
+    }
+
+    /// Sperre, die eine Bild-Phase für ihre gesamte Dauer hält.
+    pub fn phase_lock(&self) -> &tokio::sync::Mutex<()> {
+        &self.phase_lock
+    }
+
+    /// Alle Dateien im Muster `<Hash>.<Endung>` als (Hash, Endung); `tmp/` und Fremdes bleiben außen vor.
+    pub fn list_files(&self) -> CoreResult<Vec<(String, String)>> {
+        let mut files = Vec::new();
+        for entry in fs::read_dir(&self.dir).map_err(io_error)? {
+            let path = entry.map_err(io_error)?.path();
+            if !path.is_file() {
+                continue;
+            }
+            let (Some(stem), Some(ext)) = (
+                path.file_stem().and_then(|s| s.to_str()),
+                path.extension().and_then(|s| s.to_str()),
+            ) else {
+                continue;
+            };
+            if stem.len() == HASH_HEX_LEN && stem.bytes().all(|b| b.is_ascii_hexdigit()) {
+                files.push((stem.to_string(), ext.to_string()));
+            }
+        }
+        Ok(files)
     }
 
     pub fn path(&self, hash: &str, ext: &str) -> PathBuf {

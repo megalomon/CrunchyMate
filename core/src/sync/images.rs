@@ -1,6 +1,8 @@
 //! Phase „Bilder“: lädt fehlende oder geänderte Bilder und räumt nicht mehr benötigte ab.
 
-use crate::db::images::{delete_image, pending, record, unreferenced, ImageSlot, PendingImage};
+use crate::db::images::{
+    delete_image, known_hashes, pending, record, unreferenced, ImageSlot, PendingImage,
+};
 use crate::db::Database;
 use crate::error::{CoreError, CoreResult};
 use crate::images::encode::{encode_for_storage, StoredImage};
@@ -35,6 +37,8 @@ pub async fn run_image_sync(
     kind: SyncKind,
     observer: &dyn SyncObserver,
 ) -> CoreResult<ImageSyncSummary> {
+    // Eine Bild-Phase zur Zeit: Ablage und Aufräumen zweier Läufe würden sich sonst gegenseitig stören
+    let _phase = store.phase_lock().lock().await;
     let jobs = db.with_conn(|conn| pending(conn, slots))?;
     let total = i64::try_from(jobs.len()).unwrap_or(i64::MAX);
     let mut summary = ImageSyncSummary::default();
@@ -51,6 +55,15 @@ pub async fn run_image_sync(
             phase: SyncPhase::Images,
             done,
             total,
+        });
+    }
+    if jobs.is_empty() {
+        // Damit die Oberfläche den Abschnitt „Daten“ verlässt
+        observer.on_progress(SyncProgress {
+            kind,
+            phase: SyncPhase::Images,
+            done: 0,
+            total: 0,
         });
     }
     remove_unreferenced(db, store)?;
@@ -105,17 +118,28 @@ async fn encode_and_store(store: &ImageStore, raw: Vec<u8>) -> CoreResult<Stored
         })
     })
     .await
-    .map_err(|error| CoreError::Database {
-        detail: format!("Bildverarbeitung abgebrochen: {error}"),
-    })?
+    .unwrap_or_else(|error| {
+        Err(CoreError::Database {
+            detail: format!("Bildverarbeitung abgebrochen: {error}"),
+        })
+    })
 }
 
-/// Erst die Zeile löschen, dann die Datei: bleibt eine Datei übrig, schadet das nicht,
-/// eine Zeile ohne Datei würde dagegen ein totes Bild melden.
+/// Entfernt Bildzeilen ohne Verweis samt Datei sowie Dateien ohne Zeile (Reste eines Abbruchs
+/// zwischen Schreiben und Speichern). Die Zeile wird nur bedingt gelöscht und zuerst: bleibt eine
+/// Datei übrig, schadet das nicht, eine Zeile ohne Datei würde dagegen ein totes Bild melden.
+/// Fehler beim Löschen von Dateien bleiben folgenlos; der nächste Lauf versucht es erneut.
 fn remove_unreferenced(db: &Database, store: &ImageStore) -> CoreResult<()> {
     for (hash, ext) in db.with_conn(unreferenced)? {
-        db.with_conn(|conn| delete_image(conn, &hash))?;
-        store.remove(&hash, &ext)?;
+        if db.with_conn(|conn| delete_image(conn, &hash))? {
+            let _ = store.remove(&hash, &ext);
+        }
+    }
+    let known = db.with_conn(known_hashes)?;
+    for (hash, ext) in store.list_files()? {
+        if !known.contains(&hash) {
+            let _ = store.remove(&hash, &ext);
+        }
     }
     Ok(())
 }

@@ -3,7 +3,7 @@
 use rusqlite::types::Value;
 use rusqlite::{params_from_iter, Connection};
 
-use crate::db::images::{local_path, ImageSlot};
+use crate::db::images::ImageSlot;
 use crate::error::CoreResult;
 use crate::images::store::ImageStore;
 use crate::model::{
@@ -168,9 +168,13 @@ pub fn query_anime(
     let sql = format!(
         "SELECT a.id, a.title, \
          a.anilist_score, a.has_target_dub, a.has_target_sub, a.watched, a.is_meh, \
-         {prefer_select} AS prefer_matches \
-         FROM anime a{} ORDER BY {} LIMIT ? OFFSET ?",
-        built.where_sql, built.order_sql
+         {prefer_select} AS prefer_matches, pi.hash, pi.ext \
+         FROM anime a \
+         LEFT JOIN image_refs pr ON pr.anime_id = a.id AND pr.slot = '{poster_slot}' \
+         LEFT JOIN images pi ON pi.hash = pr.hash{} ORDER BY {} LIMIT ? OFFSET ?",
+        built.where_sql,
+        built.order_sql,
+        poster_slot = ImageSlot::PosterTall.as_str()
     );
 
     // Reihenfolge der Platzhalter: Auswahlliste, WHERE, LIMIT/OFFSET.
@@ -180,12 +184,12 @@ pub fn query_anime(
     args.push(Value::Integer(i64::from(offset)));
 
     let mut stmt = conn.prepare(&sql)?;
-    let mut items = stmt
+    let items = stmt
         .query_map(params_from_iter(args.iter()), |row| {
             Ok(AnimeSummary {
                 id: row.get(0)?,
                 title: row.get(1)?,
-                poster_path: String::new(),
+                poster_path: poster_path(store, row.get(8)?, row.get(9)?),
                 anilist_score: row.get(2)?,
                 has_target_dub: row.get(3)?,
                 has_target_sub: row.get(4)?,
@@ -195,12 +199,15 @@ pub fn query_anime(
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
-    for item in &mut items {
-        item.poster_path =
-            local_path(conn, store, &item.id, ImageSlot::PosterTall)?.unwrap_or_default();
-    }
 
     Ok(AnimePage { items, total })
+}
+
+fn poster_path(store: &ImageStore, hash: Option<String>, ext: Option<String>) -> String {
+    match (hash, ext) {
+        (Some(hash), Some(ext)) => store.path(&hash, &ext).to_string_lossy().into_owned(),
+        _ => String::new(),
+    }
 }
 
 #[cfg(test)]

@@ -154,6 +154,7 @@ impl Recorder {
             .lock()
             .unwrap()
             .iter()
+            .filter(|p| p.phase == SyncPhase::Items)
             .map(|p| (p.done, p.total))
             .collect()
     }
@@ -253,7 +254,7 @@ async fn catalog_sync_upserts_all_pages_and_reports_progress() {
         .lock()
         .unwrap()
         .iter()
-        .all(|p| p.kind == SyncKind::Catalog && p.phase == SyncPhase::Items));
+        .all(|p| p.kind == SyncKind::Catalog));
     let calls = source.calls.lock().unwrap().clone();
     assert_eq!(
         calls,

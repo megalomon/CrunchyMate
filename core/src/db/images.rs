@@ -131,9 +131,23 @@ pub fn unreferenced(conn: &Connection) -> CoreResult<Vec<(String, String)>> {
     Ok(rows)
 }
 
-pub fn delete_image(conn: &Connection, hash: &str) -> CoreResult<()> {
-    conn.execute("DELETE FROM images WHERE hash = ?1", [hash])?;
-    Ok(())
+/// Löscht die Zeile nur, solange kein Verweis (mehr) darauf zeigt; `true`, wenn sie entfernt wurde.
+pub fn delete_image(conn: &Connection, hash: &str) -> CoreResult<bool> {
+    let changed = conn.execute(
+        "DELETE FROM images WHERE hash = ?1
+         AND NOT EXISTS (SELECT 1 FROM image_refs WHERE hash = ?1)",
+        [hash],
+    )?;
+    Ok(changed == 1)
+}
+
+/// Hashes aller Bildzeilen.
+pub fn known_hashes(conn: &Connection) -> CoreResult<std::collections::HashSet<String>> {
+    let mut stmt = conn.prepare("SELECT hash FROM images")?;
+    let rows = stmt
+        .query_map([], |row| row.get(0))?
+        .collect::<Result<_, _>>()?;
+    Ok(rows)
 }
 
 /// Anzahl und Gesamtgröße der gespeicherten Bilder.
@@ -241,8 +255,16 @@ mod tests {
         .unwrap();
         let orphans = db.with_conn(unreferenced).unwrap();
         assert_eq!(orphans, vec![("h1".to_string(), "webp".to_string())]);
-        db.with_conn(|c| delete_image(c, "h1")).unwrap();
+        assert!(db.with_conn(|c| delete_image(c, "h1")).unwrap());
         assert!(db.with_conn(unreferenced).unwrap().is_empty());
+    }
+
+    #[test]
+    fn delete_image_keeps_row_with_new_ref() {
+        let db = conn_with_anime();
+        store(&db, "a", ImageSlot::Banner, "http://b/a", "h1", 10);
+        assert!(!db.with_conn(|c| delete_image(c, "h1")).unwrap());
+        assert_eq!(db.with_conn(image_stats).unwrap().0, 1);
     }
 
     #[test]
