@@ -1,3 +1,6 @@
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -128,6 +131,8 @@ dependencies {
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
+    // Ältere Espresso-Versionen finden InputManager.getInstance auf neuen Android-Versionen nicht mehr
+    androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }
@@ -234,23 +239,48 @@ tasks.withType<org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask>().config
 
 // Fixture-Datenbank für die Geräte-Tests: kommt als Asset in die Test-APK
 
-val fixtureDbFile = layout.buildDirectory.file("fixture/fixture.db")
+abstract class GenerateFixtureDb
+    @Inject
+    constructor(
+        private val execOperations: ExecOperations,
+    ) : DefaultTask() {
+        @get:InputFiles
+        @get:PathSensitive(PathSensitivity.RELATIVE)
+        abstract val rustSources: ConfigurableFileCollection
+
+        @get:Input
+        abstract val cargo: Property<String>
+
+        @get:Internal
+        abstract val workDir: DirectoryProperty
+
+        @get:OutputDirectory
+        abstract val outputDir: DirectoryProperty
+
+        @TaskAction
+        fun generate() {
+            val target = outputDir.get().asFile.resolve("fixture.db")
+            target.parentFile.mkdirs()
+            execOperations.exec {
+                workingDir = workDir.get().asFile
+                commandLine(cargo.get(), "run", "-p", "crunchymate-core", "--example", "make_fixture_db", "--", target.path)
+            }
+        }
+    }
 
 val generateFixtureDb =
-    tasks.register<Exec>("generateFixtureDb") {
+    tasks.register<GenerateFixtureDb>("generateFixtureDb") {
         group = "rust"
         description = "Erzeugt die Fixture-Datenbank für die Geräte-Tests."
-        inputs.files(rustInputs).withPathSensitivity(PathSensitivity.RELATIVE)
-        inputs.file(repoRoot.resolve("core/examples/make_fixture_db.rs")).withPathSensitivity(PathSensitivity.RELATIVE)
-        outputs.dir(fixtureDbFile.map { it.asFile.parentFile })
-        workingDir = repoRoot
-        val target = fixtureDbFile.get().asFile
-        commandLine(cargoExecutable, "run", "-p", "crunchymate-core", "--example", "make_fixture_db", "--", target.path)
-        doFirst { target.parentFile.mkdirs() }
+        rustSources.from(rustInputs, repoRoot.resolve("core/examples/make_fixture_db.rs"))
+        cargo.set(cargoExecutable)
+        workDir.set(rootProject.layout.projectDirectory)
+        outputDir.set(layout.buildDirectory.dir("fixture"))
     }
 
 androidComponents.onVariants { variant ->
-    variant.androidTest?.sources?.assets?.addGeneratedSourceDirectory(generateFixtureDb) {
-        objects.directoryProperty().fileValue(fixtureDbFile.get().asFile.parentFile)
-    }
+    variant.androidTest
+        ?.sources
+        ?.assets
+        ?.addGeneratedSourceDirectory(generateFixtureDb, GenerateFixtureDb::outputDir)
 }
