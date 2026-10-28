@@ -92,4 +92,4 @@ Jeder Tag wird per Tippen durchgeschaltet: neutral → Boost → Muss → Ausges
 
 ## Umwandlung SVG in VectorDrawable
 
-Die Umwandlung übernimmt die Entwicklung (Android Studio „Vector Asset“ bzw. `vd-tool`). Gelieferte SVGs können dafür einfach im Ordner `design/icons/` abgelegt werden.
+Die Umwandlung übernimmt die Entwicklung (Android Studio „Vector Asset“ bzw. `vd-tool`). Gelieferte SVGs können dafür einfach im Ordner `design/icons/ablage/` abgelegt werden (dessen Inhalt wird nicht versioniert) und mit `/check-svg <name> design/icons/ablage/<datei>.svg` eingebunden werden.
