@@ -138,6 +138,7 @@ fn build(filter: &AnimeFilter) -> BuiltQuery {
     }
 }
 
+/// Mit `limit == 0` bleibt `items` leer, `total` ist trotzdem korrekt (reine Zählabfrage).
 pub fn query_anime(
     conn: &Connection,
     filter: &AnimeFilter,
@@ -240,6 +241,7 @@ mod tests {
                 .sub()
                 .genre("Drama")
                 .tag("Magie", 99),
+            AnimeFixture::new("a7", "alpha").score(90),
             AnimeFixture::new("a6", "beta")
                 .score(60)
                 .episodes(12)
@@ -282,13 +284,13 @@ mod tests {
     #[test]
     fn default_filter_hides_meh_and_sorts_by_title() {
         let page = run(&db(), &base());
-        assert_eq!(page.total, 5);
+        assert_eq!(page.total, 6);
         let titles: Vec<_> = page.items.iter().map(|i| i.title.as_str()).collect();
         assert_eq!(
             titles,
-            ["100% Liebe", "A_B", "AxB", "beta", "Über die Welt"]
+            ["100% Liebe", "A_B", "alpha", "AxB", "beta", "Über die Welt"]
         );
-        assert_eq!(page.items[4].poster_url, "tall-a1");
+        assert_eq!(page.items[5].poster_url, "tall-a1");
     }
 
     #[test]
@@ -303,7 +305,7 @@ mod tests {
         f.query = "zeta".into();
         assert_eq!(ids(&db, &f), ["a5"]);
         f.query = "   ".into();
-        assert_eq!(ids(&db, &f).len(), 6);
+        assert_eq!(ids(&db, &f).len(), 7);
     }
 
     #[test]
@@ -355,9 +357,9 @@ mod tests {
         let db = db();
         let mut f = base();
         f.exclude_tags = strs(&["Magie", ""]);
-        assert_eq!(ids(&db, &f), ["a2", "a4", "a6"]);
+        assert_eq!(ids(&db, &f), ["a2", "a7", "a4", "a6"]);
         f.exclude_tags = strs(&["Magie", "Schule"]);
-        assert_eq!(ids(&db, &f), ["a4", "a6"]);
+        assert_eq!(ids(&db, &f), ["a7", "a4", "a6"]);
     }
 
     #[test]
@@ -377,11 +379,15 @@ mod tests {
         let mut f = base();
         f.sort = SortOrder::Score;
         f.prefer_tags = strs(&["Schule", "Magie"]);
-        // a1 und a3: 2 Treffer (80 vor 70); a2: 1 Treffer; a4 (90) vor a6 (60): 0 Treffer.
-        assert_eq!(ids(&db, &f), ["a1", "a3", "a2", "a4", "a6"]);
+        // a1 und a3: 2 Treffer (80 vor 70); a2: 1 Treffer; 0 Treffer: a7 und a4
+        // (beide 90, Titelgleichstand alpha vor AxB), dann a6 (60).
+        assert_eq!(ids(&db, &f), ["a1", "a3", "a2", "a7", "a4", "a6"]);
+        // Gleiche Trefferzahl und gleiche Wertung (a2, a3: je 1 Treffer, 70): Titel entscheidet.
+        f.prefer_tags = strs(&["Schule"]);
+        assert_eq!(ids(&db, &f), ["a1", "a2", "a3", "a7", "a4", "a6"]);
         f.sort = SortOrder::Title;
         f.prefer_tags = strs(&["Magie"]);
-        assert_eq!(ids(&db, &f), ["a3", "a1", "a2", "a4", "a6"]);
+        assert_eq!(ids(&db, &f), ["a3", "a1", "a2", "a7", "a4", "a6"]);
     }
 
     #[test]
@@ -396,8 +402,15 @@ mod tests {
             .collect();
         assert_eq!(
             counts,
-            [("a3", 2), ("a1", 2), ("a2", 1), ("a4", 0), ("a6", 0)]
-                .map(|(i, c)| (i.to_string(), c))
+            [
+                ("a3", 2),
+                ("a1", 2),
+                ("a2", 1),
+                ("a7", 0),
+                ("a4", 0),
+                ("a6", 0)
+            ]
+            .map(|(i, c)| (i.to_string(), c))
         );
         f.prefer_tags = vec![];
         assert!(run(&db, &f).items.iter().all(|i| i.prefer_matches == 0));
@@ -409,9 +422,9 @@ mod tests {
         let mut f = base();
         f.meh = MehFilter::Include;
         f.watched = WatchedFilter::All;
-        assert_eq!(ids(&db, &f).len(), 6);
+        assert_eq!(ids(&db, &f).len(), 7);
         f.watched = WatchedFilter::Unwatched;
-        assert_eq!(ids(&db, &f), ["a2", "a4", "a6", "a1"]);
+        assert_eq!(ids(&db, &f), ["a2", "a7", "a4", "a6", "a1"]);
         f.watched = WatchedFilter::Watched;
         assert_eq!(ids(&db, &f), ["a3", "a5"]);
     }
@@ -421,11 +434,11 @@ mod tests {
         let db = db();
         let mut f = base();
         f.meh = MehFilter::Hide;
-        assert_eq!(ids(&db, &f).len(), 5);
+        assert_eq!(ids(&db, &f).len(), 6);
         f.meh = MehFilter::Only;
         assert_eq!(ids(&db, &f), ["a5"]);
         f.meh = MehFilter::Include;
-        assert_eq!(ids(&db, &f).len(), 6);
+        assert_eq!(ids(&db, &f).len(), 7);
     }
 
     #[test]
@@ -434,7 +447,7 @@ mod tests {
         let mut f = base();
         f.meh = MehFilter::Include;
         f.language = LanguageFilter::All;
-        assert_eq!(ids(&db, &f).len(), 6);
+        assert_eq!(ids(&db, &f).len(), 7);
         f.language = LanguageFilter::Dub;
         assert_eq!(ids(&db, &f), ["a3", "a1"]);
         f.language = LanguageFilter::Sub;
@@ -450,11 +463,11 @@ mod tests {
         let db = db();
         let mut f = base();
         f.sort = SortOrder::Score;
-        assert_eq!(ids(&db, &f), ["a4", "a1", "a2", "a3", "a6"]);
+        assert_eq!(ids(&db, &f), ["a7", "a4", "a1", "a2", "a3", "a6"]);
         f.sort = SortOrder::Episodes;
-        assert_eq!(ids(&db, &f), ["a2", "a3", "a6", "a1", "a4"]);
+        assert_eq!(ids(&db, &f), ["a2", "a3", "a6", "a1", "a4", "a7"]);
         f.sort = SortOrder::Year;
-        assert_eq!(ids(&db, &f), ["a3", "a6", "a1", "a4", "a2"]);
+        assert_eq!(ids(&db, &f), ["a3", "a6", "a1", "a4", "a2", "a7"]);
     }
 
     #[test]
@@ -462,8 +475,16 @@ mod tests {
         let db = db();
         let page = db.with_conn(|c| query_anime(c, &base(), 2, 2)).unwrap();
         let got: Vec<_> = page.items.iter().map(|i| i.id.as_str()).collect();
-        assert_eq!(got, ["a4", "a6"]);
-        assert_eq!(page.total, 5);
+        assert_eq!(got, ["a7", "a4"]);
+        assert_eq!(page.total, 6);
+    }
+
+    #[test]
+    fn limit_zero_returns_total_only() {
+        let db = db();
+        let page = db.with_conn(|c| query_anime(c, &base(), 0, 0)).unwrap();
+        assert!(page.items.is_empty());
+        assert_eq!(page.total, 6);
     }
 
     #[test]
