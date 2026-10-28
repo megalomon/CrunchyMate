@@ -990,6 +990,45 @@ git add core/examples app scripts/run-device-tests.sh
 git commit -m "test: Smoke-Tests auf dem Gerät mit Fixture-Datenbank"
 ```
 
+### Task 15c: Bilder offline (Ergänzung, Spec 5.6)
+
+**Files:**
+- Create: `core/src/images/mod.rs`, `core/src/images/encode.rs`, `core/src/images/store.rs`, `core/src/images/fetch.rs`, `core/src/sync/images.rs`
+- Modify: `core/src/db/schema.rs` (Migration auf Version 2), `core/src/db/anime.rs`, `core/src/query.rs`, `core/src/model.rs`, `core/src/core_api.rs`, `core/src/sync/{catalog_sync,enrichment,config,progress}.rs`, `core/Cargo.toml`
+- Modify: `app/src/main/java/de/crunchymate/AppContainer.kt`, `ui/components/AnimeCard.kt`, `ui/components/SyncCard.kt`, `ui/detail/DetailScreen.kt`, `ui/settings/SettingsScreen.kt`, `sync/SyncWorker.kt`, `sync/SyncScheduler.kt`, `sync/SyncNotifications.kt`, `app/build.gradle.kts`, `gradle/libs.versions.toml`, `strings.xml`
+- Test: `core/tests/images.rs`, Unit-Tests in `core/src/images/*.rs`, angepasste Kotlin-Tests
+
+**Interfaces:**
+- Schema v2: Tabelle `images(hash TEXT PRIMARY KEY, ext TEXT NOT NULL, bytes INTEGER NOT NULL)`; Tabelle `image_refs(anime_id TEXT NOT NULL REFERENCES anime(id) ON DELETE CASCADE, slot TEXT NOT NULL, source_url TEXT NOT NULL, hash TEXT REFERENCES images(hash), PRIMARY KEY(anime_id, slot))`; `slot` stabil als TEXT: `poster_tall`, `poster_wide`, `banner`.
+- `pub enum ImageSlot { PosterTall, PosterWide, Banner }` (intern) mit `as_str()`.
+- `pub fn encode_for_storage(bytes: &[u8]) -> CoreResult<StoredImage>` mit `StoredImage { bytes: Vec<u8>, ext: &'static str }`: WebP-Quelle unverändert (`webp`); JPEG/PNG -> WebP mit `WEBP_QUALITY` (Konstante, 92); ist das Ergebnis nicht kleiner, Original mit `jpg`/`png`; unbekanntes Format -> `CoreError::Parse`.
+- `pub struct ImageStore { dir: PathBuf }` mit `put(&self, image: &StoredImage) -> CoreResult<String>` (SHA-256 hex, schreibt atomar per Temp-Datei + Rename, existierende Datei bleibt), `path(&self, hash, ext) -> PathBuf`, `remove(&self, hash, ext)`.
+- `#[async_trait] pub trait ImageFetcher: Send + Sync { async fn fetch(&self, url: &str) -> CoreResult<Vec<u8>>; }` mit `HttpImageFetcher` über den gemeinsamen `http_client_builder`.
+- `pub async fn run_image_sync(db: &Database, store: &ImageStore, fetcher: &dyn ImageFetcher, slots: &[ImageSlot], config: &SyncConfig, observer: &dyn SyncObserver, kind: SyncKind) -> CoreResult<ImageSyncSummary>`: ermittelt Soll (`anime.poster_tall`/`poster_wide`/`anilist_banner_image`, nicht leer) gegen `image_refs` (fehlend oder `source_url` geändert), lädt mit `SyncConfig.image_concurrency` (Standard 4) parallel, schreibt Datei, dann `images`-Zeile und `image_refs` in einer Transaktion, meldet Fortschritt mit Phase `Images`, zählt Fehler; am Ende Garbage Collection (nicht referenzierte `images` und Dateien löschen).
+- `SyncProgress` erhält `phase: SyncPhase { Items, Images }`; `SyncSummary` erhält `failed_images: i32`; `Stats` erhält `image_count: i64`, `image_bytes: i64`.
+- `run_catalog_sync` ruft nach den Seiten `run_image_sync(.., [PosterTall, PosterWide], ..)`; `run_enrichment` nach den Batches `run_image_sync(.., [Banner], ..)`. `RunGuard` umschließt beide Phasen.
+- `Core::new(db_path: String, image_dir: String)`; exportierte Records: `AnimeSummary.poster_path: String` (absoluter Pfad oder leer) statt `poster_url`; `AnimeDetail.poster_path`, `banner_path` (Banner, sonst Querformat-Poster) statt URLs.
+- Kotlin: `AppContainer` übergibt `File(context.filesDir, "images")`; Coil lädt `File(path)`; `coil-network-okhttp` entfällt; `SyncUiState` erhält `phase`; SyncCard und Benachrichtigung zeigen „Katalog“/„Anreicherung“ bzw. „Bilder“; Statistik-Kachel „Bilder“ mit `Formatter.formatShortFileSize`.
+
+- [ ] **Step 1: Encoder für arm64 prüfen** – passenden WebP-Encoder (z. B. Crate `webp` mit libwebp) und Decoder (`image` mit `jpeg`,`png`) wählen, `cargo ndk -t arm64-v8a build` muss gelingen; Entscheidung im Report.
+- [ ] **Step 2: Tests schreiben (RED)** – `encode_keeps_webp_unchanged`, `encode_jpeg_to_smaller_webp`, `encode_keeps_original_when_not_smaller`, `encode_rejects_unknown_format`, `store_names_file_by_sha256_and_is_idempotent`, `image_sync_downloads_only_missing_or_changed`, `image_sync_counts_failures_and_retries_next_run`, `image_sync_cancel_keeps_completed_files`, `image_sync_gc_removes_unreferenced`, `migration_v1_to_v2`, `query_returns_local_poster_path`; Kotlin: SyncCard zeigt Phase, Karte zeigt Platzhalter ohne Pfad.
+- [ ] **Step 3: Implementieren**
+- [ ] **Step 4: Prüfen** – `cargo fmt --check`, `cargo clippy --all-targets -D warnings`, `cargo test`, `./gradlew testDebugUnitTest lint ktlintCheck assembleDebug`.
+- [ ] **Step 5: Gerät** – Katalog-Sync inkl. Bilder, Gesamtgröße messen; danach Flugmodus (`adb.exe shell cmd connectivity airplane-mode enable`), App neu starten, Grid und Detail zeigen Bilder; Flugmodus wieder aus.
+- [ ] **Step 6: Commit**
+
+### Task 15b: Filterbereich und Texte kompakt (Nutzer-Feedback vom 28.10.2026)
+
+**Files:** `ui/search/SearchControls.kt`, `ui/search/AnimeGridScreen.kt`, `ui/components/FilterDropdownChip.kt` (ersetzt durch Exposed Dropdown), `ui/components/TagChip.kt`, `ui/settings/SettingsScreen.kt`, `ui/detail/DetailScreen.kt`, `strings.xml`, Tests.
+
+- Suchfeld einzeilig, Standardhöhe, Platzhalter „Suchen“, Löschen-Symbol.
+- Filter als M3-Exposed-Dropdowns (Label im Rahmen, Standard-Pfeil der Komponente, kein `ic_dropdown`), zwei pro Zeile: Gesehene | Genre (mit Anzahl), Fassung | Sortierung.
+- Tags: Zeile mit Filterfeld und „Filter löschen“ (nur bei aktiven Tags); aktive Tags als farbige Chips mit Entfernen; übrige Tags als kompakte Chips in einem höhenbegrenzten, intern scrollenden Bereich.
+- Trefferzahl „N Anime gefunden“ direkt über dem Grid; engere Abstände.
+- Texte kürzen: keine Erklär- und Beispieltexte; Kopfzeilen ohne Untertitel; Leerzustände ein kurzer Satz; Einstellungen „Einstellungen“, „Katalog: <Land>“, „Statistik“; Inhaltssprache-Hinweis nur nach Änderung.
+- Aus dem Task-15-Review: Sync-Karte zeigt vor der ersten Fortschrittsmeldung 0/0 (unbestimmt) statt alter Werte; Benachrichtigungs-Updates über `NotificationManager.notify` statt wiederholtem `setForeground`.
+- Prüfung: Robolectric-Test für Dropdown-Label/-Wert; Gate wie üblich; Screenshot vom Gerät per `adb.exe exec-out screencap -p` für den Auftraggeber.
+
 ## Phase 3: CI, Release und Dokumentation
 
 ### Task 17: GitHub-Actions-Workflows, Signierung, Release-Build

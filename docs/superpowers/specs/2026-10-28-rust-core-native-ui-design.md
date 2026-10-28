@@ -203,6 +203,17 @@ Eigene Implementierung hinter `MetadataSource { search_batch(titles) }`: GraphQL
 - Fortschritt über UniFFI-Callback-Interface `SyncObserver::on_progress(kind, done, total)`.
 - Abbruch: Wird die Kotlin-Coroutine abgebrochen, verwirft Rust die Future; `Cancelled` wird in `sync_state` vermerkt.
 
+### 5.6. Offline-Betrieb und Bilder (Ergänzung vom 28.10.2026)
+
+Nach einem abgeschlossenen Sync läuft CrunchyMate vollständig offline. Netzzugriffe gibt es ausschließlich während eines manuell gestarteten Syncs; einzige Ausnahme ist der Link „Auf AniList öffnen“, der den Browser startet.
+
+- Heruntergeladen werden: Hochformat-Poster und Querformat-Poster beim Katalog-Sync, AniList-Banner bei der Anreicherung.
+- Ablauf: nach den Katalogseiten bzw. nach den AniList-Batches folgt im selben Lauf die Phase „Bilder“. Geladen werden nur fehlende Bilder und solche, deren Quell-URL sich geändert hat; mehrere Downloads parallel mit fester Obergrenze (`SyncConfig`), ohne zusätzliche Wartezeit. Fehlgeschlagene Bilder werden gezählt und beim nächsten Sync erneut versucht; ein Abbruch behält bereits Gespeichertes.
+- Format: Liefert die Quelle WebP, wird die Datei unverändert gespeichert. JPEG/PNG werden in WebP mit hoher Qualität (ohne sichtbaren Qualitätsverlust) umgewandelt; wird das Ergebnis nicht kleiner als das Original, bleibt das Original erhalten.
+- Ablage: Dateien im App-Speicher (`files/images/`), Dateiname = SHA-256 des gespeicherten Inhalts (64 Hex-Zeichen) plus Endung des Formats. Die Datenbank speichert je Anime und Bildart Quell-URL und Hash; ein Eintrag wird erst geschrieben, wenn die Datei vollständig vorliegt. Nicht mehr referenzierte Dateien entfernt der Sync am Ende.
+- Anzeige: Grid und Detail laden ausschließlich lokale Dateien; ohne Datei erscheint ein neutraler Platzhalter. Die UI hat keinen Netzwerk-Bildlader.
+- Fortschritt zeigt die Phase an (Katalog bzw. Anreicherung, dann Bilder). Die Statistik zeigt den Speicherbedarf der Bilder.
+
 ## 6. Android-Systemintegration
 
 - `SyncWorker` (`CoroutineWorker`) mit `setForeground`, Typ `dataSync`; ruft den passenden Kern-Sync auf und aktualisiert die Benachrichtigung (Fortschritt, Aktion „Abbrechen“) aus dem `SyncObserver`.
