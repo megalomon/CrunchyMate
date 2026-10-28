@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CrunchyMate - Anime Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-cr">Crunchy</span><span class="logo-mate">Mate</span>
+        <span class="badge region">DE</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- View Banner (shown for Watched and Meh tabs) -->
+    <div id="viewBanner" class="view-banner" style="display: none;">
+      <div class="view-banner-content">
+        <h2 id="viewBannerTitle"></h2>
+        <p id="viewBannerSubtitle"></p>
+      </div>
+    </div>
+
+    <!-- Controls & Filters (Search View) -->
+    <section class="controls-card" id="searchControlsCard">
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Anime suchen (z. B. Frieren, Solo Leveling, Titan)..." autocomplete="off">
+        <button id="clearSearchBtn" class="clear-btn" style="display: none;">✕</button>
+      </div>
+
+      <div class="filter-row">
+        <!-- Watched Filter -->
+        <div class="filter-group">
+          <label class="filter-label" for="watchedFilter">Gesehene:</label>
+          <select id="watchedFilter" class="select-control">
+            <option value="all">Mit anzeigen</option>
+            <option value="unwatched">Ausblenden (ungesehene)</option>
+            <option value="watched">Nur gesehene</option>
+          </select>
+        </div>
+
+        <!-- Genre Filter -->
+        <div class="filter-group">
+          <label class="filter-label" for="genreSelect">Genre:</label>
+          <select id="genreSelect" class="select-control">
+            <option value="">Alle Genres</option>
+          </select>
+        </div>
+
+        <!-- Language (GerDub / GerSub) Filter -->
+        <div class="filter-group">
+          <label class="filter-label" for="langSelect">Sprachfassung:</label>
+          <select id="langSelect" class="select-control">
+            <option value="all">Alle Fassungen</option>
+            <option value="gerdub">🎙️ Nur GerDub</option>
+            <option value="gersub">💬 Nur GerSub</option>
+            <option value="both">🎙️ GerDub & 💬 GerSub</option>
+            <option value="any">GerDub oder GerSub</option>
+          </select>
+        </div>
+
+        <!-- Sort Filter -->
+        <div class="filter-group">
+          <label class="filter-label" for="sortSelect">Sortierung:</label>
+          <select id="sortSelect" class="select-control">
+            <option value="title">Titel (A-Z)</option>
+            <option value="score">AniList Bewertung</option>
+            <option value="episodes">Episodenanzahl</option>
+            <option value="year">Erscheinungsjahr</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Direct AniList Tag Filter (no drawer, no legends, immediately visible) -->
+      <div class="tag-filter-section">
+        <div class="tag-filter-top">
+          <span class="tag-section-heading">Tags</span>
+          <div class="tag-search-inline">
+            <input type="text" id="tagSearchInput" placeholder="Tag filtern..." class="tag-search-mini">
+          </div>
+          <button id="clearTagsBtn" class="btn btn-sm btn-clear" style="display: none;">
+            ✕ Filter löschen
+          </button>
+        </div>
+
+        <!-- Active Selected Tags Bar -->
+        <div id="activeTagsBar" class="active-tags-bar" style="display: none;"></div>
+
+        <!-- Direct Tag Cloud -->
+        <div id="tagCloud" class="tag-cloud-direct">
+          <!-- Rendered directly by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Catalog Content Container (Grid & Results) -->
+    <div id="catalogContainer">
+      <div class="results-header">
+        <span id="resultsCount">Lade Anime...</span>
+      </div>
+
+      <!-- Anime Grid -->
+      <div id="animeGrid" class="anime-grid">
+        <!-- Cards rendered via JS -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="empty-state" style="display: none;">
+        <div class="empty-icon">📺</div>
+        <h3 id="emptyTitle">Keine Anime gefunden</h3>
+        <p id="emptySubtitle">Passe deine Suchbegriffe oder Filter an oder starte einen Sync in den Einstellungen.</p>
+      </div>
+    </div>
+
+    <!-- Settings View (Dedicated Tab) -->
+    <section id="settingsView" class="settings-view" style="display: none;">
+      <div class="settings-header">
+        <h2>⚙️ Einstellungen & Sync</h2>
+        <p>Verwalte den Datenbestand von Crunchyroll DE und die Anreicherung über AniList.</p>
+      </div>
+
+      <div class="settings-grid">
+        <!-- Crunchyroll Sync Card -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <div class="settings-card-icon">🍿</div>
+            <div>
+              <h3>Crunchyroll DE Katalog</h3>
+              <p class="settings-card-desc">Aktuell verfügbare Anime-Serien aus Deutschland abrufen.</p>
+            </div>
+          </div>
+          
+          <div class="sync-progress-box">
+            <div class="progress-bar-wrap">
+              <div id="crProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="sync-meta-row">
+              <span id="crSyncStatusText" class="sync-status-badge">Bereit</span>
+              <span id="crSyncCountText" class="sync-count-info">0 / 0</span>
+            </div>
+            <div id="crLastSyncText" class="sync-last-time">Noch nicht synchronisiert</div>
+          </div>
+
+          <button id="startCrSyncBtn" class="btn btn-primary btn-sync-action">
+            <span class="btn-icon">🔄</span>
+            <span class="btn-text">Crunchyroll Katalog synchronisieren</span>
+          </button>
+        </div>
+
+        <!-- AniList Sync Card -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <div class="settings-card-icon">🏷️</div>
+            <div>
+              <h3>AniList Metadaten & Tags</h3>
+              <p class="settings-card-desc">Bewertungen, Romaji/Englische Titel, Banner und Tags anreichern.</p>
+            </div>
+          </div>
+
+          <div class="sync-progress-box">
+            <div class="progress-bar-wrap">
+              <div id="aniProgressBar" class="progress-bar-fill progress-ani" style="width: 0%;"></div>
+            </div>
+            <div class="sync-meta-row">
+              <span id="aniSyncStatusText" class="sync-status-badge">Bereit</span>
+              <span id="aniSyncCountText" class="sync-count-info">0 / 0</span>
+            </div>
+            <div id="aniLastSyncText" class="sync-last-time">Noch nicht angereichert</div>
+          </div>
+
+          <button id="startAniSyncBtn" class="btn btn-secondary btn-sync-action">
+            <span class="btn-icon">🚀</span>
+            <span class="btn-text">AniList Anreicherung starten</span>
+          </button>
+        </div>
+
+        <!-- Display & Filter Preferences Card -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <div class="settings-card-icon">👁️</div>
+            <div>
+              <h3>Anzeige & Filter</h3>
+              <p class="settings-card-desc">Verhalten der Katalogsuche anpassen.</p>
+            </div>
+          </div>
+
+          <div class="settings-toggle-row">
+            <div>
+              <strong style="color: #fff; display: block; font-size: 0.95rem;">Gesehene Anime in der Suche ausblenden</strong>
+              <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">
+                Bereits als gesehen markierte Anime werden in der normalen Suche standardmäßig ausgeblendet (über das Menü „Gesehen“ bleiben sie jederzeit abrufbar).
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="settingHideWatched">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Database Statistics Card -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <div class="settings-card-icon">📊</div>
+            <div>
+              <h3>Datenbank Statistiken</h3>
+              <p class="settings-card-desc">Übersicht der lokal in SQLite gespeicherten Daten.</p>
+            </div>
+          </div>
+
+          <div class="stats-tiles-grid">
+            <div class="stat-tile">
+              <div class="stat-num" id="statTotalAnime">0</div>
+              <div class="stat-lbl">Anime gesamt</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-num" id="statWatchedAnime">0</div>
+              <div class="stat-lbl">Gesehen</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-num" id="statMehAnime">0</div>
+              <div class="stat-lbl">Meh (Ausgeblendet)</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-num" id="statEnrichedAnime">0</div>
+              <div class="stat-lbl">AniList angereichert</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-num" id="statTotalTags">0</div>
+              <div class="stat-lbl">AniList Tags</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-tab="search" id="navSearch">
+      <span class="nav-icon">🔍</span>
+      <span class="nav-label">Suche</span>
+    </button>
+    <button class="nav-item" data-tab="watched" id="navWatched">
+      <span class="nav-icon">👁️</span>
+      <span class="nav-label">Gesehen</span>
+      <span class="nav-badge" id="badgeWatched" style="display: none;">0</span>
+    </button>
+    <button class="nav-item" data-tab="meh" id="navMeh">
+      <span class="nav-icon">😒</span>
+      <span class="nav-label">Meh</span>
+      <span class="nav-badge" id="badgeMeh" style="display: none;">0</span>
+    </button>
+    <button class="nav-item" data-tab="settings" id="navSettings">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-label">Einstellungen</span>
+      <span class="nav-badge" id="badgeSettingsSync" style="display: none;">●</span>
+    </button>
+  </nav>
+
+  <!-- Detail Modal -->
+  <div id="detailModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <button id="closeModalBtn" class="modal-close">✕</button>
+      
+      <div class="modal-banner" id="modalBanner">
+        <div class="banner-gradient"></div>
+      </div>
+
+      <div class="modal-content">
+        <div class="modal-poster-col">
+          <img id="modalPoster" src="" alt="Poster" class="modal-poster">
+          
+          <button id="modalWatchedBtn" class="btn btn-watch-large">
+            <span class="watch-icon">✓</span>
+            <span class="watch-text">Als gesehen markieren</span>
+          </button>
+
+          <button id="modalMehBtn" class="btn btn-meh-large">
+            <span class="meh-icon">😒</span>
+            <span class="meh-text">Als Meh markieren</span>
+          </button>
+        </div>
+
+        <div class="modal-info-col">
+          <h2 id="modalTitle" class="modal-title"></h2>
+          <div id="modalSubtitles" class="modal-subtitles"></div>
+
+          <div class="meta-badges" id="modalBadges"></div>
+
+          <div class="genre-chips" id="modalGenres"></div>
+
+          <div class="description-box">
+            <h4>Beschreibung</h4>
+            <p id="modalDescription" class="modal-desc-text"></p>
+          </div>
+
+          <!-- Tags in Modal -->
+          <div class="tags-modal-box" id="modalTagsBox">
+            <h4>AniList Tags</h4>
+            <div class="tag-chips" id="modalTags"></div>
+          </div>
+
+          <div class="anilist-box" id="modalAniListSection" style="display: none;">
+            <h4>AniList Details</h4>
+            <div class="anilist-meta">
+              <span id="modalAniListScore" class="ani-badge"></span>
+              <span id="modalAniListStatus" class="ani-badge"></span>
+              <a id="modalAniListLink" href="#" target="_blank" rel="noopener" class="ani-link">Auf AniList ansehen ↗</a>
+            </div>
+            <p id="modalAniListDesc" class="modal-anilist-desc"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
