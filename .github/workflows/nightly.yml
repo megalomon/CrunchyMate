@@ -8,6 +8,15 @@ on:
 permissions:
   contents: write
 
+# Löschen und Neuanlegen des Releases ist nicht atomar; Läufe dürfen sich nicht überlappen
+concurrency:
+  group: nightly-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
   decide:
     name: Bauen oder überspringen
@@ -22,11 +31,12 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
         run: |
+          set -euo pipefail
           if [ "$EVENT" = "workflow_dispatch" ]; then
             echo "should_build=true" >> "$GITHUB_OUTPUT"
           elif ! git rev-parse -q --verify refs/tags/nightly >/dev/null; then
             echo "should_build=true" >> "$GITHUB_OUTPUT"
-          elif [ "$(git rev-parse HEAD)" != "$(git rev-list -n1 nightly)" ]; then
+          elif [ "$(git rev-parse HEAD)" != "$(git rev-list -n1 refs/tags/nightly)" ]; then
             echo "should_build=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_build=false" >> "$GITHUB_OUTPUT"
@@ -63,6 +73,11 @@ jobs:
         env:
           KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
         run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Secret SIGNING_KEYSTORE_B64 ist nicht gesetzt oder leer (siehe docs/release-signing.md)."
+            exit 1
+          fi
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
           echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
       - name: Release-APK bauen
@@ -72,6 +87,7 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           RUN_NUMBER: ${{ github.run_number }}
         run: |
+          set -euo pipefail
           base=$(grep '^crunchymate.baseVersion=' gradle.properties | cut -d= -f2)
           version="${base}-nightly.$(date -u +%Y%m%d)+$(git rev-parse --short HEAD)"
           echo "Version: $version"
@@ -81,8 +97,9 @@ jobs:
           ls app/build/outputs/apk/release/
       - name: Release-Notizen erzeugen
         run: |
+          set -euo pipefail
           if git rev-parse -q --verify refs/tags/nightly >/dev/null; then
-            git log --oneline "nightly..HEAD" > notes.md
+            git log --oneline "refs/tags/nightly..HEAD" > notes.md
           else
             git log --oneline -n 20 > notes.md
           fi
@@ -93,7 +110,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete nightly --cleanup-tag --yes || true
+          set -euo pipefail
+          if gh release view nightly >/dev/null 2>&1; then
+            gh release delete nightly --cleanup-tag --yes
+          fi
           gh release create nightly \
             --prerelease \
             --target "$GITHUB_SHA" \

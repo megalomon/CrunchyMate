@@ -41,7 +41,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-ndk --locked
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew lint ktlintCheck testDebugUnitTest assembleDebug
+      # assembleRelease ohne Signierung fängt R8-Fehler vor dem Nightly ab
+      - run: ./gradlew lint ktlintCheck testDebugUnitTest assembleDebug assembleRelease
       - uses: actions/upload-artifact@v4
         with:
           name: app-debug
