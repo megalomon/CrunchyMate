@@ -79,6 +79,14 @@ Jeder Tag wird per Tippen durchgeschaltet: neutral → Boost → Muss → Ausges
 | `ic_stat_images` | Anzahl lokal gespeicherter Bilder | 🖼️ | `image-multiple-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/image-multiple-outline/; Apache 2.0 (Pictogrammers Free License) |
 | `ic_stat_storage` | Speicherplatz der lokal gespeicherten Bilder | 💾 | `harddisk.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/harddisk/; Apache 2.0 (Pictogrammers Free License) |
 
+## Erststart-Info
+
+| Datei | Bedeutung | Emoji-Entsprechung | Gelieferte Datei | Quelle/Lizenz |
+|---|---|---|---|---|
+| `ic_intro_disclaimer` | Hinweis: keine offizielle App | ⚠️ | `alert-circle-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/alert-circle-outline/; Apache 2.0 (Pictogrammers Free License) |
+| `ic_intro_license` | Lizenz und kostenlos | ⚖️ | `scale-balance.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/scale-balance/; Apache 2.0 (Pictogrammers Free License) |
+| `ic_intro_privacy` | Keine Datensammlung, offline | 🔒 | `shield-lock-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/shield-lock-outline/; Apache 2.0 (Pictogrammers Free License) |
+
 ## System
 
 | Datei | Bedeutung | Emoji-Entsprechung | Gelieferte Datei | Quelle/Lizenz |
