@@ -660,6 +660,7 @@ git commit -m "feat(core): UniFFI-Fassade Core"
 - Produces (Gradle-Tasks in `app/build.gradle.kts`): `cargoBuildArm64` (Exec: `cargo ndk -t arm64-v8a -o app/build/rustJniLibs build --release -p crunchymate-core` im Root), `generateUniffiBindings` (Exec, siehe Task 10 Step 4, `--out-dir app/build/generated/uniffi`), beide vor `preBuild`; `sourceSets.main.java.srcDir("build/generated/uniffi")`, `jniLibs.srcDir("build/rustJniLibs")`; `ndk.abiFilters += "arm64-v8a"`; Abhängigkeit `jna` als `@aar`.
 - Produces: `versionCode` aus Property `crunchymate.versionCode` (Standard 1), `versionName` aus `crunchymate.versionName` (Standard `<baseVersion>-dev`).
 - Produces: `class AppContainer(context: Context) { val core: CoreInterface by lazy { Core(context.getDatabasePath(DB_NAME).path) } }` mit `DB_NAME = "crunchymate.db"`; `CrunchyMateApplication.container: AppContainer`.
+- Nachtrag Task 19: Nutzerdaten (Einstellungen, Gesehen/Meh) liegen in einer eigenen Datei `crunchymate-user.db`, die als einzige ins Backup geht; `Core::new(db_path, user_db_path, image_dir)`. Aufteilung und Migration siehe Spec 5.1.
 - Produces: Lint-Block `abortOnError = true`, `error += listOf("HardcodedText", "MissingTranslation", "UnusedResources")`; ktlint-Plugin.
 - `MainActivity` (vorläufig): `enableEdgeToEdge()`, `setContent { Text(stringResource(R.string.app_name)) }` plus Laden von `container.core.stats()` im Hintergrund mit Log-Ausgabe der Gesamtzahl (wird in Task 14 ersetzt).
 

@@ -126,14 +126,30 @@ Entfernt werden: `cmd/`, `internal/`, `web/`, `go.mod`, `go.sum`, `android/` (In
 
 ### 5.1. Datenmodell
 
-Frisches Schema, Versionierung über `PRAGMA user_version`, Migrationen als geordnete Liste im Code. WAL-Modus.
+Frisches Schema, Versionierung über `PRAGMA user_version`, Migrationen als geordnete Liste im Code. Eine Datei mit höherer Version als unterstützt wird mit `CoreError::UnsupportedSchema` abgewiesen statt still weiterverwendet.
 
-- `anime`: id, title, description, poster_tall, poster_wide, episode_count, launch_year, is_subbed, is_dubbed, has_target_sub, has_target_dub, cr_updated_at, anilist_id, anilist_title_romaji, anilist_title_english, anilist_description, anilist_score, anilist_status, anilist_banner_image, anilist_site_url, anilist_synced_at, watched, watched_at, is_meh, meh_at. Gegenüber heute entfallen `notes`, `slug`, `season_count`, `anilist_cover_image` (von der UI nicht genutzt); `has_gersub`/`has_gerdub` werden zu `has_target_sub`/`has_target_dub` (bezogen auf die eingestellte Inhaltssprache).
-- `genres`, `anime_genres`, `tags`, `anime_tags` (mit `rank`) wie heute, inklusive Indizes auf Titel, Gesehen, Meh, Fassung, Tag-Name und Tag-Zuordnung.
-- `sync_state`: je Sync-Art letzter Lauf, Fortschritt, letzter Fehler(-code), erkanntes Katalogland.
-- `settings`: Schlüssel/Wert für „Gesehene ausblenden“, gespeicherten Suchzustand und Inhaltssprache.
+Zwei SQLite-Dateien (Ergänzung vom 28.10.2026, Vorgabe des Auftraggebers: ins Backup gehören nur Nutzerdaten):
 
-Ändert sich die Inhaltssprache, werden `has_target_sub`/`has_target_dub` erst beim nächsten Crunchyroll-Sync neu berechnet; die Einstellungen weisen darauf hin.
+- **Katalog-Datenbank** `crunchymate.db` (WAL): Cache aus Crunchyroll und AniList samt Bildverweisen und Sync-Zustand; jederzeit durch einen Sync neu aufbaubar, nicht im Backup.
+- **Nutzer-Datenbank** `crunchymate-user.db` (Rollback-Journal, damit nach jedem Commit alles in einer Datei liegt): Einstellungen und Markierungen; einzige Datei im Android-Backup (`data_extraction_rules.xml`, Cloud-Backup und Gerätewechsel).
+
+Beide hängen auf einer Verbindung (`ATTACH … AS userdata`), damit Filter, Sortierung und Zähler über Markierungen weiter in einer SQL-Abfrage laufen. Markierungen hängen bewusst nicht per Fremdschlüssel am Katalog: sie überstehen das Löschen oder Neuladen des Katalogs und erscheinen nach einer Wiederherstellung, sobald der erste Sync die Einträge geladen hat.
+
+Katalog-Datenbank:
+
+- `anime`: id, title, description, poster_tall, poster_wide, episode_count, launch_year, is_subbed, is_dubbed, has_target_sub, has_target_dub, cr_updated_at, anilist_id, anilist_title_romaji, anilist_title_english, anilist_description, anilist_score, anilist_status, anilist_banner_image, anilist_site_url, anilist_synced_at, anilist_missed_at (letzte AniList-Suche ohne Treffer; erneuter Versuch erst nach `SyncConfig::metadata_miss_retry`). Gegenüber heute entfallen `notes`, `slug`, `season_count`, `anilist_cover_image` (von der UI nicht genutzt); `has_gersub`/`has_gerdub` werden zu `has_target_sub`/`has_target_dub` (bezogen auf die Inhaltssprache des Syncs).
+- `genres`, `anime_genres`, `tags`, `anime_tags` (mit `rank`) wie heute, inklusive Indizes auf Titel, Fassung, Tag-Name und Tag-Zuordnung.
+- `images`, `image_refs` (siehe 5.6).
+- `sync_state`: je Sync-Art letzter Lauf, Fortschritt, letzter Fehler(-code), Ergebnis des letzten Laufs (verarbeitet, fehlgeschlagene Batches, fehlgeschlagene und zu große Bilder), erkanntes Katalogland und Inhaltssprache des letzten vollständigen Katalog-Syncs.
+
+Nutzer-Datenbank:
+
+- `marks`: anime_id, watched, watched_at, is_meh, meh_at; eine Zeile nur, solange mindestens eine Markierung gesetzt ist.
+- `settings`: Schlüssel/Wert für „Gesehene ausblenden“, gespeicherten Suchzustand und Inhaltssprache. Felder werden einzeln gelesen; ein unlesbarer Wert (etwa eine entfallene Variante) fällt nur für dieses Feld auf den Standard zurück.
+
+Migration von Schema v2 (eine Datei) auf v3: Zuerst werden Markierungen und Einstellungen in die Nutzer-Datenbank kopiert und dort festgeschrieben (Vereinigung mit eventuell vorhandenen Zeilen, wiederholbar), erst danach entfernt eine zweite Transaktion die alten Spalten und die Tabelle `settings` aus dem Katalog. Ein Abbruch dazwischen lässt den Katalog auf v2, die Kopie wird beim nächsten Start wiederholt.
+
+Ändert sich die Inhaltssprache, werden `has_target_sub`/`has_target_dub` erst beim nächsten Crunchyroll-Sync neu berechnet. Bis dahin zeigen die Flaggen die Sprache der gespeicherten Daten, und die Einstellungen weisen auf den nötigen Sync hin (eingestellte Sprache ungleich Sprache des letzten vollständigen Syncs).
 
 ### 5.2. Kern-API
 
@@ -141,7 +157,7 @@ Frisches Schema, Versionierung über `PRAGMA user_version`, Migrationen als geor
 // Auszug der UniFFI-Schnittstelle
 pub enum WatchedFilter { All, Unwatched, Watched }
 pub enum MehFilter { Hide, Only, Include }
-pub enum LanguageFilter { All, Dub, Sub, Both, Any }
+pub enum LanguageFilter { All, Dub, Sub, Both }
 pub enum SortOrder { Title, Score, Episodes, Year }
 
 pub struct AnimeFilter {
@@ -178,7 +194,7 @@ Filtersemantik (unverändert gegenüber heute):
 
 Nebenläufigkeit: `Core` hält eine `Mutex<Connection>`; Sync und UI greifen auf dieselbe Instanz zu. Schreibvorgänge des Syncs laufen in einer Transaktion pro Katalogseite bzw. pro Batch.
 
-Fehler: `CoreError` als UniFFI-Enum (`Network`, `RateLimited { retry_after_secs }`, `Auth`, `Parse`, `Database`, `Cancelled`); in Kotlin heißt er `CoreException`. Die Textfelder heißen `detail` statt `message` (Kollision mit `Throwable.message`). Der Kern liefert keine anzeigefertigen Texte.
+Fehler: `CoreError` als UniFFI-Enum (`Network`, `RateLimited { retry_after_secs }`, `Auth`, `Parse`, `Database`, `UnsupportedSchema { found, supported }`, `Storage` (Bildspeicher), `Incomplete { done, total }` (Katalog endete vor der angekündigten Gesamtzahl), `Internal` (Panic im Kern), `Cancelled`); in Kotlin heißt er `CoreException`. Die Textfelder heißen `detail` statt `message` (Kollision mit `Throwable.message`). Der Kern liefert keine anzeigefertigen Texte.
 
 ### 5.3. Crunchyroll-Anbindung und Inhaltssprache
 
@@ -198,8 +214,9 @@ Eigene Implementierung hinter `MetadataSource { search_batch(titles) }`: GraphQL
 
 ### 5.5. Sync-Abläufe
 
-- **Crunchyroll-Sync**: lädt den Katalog seitenweise mit Pause zwischen den Seiten, Upsert pro Seite in einer Transaktion. Kein Löschen verschwundener Serien. Bei Abbruch bleiben gespeicherte Seiten erhalten; ein neuer Lauf beginnt von vorn.
-- **AniList-Anreicherung**: verarbeitet nur Einträge ohne AniList-Daten in Batches mit Pause; Fehler einzelner Batches werden toleriert und gezählt.
+- **Crunchyroll-Sync**: lädt den Katalog seitenweise mit Pause zwischen den Seiten, Upsert pro Seite in einer Transaktion. Kein Löschen verschwundener Serien. Bei Abbruch bleiben gespeicherte Seiten erhalten; ein neuer Lauf beginnt von vorn. Eine leere Seite vor der angekündigten Gesamtzahl gilt als Fehler (`Incomplete`), nicht als Ende.
+- **AniList-Anreicherung**: verarbeitet nur Einträge ohne AniList-Daten in Batches mit Pause; Fehler einzelner Batches werden toleriert und gezählt. Titel ohne Treffer werden erst nach einer Frist (`SyncConfig`, 7 Tage) erneut gesucht.
+- Das Ergebnis jedes Laufs (auch eines gescheiterten) steht in `sync_state`; die Sync-Karte nennt fehlgeschlagene Batches und Bilder, wenn es welche gab. Eine Panic im Kern wird als Fehler (`Internal`) vermerkt, nicht als Abbruch.
 - Fortschritt über UniFFI-Callback-Interface `SyncObserver::on_progress(kind, done, total)`.
 - Abbruch: Wird die Kotlin-Coroutine abgebrochen, verwirft Rust die Future; `Cancelled` wird in `sync_state` vermerkt.
 
@@ -208,7 +225,8 @@ Eigene Implementierung hinter `MetadataSource { search_batch(titles) }`: GraphQL
 Nach einem abgeschlossenen Sync läuft CrunchyMate vollständig offline. Netzzugriffe gibt es ausschließlich während eines manuell gestarteten Syncs; einzige Ausnahme ist der Link „Auf AniList öffnen“, der den Browser startet.
 
 - Heruntergeladen werden: Hochformat-Poster und Querformat-Poster beim Katalog-Sync, AniList-Banner bei der Anreicherung.
-- Ablauf: nach den Katalogseiten bzw. nach den AniList-Batches folgt im selben Lauf die Phase „Bilder“. Geladen werden nur fehlende Bilder und solche, deren Quell-URL sich geändert hat; Downloads nacheinander, ohne zusätzliche Wartezeit; Bild-Phasen von Katalog-Sync und Anreicherung laufen prozessweit nie gleichzeitig. Fehlgeschlagene Bilder werden gezählt und beim nächsten Sync erneut versucht; ein Abbruch behält bereits Gespeichertes.
+- Ablauf: nach den Katalogseiten bzw. nach den AniList-Batches folgt im selben Lauf die Phase „Bilder“. Geladen werden nur fehlende Bilder und solche, deren Quell-URL sich geändert hat; Downloads nacheinander, ohne zusätzliche Wartezeit; Bild-Phasen von Katalog-Sync und Anreicherung laufen prozessweit nie gleichzeitig. Fehlgeschlagene Bilder werden gezählt und beim nächsten Sync erneut versucht; ein Abbruch behält bereits Gespeichertes. Scheitert die Daten-Phase (außer an Datenbank oder Speicher), laufen Bilder und Aufräumen trotzdem für die bereits gespeicherten Einträge.
+- Grenzen (`SyncConfig`): höchstens 16 MiB je Download, beim Dekodieren höchstens 4096 × 4096 Pixel und 128 MiB; größere Bilder werden übersprungen und gesondert gezählt.
 - Format: Liefert die Quelle WebP, wird die Datei unverändert gespeichert. JPEG/PNG werden in WebP mit hoher Qualität (ohne sichtbaren Qualitätsverlust) umgewandelt; wird das Ergebnis nicht kleiner als das Original, bleibt das Original erhalten.
 - Ablage: Dateien im App-Speicher (`files/images/`), Dateiname = SHA-256 des gespeicherten Inhalts (64 Hex-Zeichen) plus Endung des Formats. Die Datenbank speichert je Anime und Bildart Quell-URL und Hash; ein Eintrag wird erst geschrieben, wenn die Datei vollständig vorliegt. Nicht mehr referenzierte Dateien entfernt der Sync am Ende.
 - Anzeige: Grid und Detail laden ausschließlich lokale Dateien; ohne Datei erscheint ein neutraler Platzhalter. Die UI hat keinen Netzwerk-Bildlader.
