@@ -39,7 +39,7 @@ bash scripts/run-device-tests.sh
 
 - Keine Emojis in Code, Kommentaren, Ressourcen, Markdown und Commit-Nachrichten. Einzige Ausnahme: die Spalte „Emoji-Entsprechung“ in `docs/icons.md`.
 - Icons sind VectorDrawables aus SVG-Dateien, die der Auftraggeber liefert; keine eigene Icon-Auswahl. Rohdateien liegen in `design/icons/ablage/` (nicht versioniert). Einbindung über den Projekt-Skill `/check-svg` (`.claude/skills/check-svg/`). Platzhalter dürfen gelieferte Icons nie überschreiben. Rastergrafiken nur als WebP.
-- Ungenutzte Icons vollständig entfernen: Drawable, Eintrag in `docs/icons.md`, Eintrag in `docs/open-source-hinweise.md` Quell-SVG in `design/icons/` und Original in `design/icons/originals`.
+- Ungenutzte Icons vollständig entfernen: Drawable, Eintrag in `docs/icons.md`, Eintrag in `docs/open-source-hinweise.md`, Quell-SVG in `design/icons/` und Original in `design/icons/originals`.
 - Ändern sich Abhängigkeiten (Cargo oder Gradle), `docs/open-source-hinweise.md` mit `python3 scripts/gen-oss-notices.py` aktualisieren. Das Skript ersetzt nur den Abschnitt zwischen `<!-- oss:begin -->` und `<!-- oss:end -->` (aus `cargo metadata` und `./gradlew :app:dependencies`); Icon- und Flaggenabschnitte pflegt man von Hand.
 - UI-Texte stehen ausschließlich auf Deutsch in `strings.xml`.
 - Einzel-APK ohne Splits.
