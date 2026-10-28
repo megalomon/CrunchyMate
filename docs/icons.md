@@ -87,7 +87,7 @@ Jeder Tag wird per Tippen durchgeschaltet: neutral → Boost → Muss → Ausges
 |---|---|---|---|---|
 | `ic_notification_sync` | Benachrichtigung während einer laufenden Synchronisation (Statusleiste) | 🔄 | `timer-sync-outline.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/timer-sync-outline/; Apache 2.0 (Pictogrammers Free License) |
 | `ic_launcher_foreground` | App-Icon, Vordergrund (Motiv) | 🍿 | `movie-roll.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/movie-roll/; Apache 2.0 (Pictogrammers Free License) |
-| `ic_launcher_background` | App-Icon, Hintergrund (Fläche oder Muster, z. B. Crunchyroll-Orange) | 🟧 | | |
+| `ic_launcher_background` | App-Icon, Hintergrund (Fläche oder Muster, z. B. Crunchyroll-Orange) | 🟧 | `square-rounded.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/square-rounded/; Apache 2.0 (Pictogrammers Free License); Form durch vollflächiges Quadrat ersetzt (Launcher-Hintergrund muss die Fläche decken) |
 | `ic_launcher_monochrome` | App-Icon, einfarbige Variante für Themed Icons | 🍿 | `movie-roll.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/movie-roll/; Apache 2.0 (Pictogrammers Free License) |
 
 ## Umwandlung SVG in VectorDrawable
