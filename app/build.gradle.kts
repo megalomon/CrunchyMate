@@ -63,6 +63,8 @@ android {
     testOptions {
         // android.util.Log liefert in JVM-Tests Standardwerte statt Fehler
         unitTests.isReturnDefaultValues = true
+        // Robolectric braucht die Ressourcen (strings, drawables) für Compose-Tests
+        unitTests.isIncludeAndroidResources = true
     }
 
     lint {
@@ -88,6 +90,8 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.paging.common)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
     // Android braucht das AAR mit den nativen JNA-Bibliotheken statt des JVM-JARs
     implementation(libs.jna) {
         artifact { type = "aar" }
@@ -95,6 +99,10 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
 // Rust-Kern bauen und Kotlin-Bindings erzeugen
