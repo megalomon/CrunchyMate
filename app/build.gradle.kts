@@ -1,6 +1,8 @@
 import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
 
 plugins {
     alias(libs.plugins.android.application)
@@ -41,6 +43,8 @@ android {
         ndk {
             abiFilters += "arm64-v8a"
         }
+
+        testInstrumentationRunner = "de.crunchymate.CrunchyMateTestRunner"
     }
 
     // Signierung nur, wenn SIGNING_KEYSTORE_PATH gesetzt ist (CI, lokaler Test); sonst unsignierte APK
@@ -127,6 +131,13 @@ dependencies {
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    // Ältere Espresso-Versionen finden InputManager.getInstance auf neuen Android-Versionen nicht mehr
+    androidTestImplementation(libs.androidx.test.espresso.core)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }
 
 // Rust-Kern bauen und Kotlin-Bindings erzeugen
@@ -259,4 +270,52 @@ tasks.named("preBuild") {
 // mustRunAfter genügt für die Task-Validierung, ohne ktlint vom Rust-Build abhängig zu machen.
 tasks.withType<org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask>().configureEach {
     mustRunAfter(generateUniffiBindings)
+}
+
+// Fixture-Datenbank für die Geräte-Tests: kommt als Asset in die Test-APK
+
+abstract class GenerateFixtureDb
+    @Inject
+    constructor(
+        private val execOperations: ExecOperations,
+    ) : DefaultTask() {
+        @get:InputFiles
+        @get:PathSensitive(PathSensitivity.RELATIVE)
+        abstract val rustSources: ConfigurableFileCollection
+
+        @get:Input
+        abstract val cargo: Property<String>
+
+        @get:Internal
+        abstract val workDir: DirectoryProperty
+
+        @get:OutputDirectory
+        abstract val outputDir: DirectoryProperty
+
+        @TaskAction
+        fun generate() {
+            val target = outputDir.get().asFile.resolve("fixture.db")
+            target.parentFile.mkdirs()
+            execOperations.exec {
+                workingDir = workDir.get().asFile
+                commandLine(cargo.get(), "run", "-p", "crunchymate-core", "--example", "make_fixture_db", "--", target.path)
+            }
+        }
+    }
+
+val generateFixtureDb =
+    tasks.register<GenerateFixtureDb>("generateFixtureDb") {
+        group = "rust"
+        description = "Erzeugt die Fixture-Datenbank für die Geräte-Tests."
+        rustSources.from(rustInputs, repoRoot.resolve("core/examples/make_fixture_db.rs"))
+        cargo.set(cargoExecutable)
+        workDir.set(rootProject.layout.projectDirectory)
+        outputDir.set(layout.buildDirectory.dir("fixture"))
+    }
+
+androidComponents.onVariants { variant ->
+    variant.androidTest
+        ?.sources
+        ?.assets
+        ?.addGeneratedSourceDirectory(generateFixtureDb, GenerateFixtureDb::outputDir)
 }

@@ -14,14 +14,17 @@ import java.io.File
 
 class AppContainer(
     context: Context,
+    // Eigene Namen erlauben den Geräte-Tests, die echten Nutzerdaten unberührt zu lassen
+    private val databaseName: String = DEFAULT_DB_NAME,
+    private val imageDirName: String = DEFAULT_IMAGE_DIR,
 ) {
     private val appContext = context.applicationContext
 
     val core: CoreInterface by lazy {
-        val dbFile = appContext.getDatabasePath(DB_NAME)
+        val dbFile = appContext.getDatabasePath(databaseName)
         // Das Verzeichnis "databases" legt Android erst beim ersten SQLiteOpenHelper an
         dbFile.parentFile?.mkdirs()
-        Core(dbFile.path, File(appContext.filesDir, IMAGE_DIR).absolutePath)
+        Core(dbFile.path, File(appContext.filesDir, imageDirName).absolutePath)
     }
 
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -35,7 +38,7 @@ class AppContainer(
     val syncScheduler by lazy { SyncScheduler(workManager, gateway) }
 
     private companion object {
-        const val DB_NAME = "crunchymate.db"
-        const val IMAGE_DIR = "images"
+        const val DEFAULT_DB_NAME = "crunchymate.db"
+        const val DEFAULT_IMAGE_DIR = "images"
     }
 }
