@@ -92,9 +92,9 @@ class SearchControlsTest {
         rule.setContent { CrunchyMateTheme { SearchControls(state(active), "", actions(onRemoved = { removed = it })) } }
         rule.onNodeWithText(string(R.string.tags_reset)).assertIsDisplayed()
         val removeLabel = rule.activity.getString(R.string.tags_remove, "Magie")
-        val actions = rule.onNodeWithText("Magie").fetchSemanticsNode().config[SemanticsActions.CustomActions]
-        val action = actions.single { it.label == removeLabel }
-        rule.runOnIdle { action.action() }
+        val click = rule.onNodeWithText("Magie").fetchSemanticsNode().config[SemanticsActions.OnClick]
+        assertEquals(removeLabel, click.label)
+        rule.onNodeWithText("Magie").performClick()
         assertEquals("Magie", removed)
     }
 }

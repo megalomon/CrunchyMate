@@ -2,7 +2,6 @@ package de.crunchymate.ui.components
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -14,8 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.CustomAccessibilityAction
-import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import de.crunchymate.R
@@ -57,7 +55,7 @@ fun TagChip(
     state: TagState?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onRemove: (() -> Unit)? = null,
+    removable: Boolean = false,
     label: String = if (count == null) name else stringResource(R.string.tag_label_with_count, name, count),
 ) {
     val description = stringResource(state.descriptionRes())
@@ -70,15 +68,12 @@ fun TagChip(
         modifier =
             modifier.semantics {
                 stateDescription = description
-                // Das Entfernen-Symbol ist für Screenreader Teil des Chips; die Aktion steht daher hier
-                if (onRemove != null) {
-                    customActions =
-                        listOf(
-                            CustomAccessibilityAction(removeLabel) {
-                                onRemove()
-                                true
-                            },
-                        )
+                // Bei entfernbaren Chips löst der Klick das Entfernen aus; Screenreader sollen das ansagen
+                if (removable) {
+                    onClick(label = removeLabel) {
+                        onClick()
+                        true
+                    }
                 }
             },
         leadingIcon =
@@ -86,14 +81,10 @@ fun TagChip(
                 { Icon(painterResource(it.iconRes()), contentDescription = null, Modifier.size(FilterChipDefaults.IconSize)) }
             },
         trailingIcon =
-            onRemove?.let {
-                {
-                    Icon(
-                        painterResource(R.drawable.ic_clear),
-                        contentDescription = null,
-                        modifier = Modifier.size(Dimens.TagRemoveIcon).clickable(onClick = it),
-                    )
-                }
+            if (removable) {
+                { Icon(painterResource(R.drawable.ic_clear), contentDescription = null, Modifier.size(Dimens.TagRemoveIcon)) }
+            } else {
+                null
             },
         colors =
             if (stateColor == null) {

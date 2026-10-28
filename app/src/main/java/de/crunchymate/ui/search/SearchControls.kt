@@ -187,8 +187,8 @@ private fun TagSection(
                     name = selection.name,
                     count = null,
                     state = selection.state,
-                    onClick = { actions.onTagTapped(selection.name) },
-                    onRemove = { actions.onTagRemoved(selection.name) },
+                    onClick = { actions.onTagRemoved(selection.name) },
+                    removable = true,
                 )
             }
         }
