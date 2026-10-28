@@ -33,6 +33,10 @@ ICONS_LICENSE_ID = "Apache-2.0"
 FLAGS_NAME = "flag-icons"
 FLAGS_LICENSE_ID = "MIT (flag-icons)"
 FLAGS_SOURCE = "https://github.com/lipis/flag-icons"
+APP_NAME = "CrunchyMate"
+APP_SOURCE = "https://github.com/megalomon/CrunchyMate"
+APP_LICENSE_ID = "Apache-2.0"
+APP_LICENSE_FILE = ROOT / "LICENSE"
 
 
 def run(cmd):
@@ -194,6 +198,15 @@ def require(pattern, text, what):
     return m
 
 
+def app_component():
+    """Die eigene Lizenz der App; das Copyright steht in LICENSE."""
+    holder = re.search(r"^\s*(Copyright \d{4}\b.*)$", APP_LICENSE_FILE.read_text(), re.M)
+    if not holder:
+        sys.exit(f"Copyright-Zeile in {APP_LICENSE_FILE.name} nicht gefunden")
+    return {"group": "app", "name": APP_NAME, "version": "", "license": APP_LICENSE_ID,
+            "source": APP_SOURCE, "holder": holder.group(1).strip()}
+
+
 def hand_written_components(text):
     """Icons und Flaggen stehen von Hand im Dokument und werden hier eingelesen."""
     icons = doc_section(text, "Icons")
@@ -231,7 +244,7 @@ def license_ids(license_expression, known_ids):
 def write_asset(components, text):
     texts = license_texts(text)
     known = {t["id"] for t in texts}
-    all_components = components + hand_written_components(text)
+    all_components = [app_component()] + components + hand_written_components(text)
     for c in all_components:
         # Flaggen stehen unter dem eigenen MIT-Text mit Copyright von flag-icons
         c["licenseIds"] = [FLAGS_LICENSE_ID] if c["group"] == "flags" else license_ids(c["license"], known)

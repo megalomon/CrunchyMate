@@ -1,6 +1,17 @@
 {
  "components": [
   {
+   "group": "app",
+   "name": "CrunchyMate",
+   "version": "",
+   "license": "Apache-2.0",
+   "source": "https://github.com/megalomon/CrunchyMate",
+   "holder": "Copyright 2026 Megalomon",
+   "licenseIds": [
+    "Apache-2.0"
+   ]
+  },
+  {
    "group": "rust",
    "name": "adler2",
    "version": "2.0.1",
