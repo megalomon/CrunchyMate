@@ -23,6 +23,9 @@ class CrunchyMateTestRunner : AndroidJUnitRunner() {
         database.parentFile?.mkdirs()
         // WAL-Reste eines früheren Laufs würden zur neuen Datei nicht passen
         listOf("", "-wal", "-shm").forEach { suffix -> database.resolveSibling(database.name + suffix).delete() }
+        // Jeder Lauf startet ohne Markierungen und Einstellungen eines früheren Laufs
+        val userDatabase = targetContext.getDatabasePath(TestStorage.USER_DB_NAME)
+        listOf("", "-journal", "-wal", "-shm").forEach { suffix -> userDatabase.resolveSibling(userDatabase.name + suffix).delete() }
         context.assets.open(TestStorage.FIXTURE_ASSET).use { input ->
             database.outputStream().use { output -> input.copyTo(output) }
         }

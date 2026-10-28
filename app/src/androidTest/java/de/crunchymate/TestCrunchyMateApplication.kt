@@ -1,5 +1,5 @@
 package de.crunchymate
 
 class TestCrunchyMateApplication : CrunchyMateApplication() {
-    override fun createContainer(): AppContainer = AppContainer(this, TestStorage.DB_NAME, TestStorage.IMAGE_DIR)
+    override fun createContainer(): AppContainer = AppContainer(this, TestStorage.DB_NAME, TestStorage.USER_DB_NAME, TestStorage.IMAGE_DIR)
 }
