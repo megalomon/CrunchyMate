@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bilder (ca. 450 MB) lassen sich beim nächsten Sync wiederherstellen und bleiben daher außen vor. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="images" />
+        <exclude domain="file" path="images-test" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="images" />
+        <exclude domain="file" path="images-test" />
+    </device-transfer>
+</data-extraction-rules>

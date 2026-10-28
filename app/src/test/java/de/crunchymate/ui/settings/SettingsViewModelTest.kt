@@ -112,6 +112,23 @@ class SettingsViewModelTest {
         }
 
     @Test
+    fun settings_startSync_savesPendingLocaleFirst() =
+        runTest(dispatcher) {
+            val f = fixture()
+
+            f.viewModel.onContentLocaleChange("en-US")
+            f.viewModel.onStartSync(SyncKind.CATALOG)
+            runCurrent()
+
+            assertEquals(
+                "en-US",
+                f.core.savedSettings
+                    .first()
+                    .contentLocale,
+            )
+        }
+
+    @Test
     fun settings_contentLocaleHint_onlyAfterChange() =
         runTest(dispatcher) {
             val f = fixture()

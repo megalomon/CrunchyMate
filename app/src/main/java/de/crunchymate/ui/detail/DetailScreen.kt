@@ -248,6 +248,11 @@ private fun Tags(
     }
 }
 
+/** Die Adresse stammt aus Fremddaten; nur https wird an andere Apps weitergereicht. */
+internal fun isOpenableSiteUrl(url: String): Boolean = url.startsWith(HTTPS_SCHEME, ignoreCase = true)
+
+private const val HTTPS_SCHEME = "https://"
+
 @Composable
 private fun AniListSection(info: AniListInfo) {
     val uriHandler = LocalUriHandler.current
@@ -259,7 +264,7 @@ private fun AniListSection(info: AniListInfo) {
         if (info.description.isNotBlank()) {
             Text(AnnotatedString.fromHtml(info.description), style = MaterialTheme.typography.bodyMedium)
         }
-        if (info.siteUrl.isNotBlank()) {
+        if (isOpenableSiteUrl(info.siteUrl)) {
             OutlinedButton(onClick = { uriHandler.openUri(info.siteUrl) }) {
                 Icon(painterResource(R.drawable.ic_open_external), contentDescription = null)
                 Text(stringResource(R.string.detail_anilist_open), modifier = Modifier.padding(start = Dimens.SpaceSm))

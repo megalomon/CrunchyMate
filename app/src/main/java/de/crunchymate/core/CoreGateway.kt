@@ -8,7 +8,9 @@ import de.crunchymate.core.ffi.NameCount
 import de.crunchymate.core.ffi.Settings
 import de.crunchymate.core.ffi.Stats
 import de.crunchymate.core.ffi.SyncKind
+import de.crunchymate.core.ffi.SyncObserver
 import de.crunchymate.core.ffi.SyncStatus
+import de.crunchymate.core.ffi.SyncSummary
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,7 +23,7 @@ import kotlinx.coroutines.withContext
  * übergebenen IO-Dispatcher; Änderungen am Datenbestand werden über [changes] gemeldet.
  */
 class CoreGateway(
-    val core: CoreInterface,
+    private val core: CoreInterface,
     private val io: CoroutineDispatcher,
 ) {
     private val _changes =
@@ -69,6 +71,10 @@ class CoreGateway(
     }
 
     suspend fun supportedContentLocales(): List<String> = withContext(io) { core.supportedContentLocales() }
+
+    suspend fun syncCatalog(observer: SyncObserver): SyncSummary = withContext(io) { core.syncCatalog(observer) }
+
+    suspend fun enrichMetadata(observer: SyncObserver): SyncSummary = withContext(io) { core.enrichMetadata(observer) }
 
     fun notifyChanged() {
         _changes.tryEmit(Unit)

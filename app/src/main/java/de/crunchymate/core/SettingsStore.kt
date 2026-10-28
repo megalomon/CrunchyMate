@@ -36,6 +36,7 @@ class SettingsStore(
 
     private val lock = Any()
     private var saveJob: Job? = null
+    private var dirty = false
 
     suspend fun load() {
         _settings.value = gateway.loadSettings()
@@ -45,17 +46,35 @@ class SettingsStore(
     fun update(transform: (Settings) -> Settings) {
         _settings.update(transform)
         synchronized(lock) {
+            dirty = true
             saveJob?.cancel()
             saveJob =
                 scope.launch(io) {
                     delay(SAVE_DEBOUNCE)
-                    try {
-                        gateway.saveSettings(_settings.value)
-                    } catch (e: CoreException) {
-                        // Der Stand bleibt im Speicher; die nächste Änderung versucht das Speichern erneut
-                        Log.w(LOG_TAG, "Einstellungen konnten nicht gespeichert werden: ${e::class.simpleName}")
-                    }
+                    persistIfDirty()
                 }
+        }
+    }
+
+    /** Schreibt ausstehende Änderungen sofort, etwa bevor der Kern die Inhaltssprache für einen Sync aus der Datenbank liest. */
+    suspend fun flush() {
+        synchronized(lock) { saveJob?.cancel() }
+        persistIfDirty()
+    }
+
+    private suspend fun persistIfDirty() {
+        val snapshot =
+            synchronized(lock) {
+                if (!dirty) return
+                dirty = false
+                _settings.value
+            }
+        try {
+            gateway.saveSettings(snapshot)
+        } catch (e: CoreException) {
+            // Der Stand bleibt im Speicher; die nächste Änderung versucht das Speichern erneut
+            synchronized(lock) { dirty = true }
+            Log.w(LOG_TAG, "Einstellungen konnten nicht gespeichert werden: ${e::class.simpleName}")
         }
     }
 

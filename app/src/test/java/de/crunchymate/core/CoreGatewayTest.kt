@@ -31,6 +31,31 @@ class CoreGatewayTest {
         }
 
     @Test
+    fun syncCatalogAndEnrich_delegateToCore() =
+        runTest(UnconfinedTestDispatcher()) {
+            val core = FakeCore()
+            val kinds = mutableListOf<de.crunchymate.core.ffi.SyncKind>()
+            core.syncBehavior = { kind, _ ->
+                kinds += kind
+                de.crunchymate.core.ffi
+                    .SyncSummary(0L, 0, 0)
+            }
+            val gateway = CoreGateway(core, UnconfinedTestDispatcher(testScheduler))
+            val observer =
+                object : de.crunchymate.core.ffi.SyncObserver {
+                    override fun onProgress(progress: de.crunchymate.core.ffi.SyncProgress) = Unit
+                }
+
+            gateway.syncCatalog(observer)
+            gateway.enrichMetadata(observer)
+
+            assertEquals(
+                listOf(de.crunchymate.core.ffi.SyncKind.CATALOG, de.crunchymate.core.ffi.SyncKind.METADATA),
+                kinds,
+            )
+        }
+
+    @Test
     fun notifyChanged_emitsChange() =
         runTest(UnconfinedTestDispatcher()) {
             val gateway = CoreGateway(FakeCore(), UnconfinedTestDispatcher(testScheduler))

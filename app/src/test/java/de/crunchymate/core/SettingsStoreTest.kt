@@ -55,6 +55,33 @@ class SettingsStoreTest {
         }
 
     @Test
+    fun flush_persistsPendingChangeImmediately_andDebounceDoesNotSaveTwice() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val core = FakeCore()
+            val store = SettingsStore(CoreGateway(core, dispatcher), this, dispatcher)
+
+            store.update { it.copy(contentLocale = "en-US") }
+            store.flush()
+            assertEquals("en-US", core.savedSettings.single().contentLocale)
+
+            advanceTimeBy(SAVE_DEBOUNCE + 1)
+            runCurrent()
+            assertEquals(1, core.savedSettings.size)
+        }
+
+    @Test
+    fun flush_withoutPendingChange_savesNothing() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val core = FakeCore()
+            val store = SettingsStore(CoreGateway(core, dispatcher), this, dispatcher)
+
+            store.flush()
+            assertEquals(0, core.savedSettings.size)
+        }
+
+    @Test
     fun load_replacesDefaultWithStoredSettings() =
         runTest {
             val dispatcher = StandardTestDispatcher(testScheduler)

@@ -80,8 +80,8 @@ class SyncWorker internal constructor(
                     }
                 try {
                     when (kind) {
-                        SyncKind.CATALOG -> gateway.core.syncCatalog(observer)
-                        SyncKind.METADATA -> gateway.core.enrichMetadata(observer)
+                        SyncKind.CATALOG -> gateway.syncCatalog(observer)
+                        SyncKind.METADATA -> gateway.enrichMetadata(observer)
                     }
                 } finally {
                     reporter.cancel()

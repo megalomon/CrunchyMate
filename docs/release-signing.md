@@ -57,7 +57,7 @@ gh secret set SIGNING_KEY_ALIAS --repo megalomon/CrunchyMate --body crunchymate
 
 Ohne `--body` fragt `gh` den Wert interaktiv ab, sodass Passwörter nicht in der Shell-Historie landen. Unter macOS heißt der Schalter `base64 -b 0` statt `-w0`.
 
-Der Workflow `nightly.yml` dekodiert den Keystore nach `$RUNNER_TEMP/release.jks`, setzt `SIGNING_KEYSTORE_PATH` und löscht die Datei am Ende in jedem Fall wieder. Gradle legt die Signing-Konfiguration `release` nur an, wenn `SIGNING_KEYSTORE_PATH` gesetzt ist; ohne Secrets entsteht eine unsignierte APK.
+Der Workflow `nightly.yml` dekodiert den Keystore nach `$RUNNER_TEMP/release.jks`, setzt `SIGNING_KEYSTORE_PATH` und löscht die Datei am Ende in jedem Fall wieder. Gradle legt die Signing-Konfiguration `release` nur an, wenn `SIGNING_KEYSTORE_PATH` gesetzt ist; bei lokalen Gradle-Builds ohne diese Variable entsteht daher eine unsignierte APK. Der Workflow `nightly.yml` bricht ohne `SIGNING_KEYSTORE_B64` bewusst ab und baut nie unsigniert.
 
 ## Organisations- oder Repository-Secrets
 

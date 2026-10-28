@@ -72,7 +72,11 @@ class SettingsViewModel(
     }
 
     fun onStartSync(kind: SyncKind) {
-        scheduler.start(kind)
+        // Der Sync liest die Inhaltssprache aus der Datenbank; ausstehende Änderungen müssen vorher dort liegen
+        viewModelScope.launch {
+            settingsStore.flush()
+            scheduler.start(kind)
+        }
     }
 
     fun onCancelSync(kind: SyncKind) = scheduler.cancel(kind)
