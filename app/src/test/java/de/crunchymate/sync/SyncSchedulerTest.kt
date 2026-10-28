@@ -60,20 +60,19 @@ class SyncSchedulerTest {
     @Test
     fun start_twice_enqueuesSingleWork() =
         runBlocking {
-            scheduler.start(SyncKind.CATALOG)
-            scheduler.start(SyncKind.CATALOG)
-
-            assertEquals(1, workManager.getWorkInfosForUniqueWork("sync-CATALOG").get().size)
-            assertEquals(1, activeInfos(SyncKind.CATALOG).size)
+            scheduler.start(SyncKind.CATALOG).result.get()
+            scheduler.start(SyncKind.CATALOG).result.get()
             withTimeout(TIMEOUT_MS) { scheduler.observe(SyncKind.CATALOG).first { it.running } }
-            Unit
+            // Die Flow-Abfrage ist die, auf die sich die App stützt; sie liefert den Zustand nach dem Einreihen
+            val infos = withTimeout(TIMEOUT_MS) { workManager.getWorkInfosForUniqueWorkFlow("sync-CATALOG").first { it.isNotEmpty() } }
+            assertEquals(1, infos.size)
         }
 
     @Test
     fun catalogAndMetadata_canRunInParallel() =
         runBlocking {
-            scheduler.start(SyncKind.CATALOG)
-            scheduler.start(SyncKind.METADATA)
+            scheduler.start(SyncKind.CATALOG).result.get()
+            scheduler.start(SyncKind.METADATA).result.get()
 
             assertEquals(1, activeInfos(SyncKind.CATALOG).size)
             assertEquals(1, activeInfos(SyncKind.METADATA).size)
@@ -109,6 +108,18 @@ class SyncSchedulerTest {
             val stopped = withTimeout(TIMEOUT_MS) { scheduler.observe(SyncKind.CATALOG).first { !it.running } }
             assertFalse(stopped.running)
             assertEquals(40L, stopped.total)
+        }
+
+    @Test
+    fun observe_runningWithoutProgressShowsIndeterminateInsteadOfStoredCounts() =
+        runBlocking {
+            core.syncStatuses =
+                mapOf(SyncKind.CATALOG to SyncStatus(SyncKind.CATALOG, SyncRunState.COMPLETED, 3L, 40L, FINISHED_AT, null, "DE"))
+
+            scheduler.start(SyncKind.CATALOG)
+            val running = withTimeout(TIMEOUT_MS) { scheduler.observe(SyncKind.CATALOG).first { it.running } }
+            assertEquals(0L, running.done)
+            assertEquals(0L, running.total)
         }
 
     @Test

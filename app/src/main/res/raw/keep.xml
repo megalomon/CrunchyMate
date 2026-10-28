@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Die Flaggen sind noch nirgends referenziert; ohne diese Liste meldet Lint sie als unbenutzt. Eintrag entfernen, sobald die Kachel sie verwendet. -->
+<!-- Vorübergehend: Die Flaggen verwendet erst die Kachel aus Task 15c-3; ic_dropdown und ic_tags_reset sind seit Task 15b ungenutzt und werden vom Auftraggeber gelöscht. Ohne diese Liste meldet Lint die Dateien als unbenutzt. -->
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@drawable/ic_flag_de,@drawable/ic_flag_us,@drawable/ic_flag_mx,@drawable/ic_flag_es,@drawable/ic_flag_fr,@drawable/ic_flag_it,@drawable/ic_flag_br,@drawable/ic_flag_ru,@drawable/ic_flag_sa,@drawable/ic_flag_in" />
+    tools:keep="@drawable/ic_flag_de,@drawable/ic_flag_us,@drawable/ic_flag_mx,@drawable/ic_flag_es,@drawable/ic_flag_fr,@drawable/ic_flag_it,@drawable/ic_flag_br,@drawable/ic_flag_ru,@drawable/ic_flag_sa,@drawable/ic_flag_in,@drawable/ic_dropdown,@drawable/ic_tags_reset" />

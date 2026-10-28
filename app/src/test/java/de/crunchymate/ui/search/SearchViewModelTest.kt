@@ -92,6 +92,19 @@ class SearchViewModelTest {
         }
 
     @Test
+    fun onTagRemoved_dropsOnlyThatTag() =
+        runTest(dispatcher) {
+            val f = fixture()
+            f.viewModel.onTagTapped("Magie")
+            f.viewModel.onTagTapped("Mecha")
+            runCurrent()
+
+            f.viewModel.onTagRemoved("Magie")
+            runCurrent()
+            assertEquals(listOf(TagSelection("Mecha", TagState.PREFER)), f.viewModel.uiState.value.activeTags)
+        }
+
+    @Test
     fun staleTagInSearchState_staysInActiveTags() =
         runTest(dispatcher) {
             val stored = sampleSettings().let { it.copy(search = it.search.copy(tags = listOf(TagSelection("Alt", TagState.PREFER)))) }

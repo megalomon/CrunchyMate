@@ -20,7 +20,7 @@ import de.crunchymate.ui.theme.Dimens
 fun EmptyState(
     @DrawableRes icon: Int,
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -35,11 +35,13 @@ fun EmptyState(
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-        Text(
-            subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
+        subtitle?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }

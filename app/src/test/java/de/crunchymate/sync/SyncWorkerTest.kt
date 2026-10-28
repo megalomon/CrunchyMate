@@ -15,6 +15,7 @@ import de.crunchymate.core.ffi.SyncSummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -69,4 +70,11 @@ class SyncWorkerTest {
             assertTrue(result is ListenableWorker.Result.Failure)
             assertEquals("RATE_LIMITED", result.outputData.getString(SyncWorker.KEY_ERROR))
         }
+
+    @Test
+    fun shouldPostUpdate_requiresForegroundAndEnabledNotifications() {
+        assertTrue(shouldPostUpdate(foregroundStarted = true, notificationsEnabled = true))
+        assertFalse(shouldPostUpdate(foregroundStarted = false, notificationsEnabled = true))
+        assertFalse(shouldPostUpdate(foregroundStarted = true, notificationsEnabled = false))
+    }
 }

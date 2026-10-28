@@ -3,6 +3,7 @@ package de.crunchymate.sync
 import android.util.Log
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.Operation
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -34,13 +35,14 @@ class SyncScheduler(
 ) {
     private val changesWithStart = gateway.changes.onStart { emit(Unit) }
 
-    fun start(kind: SyncKind) {
+    /** Der Rückgabewert erlaubt, das Einreihen abzuwarten. */
+    fun start(kind: SyncKind): Operation {
         val request =
             OneTimeWorkRequestBuilder<SyncWorker>()
                 .setInputData(workDataOf(SyncWorker.KEY_KIND to kind.name))
                 .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .build()
-        workManager.enqueueUniqueWork(uniqueName(kind), ExistingWorkPolicy.KEEP, request)
+        return workManager.enqueueUniqueWork(uniqueName(kind), ExistingWorkPolicy.KEEP, request)
     }
 
     fun cancel(kind: SyncKind) {
@@ -80,14 +82,20 @@ class SyncScheduler(
         val hasProgress = progressDone != NO_PROGRESS && progressTotal != NO_PROGRESS
         return SyncUiState(
             running = active != null,
-            done = if (hasProgress) progressDone else status?.done ?: 0L,
-            total = if (hasProgress) progressTotal else status?.total ?: 0L,
+            // Läuft die Arbeit, aber ohne erste Meldung, wären die Zähler des Vorlaufs irreführend
+            done = if (hasProgress) progressDone else idleCount(active, status?.done),
+            total = if (hasProgress) progressTotal else idleCount(active, status?.total),
             lastFinishedAt = status?.lastFinishedAt,
             // Der Kern speichert auch beim Abbruch einen Fehlercode; angezeigt wird er nur bei echtem Fehlschlag
             lastError = status?.lastError?.takeIf { status.state == SyncRunState.FAILED },
             cancelled = active == null && status?.state == SyncRunState.CANCELLED,
         )
     }
+
+    private fun idleCount(
+        active: WorkInfo?,
+        stored: Long?,
+    ): Long = if (active != null) 0L else stored ?: 0L
 
     private fun WorkInfo.isActive(): Boolean = state == WorkInfo.State.RUNNING || state == WorkInfo.State.ENQUEUED
 

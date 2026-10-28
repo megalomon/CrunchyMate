@@ -142,6 +142,8 @@ class SearchViewModel internal constructor(
 
     fun onTagTapped(name: String) = updateSearch { it.copy(tags = it.tags.cycle(name)) }
 
+    fun onTagRemoved(name: String) = updateSearch { it.copy(tags = it.tags.filterNot { selection -> selection.name == name }) }
+
     fun onTagQueryChange(q: String) {
         tagQuery.value = q
     }

@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import de.crunchymate.R
@@ -54,18 +55,36 @@ fun TagChip(
     state: TagState?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    removable: Boolean = false,
     label: String = if (count == null) name else stringResource(R.string.tag_label_with_count, name, count),
 ) {
     val description = stringResource(state.descriptionRes())
     val stateColor = state?.color(LocalCrunchyMateColors.current)
+    val removeLabel = stringResource(R.string.tags_remove, label)
     FilterChip(
         selected = state != null,
         onClick = onClick,
-        label = { Text(label) },
-        modifier = modifier.semantics { stateDescription = description },
+        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+        modifier =
+            modifier.semantics {
+                stateDescription = description
+                // Bei entfernbaren Chips löst der Klick das Entfernen aus; Screenreader sollen das ansagen
+                if (removable) {
+                    onClick(label = removeLabel) {
+                        onClick()
+                        true
+                    }
+                }
+            },
         leadingIcon =
             state?.let {
                 { Icon(painterResource(it.iconRes()), contentDescription = null, Modifier.size(FilterChipDefaults.IconSize)) }
+            },
+        trailingIcon =
+            if (removable) {
+                { Icon(painterResource(R.drawable.ic_clear), contentDescription = null, Modifier.size(Dimens.TagRemoveIcon)) }
+            } else {
+                null
             },
         colors =
             if (stateColor == null) {

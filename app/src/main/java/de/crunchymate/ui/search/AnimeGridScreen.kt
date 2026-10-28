@@ -46,23 +46,14 @@ private const val PLACEHOLDER_ASPECT_RATIO = 0.5f
 /** Texte, die sich zwischen Suche, Gesehen und Meh unterscheiden. */
 private data class ModeTexts(
     @StringRes val bannerTitle: Int?,
-    @StringRes val bannerSubtitle: Int?,
     @StringRes val emptyTitle: Int,
-    @StringRes val emptySubtitle: Int,
 )
 
 private fun GridMode.texts(): ModeTexts =
     when (this) {
-        GridMode.Search -> ModeTexts(null, null, R.string.empty_search_title, R.string.empty_search_subtitle)
-        GridMode.Watched ->
-            ModeTexts(
-                R.string.banner_watched_title,
-                R.string.banner_watched_subtitle,
-                R.string.empty_watched_title,
-                R.string.empty_watched_subtitle,
-            )
-        GridMode.Meh ->
-            ModeTexts(R.string.banner_meh_title, R.string.banner_meh_subtitle, R.string.empty_meh_title, R.string.empty_meh_subtitle)
+        GridMode.Search -> ModeTexts(null, R.string.empty_search_title)
+        GridMode.Watched -> ModeTexts(R.string.banner_watched_title, R.string.empty_watched_title)
+        GridMode.Meh -> ModeTexts(R.string.banner_meh_title, R.string.empty_meh_title)
     }
 
 @Composable
@@ -87,6 +78,7 @@ fun AnimeGridDestination(
                 onWatchedSelected = viewModel::onWatchedSelected,
                 onSortSelected = viewModel::onSortSelected,
                 onTagTapped = viewModel::onTagTapped,
+                onTagRemoved = viewModel::onTagRemoved,
                 onTagQueryChange = viewModel::onTagQueryChange,
                 onClearTags = viewModel::onClearTags,
             ),
@@ -113,15 +105,15 @@ fun AnimeGridScreen(
     LazyVerticalGrid(
         columns = GridCells.Adaptive(Dimens.GridCellMinWidth),
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(Dimens.SpaceMd),
+        contentPadding = PaddingValues(Dimens.SpaceSm),
         horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
     ) {
         if (mode == GridMode.Search) {
             fullWidth { SearchControls(state, query, actions) }
         }
-        if (texts.bannerTitle != null && texts.bannerSubtitle != null) {
-            fullWidth { Banner(texts.bannerTitle, texts.bannerSubtitle) }
+        if (texts.bannerTitle != null) {
+            fullWidth { Banner(texts.bannerTitle) }
         }
         fullWidth { ResultCount(state.total, state.totalError) }
         when (val refresh = items.loadState.refresh) {
@@ -143,7 +135,6 @@ fun AnimeGridScreen(
                         EmptyState(
                             icon = R.drawable.ic_state_empty,
                             title = stringResource(texts.emptyTitle),
-                            subtitle = stringResource(texts.emptySubtitle),
                         )
                     }
                 }
@@ -172,21 +163,13 @@ private fun LazyGridScope.fullWidth(content: @Composable () -> Unit) {
 @Composable
 private fun Banner(
     @StringRes title: Int,
-    @StringRes subtitle: Int,
 ) {
     Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(Dimens.SpaceMd), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXs)) {
-            Text(
-                stringResource(title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.semantics { heading() },
-            )
-            Text(
-                stringResource(subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Text(
+            stringResource(title),
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(Dimens.SpaceMd).semantics { heading() },
+        )
     }
 }
 
