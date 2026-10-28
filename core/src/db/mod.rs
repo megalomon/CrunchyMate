@@ -1,4 +1,7 @@
+pub mod anime;
 pub mod schema;
+#[cfg(test)]
+pub(crate) mod test_support;
 
 use std::sync::Mutex;
 
