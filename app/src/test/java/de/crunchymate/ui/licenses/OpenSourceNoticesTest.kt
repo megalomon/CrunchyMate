@@ -8,6 +8,7 @@ import java.io.File
 
 // Gradle führt Unit-Tests im Verzeichnis des Moduls aus
 private val ASSET_FILE = File("src/main/assets/$NOTICES_ASSET_NAME")
+private val LICENSE_FILE = File("../LICENSE")
 private val DOC_FILE = File("../docs/open-source-hinweise.md")
 private const val RUST_HEADING = "### Rust"
 private const val ANDROID_HEADING = "### Android/Kotlin"
@@ -35,6 +36,16 @@ class OpenSourceNoticesTest {
             assertTrue("Gruppe $group fehlt", notices.components.any { it.group == group })
         }
         assertTrue(notices.licenses.all { it.text.isNotBlank() })
+    }
+
+    @Test
+    fun asset_namesOwnLicenseFirstMatchingLicenseFile() {
+        val app = notices.components.first()
+        assertEquals(NoticeGroup.APP, app.group)
+        assertEquals("Apache-2.0", app.license)
+        val licenseFile = LICENSE_FILE.readText()
+        assertTrue(licenseFile.contains("Apache License"))
+        assertTrue(licenseFile.lines().any { it.trim() == app.holder })
     }
 
     @Test

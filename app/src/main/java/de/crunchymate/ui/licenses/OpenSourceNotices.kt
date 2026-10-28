@@ -8,6 +8,9 @@ const val NOTICES_ASSET_NAME = "open_source_notices.json"
 
 @Serializable
 enum class NoticeGroup {
+    @SerialName("app")
+    APP,
+
     @SerialName("rust")
     RUST,
 

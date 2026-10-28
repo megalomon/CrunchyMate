@@ -39,6 +39,7 @@ import de.crunchymate.ui.components.CompactNavigationItem
 import de.crunchymate.ui.components.EmptyState
 import de.crunchymate.ui.detail.DetailDestination
 import de.crunchymate.ui.detail.DetailViewModel
+import de.crunchymate.ui.intro.IntroDialogHost
 import de.crunchymate.ui.licenses.LicensesDestination
 import de.crunchymate.ui.licenses.LicensesViewModel
 import de.crunchymate.ui.search.AnimeGridDestination
@@ -65,12 +66,18 @@ private enum class TopLevel(
 fun CrunchyMateApp(container: AppContainer) {
     val appViewModel = viewModel { AppViewModel(container::initializeCore, { container.settingsStore }) }
     val startup by appViewModel.state.collectAsStateWithLifecycle()
-    when (startup) {
-        StartupState.LOADING -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        StartupState.FAILED -> EmptyState(icon = R.drawable.ic_state_error, title = stringResource(R.string.startup_error_title))
-        StartupState.READY -> {
+    when (val state = startup) {
+        StartupState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        is StartupState.Failed ->
+            EmptyState(
+                icon = R.drawable.ic_state_error,
+                title = stringResource(R.string.startup_error_title),
+                subtitle = state.reason?.let { stringResource(it) },
+            )
+        StartupState.Ready -> {
             val syncRunning by container.syncScheduler.anyRunning.collectAsStateWithLifecycle(initialValue = false)
             AppShell(container, syncRunning)
+            IntroDialogHost(container.settingsStore)
         }
     }
 }

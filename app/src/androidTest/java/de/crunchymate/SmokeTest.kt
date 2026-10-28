@@ -17,6 +17,7 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -33,6 +34,17 @@ class SmokeTest {
     val rule = createAndroidComposeRule<MainActivity>()
 
     private val targetContext get() = InstrumentationRegistry.getInstrumentation().targetContext
+
+    // Die Erststart-Info liegt über der App und blockiert Eingaben, solange sie nicht bestätigt ist
+    @Before
+    fun confirmIntroIfShown() {
+        waitForFixtureItems()
+        val confirm = rule.onAllNodes(hasText(targetContext.getString(R.string.intro_confirm)))
+        if (confirm.fetchSemanticsNodes().isNotEmpty()) {
+            confirm.onFirst().performClick()
+            rule.waitUntil(LOAD_TIMEOUT_MILLIS) { confirm.fetchSemanticsNodes().isEmpty() }
+        }
+    }
 
     private fun navTab(labelRes: Int) =
         hasText(targetContext.getString(labelRes)) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)

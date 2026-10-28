@@ -100,6 +100,7 @@ class SettingsStore(
                         sort = SortOrder.TITLE,
                         tags = emptyList(),
                     ),
+                introSeen = false,
             )
     }
 }

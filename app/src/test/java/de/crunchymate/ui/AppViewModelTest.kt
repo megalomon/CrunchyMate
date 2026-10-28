@@ -1,6 +1,7 @@
 package de.crunchymate.ui
 
 import de.crunchymate.AppContainer
+import de.crunchymate.R
 import de.crunchymate.core.CoreGateway
 import de.crunchymate.core.FakeCore
 import de.crunchymate.core.SettingsStore
@@ -51,39 +52,62 @@ class AppViewModelTest {
             val store = storeFor(core)
 
             val viewModel = AppViewModel({}, { store })
-            assertEquals(StartupState.LOADING, viewModel.state.value)
+            assertEquals(StartupState.Loading, viewModel.state.value)
             runCurrent()
 
-            assertEquals(StartupState.READY, viewModel.state.value)
+            assertEquals(StartupState.Ready, viewModel.state.value)
             assertEquals("en-US", store.settings.value.contentLocale)
 
             // Eine zweite Hülle (z. B. nach Neustart der Activity) darf ungespeicherte Änderungen nicht überschreiben
             store.update { it.copy(contentLocale = "fr-FR") }
             val second = AppViewModel({}, { store })
             runCurrent()
-            assertEquals(StartupState.READY, second.state.value)
+            assertEquals(StartupState.Ready, second.state.value)
             assertEquals("fr-FR", store.settings.value.contentLocale)
         }
+
+    private fun TestScope.startupWith(
+        failure: Throwable,
+        onStoreRequested: () -> Unit = {},
+    ): AppViewModel {
+        val container =
+            AppContainer(
+                RuntimeEnvironment.getApplication(),
+                coreFactory = { _, _, _ -> FakeCore(failOnCreate = failure) },
+                io = dispatcher,
+            )
+        val viewModel =
+            AppViewModel(container::initializeCore, {
+                onStoreRequested()
+                storeFor(FakeCore())
+            })
+        runCurrent()
+        return viewModel
+    }
 
     @Test
     fun coreCreationFails_endsInFailedStateWithoutTouchingStore() =
         runTest(dispatcher) {
             var storeRequested = false
-            val container =
-                AppContainer(
-                    RuntimeEnvironment.getApplication(),
-                    coreFactory = { _, _, _ -> FakeCore(failOnCreate = CoreException.Cancelled()) },
-                    io = dispatcher,
-                )
+            val viewModel = startupWith(CoreException.Cancelled()) { storeRequested = true }
 
-            val viewModel =
-                AppViewModel(container::initializeCore, {
-                    storeRequested = true
-                    storeFor(FakeCore())
-                })
-            runCurrent()
-
-            assertEquals(StartupState.FAILED, viewModel.state.value)
+            assertEquals(StartupState.Failed(R.string.error_cancelled), viewModel.state.value)
             assertFalse(storeRequested)
+        }
+
+    @Test
+    fun unsupportedSchema_namesTheReason() =
+        runTest(dispatcher) {
+            val viewModel = startupWith(CoreException.UnsupportedSchema(4, 3))
+
+            assertEquals(StartupState.Failed(R.string.error_unsupported_schema), viewModel.state.value)
+        }
+
+    @Test
+    fun otherFailure_hasNoSpecificReason() =
+        runTest(dispatcher) {
+            val viewModel = startupWith(IllegalStateException("kaputt"))
+
+            assertEquals(StartupState.Failed(null), viewModel.state.value)
         }
 }

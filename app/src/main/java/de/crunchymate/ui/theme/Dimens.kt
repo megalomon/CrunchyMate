@@ -31,7 +31,6 @@ object Dimens {
     val NavIndicatorVerticalPadding = 2.dp
     val DetailPosterWidth = 120.dp
     val DetailBannerHeight = 180.dp
-    val StatTileMinWidth = 150.dp
     val StatTileIcon = 24.dp
     val FilterFieldHeight = 48.dp
     val TagListMaxHeight = 120.dp

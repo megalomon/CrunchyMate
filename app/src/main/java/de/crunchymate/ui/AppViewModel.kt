@@ -1,10 +1,12 @@
 package de.crunchymate.ui
 
 import android.util.Log
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.crunchymate.core.SettingsStore
 import de.crunchymate.core.ffi.CoreException
+import de.crunchymate.core.messageRes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,7 +15,16 @@ import kotlinx.coroutines.launch
 
 private const val LOG_TAG = "CrunchyMate"
 
-enum class StartupState { LOADING, READY, FAILED }
+sealed interface StartupState {
+    data object Loading : StartupState
+
+    data object Ready : StartupState
+
+    /** [reason] nennt den konkreten Grund, wenn der Kern einen Fehlercode geliefert hat. */
+    data class Failed(
+        @StringRes val reason: Int?,
+    ) : StartupState
+}
 
 /**
  * Zustand der App-Hülle: Kern öffnen, dann Einstellungen laden.
@@ -24,9 +35,9 @@ class AppViewModel(
     private val openCore: suspend () -> Unit,
     private val settingsStore: () -> SettingsStore,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(StartupState.LOADING)
+    private val _state = MutableStateFlow<StartupState>(StartupState.Loading)
 
-    /** READY, sobald die Suche den gespeicherten Zustand lesen darf. */
+    /** Ready, sobald die Suche den gespeicherten Zustand lesen darf. */
     val state: StateFlow<StartupState> = _state.asStateFlow()
 
     init {
@@ -40,7 +51,7 @@ class AppViewModel(
             throw e
         } catch (e: Exception) {
             Log.e(LOG_TAG, "Kern konnte nicht geöffnet werden: ${e::class.simpleName}")
-            return StartupState.FAILED
+            return StartupState.Failed((e as? CoreException)?.messageRes())
         }
         val store = settingsStore()
         if (!store.loaded.value) {
@@ -51,6 +62,6 @@ class AppViewModel(
                 Log.w(LOG_TAG, "Einstellungen konnten nicht geladen werden: ${e::class.simpleName}")
             }
         }
-        return StartupState.READY
+        return StartupState.Ready
     }
 }

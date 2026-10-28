@@ -113,11 +113,14 @@ class FakeCore(
     override suspend fun enrichMetadata(observer: SyncObserver): SyncSummary = syncBehavior(SyncKind.METADATA, observer)
 }
 
-fun sampleSettings(locale: String = "de-DE") =
-    Settings(
-        locale,
-        SearchState("", null, LanguageFilter.ALL, WatchedFilter.ALL, SortOrder.TITLE, emptyList()),
-    )
+fun sampleSettings(
+    locale: String = "de-DE",
+    introSeen: Boolean = false,
+) = Settings(
+    locale,
+    SearchState("", null, LanguageFilter.ALL, WatchedFilter.ALL, SortOrder.TITLE, emptyList()),
+    introSeen,
+)
 
 fun sampleFilter() =
     AnimeFilter(

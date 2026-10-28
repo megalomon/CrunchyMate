@@ -15,14 +15,15 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -39,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,6 +54,7 @@ import java.util.IllformedLocaleException
 import java.util.Locale
 
 private const val LOG_TAG = "CrunchyMate"
+private const val STAT_COLUMNS = 2
 
 @Composable
 fun SettingsDestination(
@@ -172,47 +175,62 @@ private fun DisplaySettings(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+private data class StatItem(
+    @DrawableRes val icon: Int,
+    @StringRes val label: Int,
+    val value: String,
+)
+
+/** Zwei Spalten gleicher Breite; bei ungerader Anzahl bleibt die Zelle rechts der letzten Zeile leer. */
 @Composable
 private fun StatsSection(stats: Stats) {
+    val context = LocalContext.current
+    // Platzhalter, bis die Icons ic_stat_images und ic_stat_storage geliefert sind
+    val items =
+        listOf(
+            StatItem(R.drawable.ic_stat_total, R.string.stat_total, stats.total.toString()),
+            StatItem(R.drawable.ic_stat_watched, R.string.stat_watched, stats.watched.toString()),
+            StatItem(R.drawable.ic_stat_meh, R.string.stat_meh, stats.meh.toString()),
+            StatItem(R.drawable.ic_stat_enriched, R.string.stat_enriched, stats.enriched.toString()),
+            StatItem(R.drawable.ic_stat_tags, R.string.stat_tags, stats.tags.toString()),
+            StatItem(R.drawable.ic_stat_total, R.string.stat_images, stats.imageCount.toString()),
+            StatItem(
+                R.drawable.ic_stat_total,
+                R.string.stat_image_storage,
+                Formatter.formatShortFileSize(context, stats.imageBytes),
+            ),
+        )
     Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
         Text(stringResource(R.string.settings_stats_heading), style = MaterialTheme.typography.titleMedium)
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
-            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
-        ) {
-            StatTile(R.drawable.ic_stat_total, R.string.stat_total, stats.total.toString())
-            StatTile(R.drawable.ic_stat_watched, R.string.stat_watched, stats.watched.toString())
-            StatTile(R.drawable.ic_stat_meh, R.string.stat_meh, stats.meh.toString())
-            StatTile(R.drawable.ic_stat_enriched, R.string.stat_enriched, stats.enriched.toString())
-            StatTile(R.drawable.ic_stat_tags, R.string.stat_tags, stats.tags.toString())
-            StatTile(
-                R.drawable.ic_stat_total,
-                R.string.stat_images,
-                stringResource(
-                    R.string.stat_images_value,
-                    stats.imageCount,
-                    Formatter.formatShortFileSize(LocalContext.current, stats.imageBytes),
-                ),
-            )
+        items.chunked(STAT_COLUMNS).forEach { rowItems ->
+            Row(
+                Modifier.height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
+            ) {
+                rowItems.forEach { StatTile(it, Modifier.weight(1f).fillMaxHeight()) }
+                repeat(STAT_COLUMNS - rowItems.size) { Spacer(Modifier.weight(1f)) }
+            }
         }
     }
 }
 
 @Composable
 private fun StatTile(
-    @DrawableRes icon: Int,
-    @StringRes label: Int,
-    value: String,
+    item: StatItem,
+    modifier: Modifier = Modifier,
 ) {
-    Card(Modifier.widthIn(min = Dimens.StatTileMinWidth)) {
+    Card(modifier.testTag(statTileTag(item.label))) {
         Column(Modifier.padding(Dimens.SpaceMd), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXs)) {
-            Icon(painterResource(icon), contentDescription = null, Modifier.size(Dimens.StatTileIcon))
-            Text(value, style = MaterialTheme.typography.headlineSmall)
-            Text(stringResource(label), style = MaterialTheme.typography.bodySmall)
+            Icon(painterResource(item.icon), contentDescription = null, Modifier.size(Dimens.StatTileIcon))
+            Text(item.value, style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(item.label), style = MaterialTheme.typography.bodySmall)
         }
     }
 }
+
+internal fun statTileTag(
+    @StringRes label: Int,
+): String = "stat_tile_$label"
 
 private fun localeName(tag: String): String = Locale.forLanguageTag(tag).getDisplayName(Locale.getDefault())
 

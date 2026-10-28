@@ -40,6 +40,7 @@ import de.crunchymate.ui.theme.Dimens
 @StringRes
 private fun NoticeGroup.label(): Int =
     when (this) {
+        NoticeGroup.APP -> R.string.licenses_group_app
         NoticeGroup.RUST -> R.string.licenses_group_rust
         NoticeGroup.ANDROID -> R.string.licenses_group_android
         NoticeGroup.ICONS -> R.string.licenses_group_icons
