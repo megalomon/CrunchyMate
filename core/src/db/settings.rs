@@ -148,7 +148,7 @@ mod tests {
         serde_json::to_string(value).unwrap()
     }
 
-    const GOLDEN_SETTINGS: &str = r#"{"content_locale":"en-US","search":{"query":"Größe","genre":"Action","language":"Both","watched":"Unwatched","sort":"Episodes","tags":[{"name":"Isekai","state":"Prefer"},{"name":"Magie","state":"Must"},{"name":"Horror","state":"Exclude"}]}}"#;
+    const GOLDEN_SETTINGS: &str = r#"{"content_locale":"en-US","search":{"query":"Größe","genre":"Action","language":"Both","watched":"Unwatched","sort":"Episodes","tags":[{"name":"Isekai","state":"Prefer"},{"name":"Magie","state":"Must"},{"name":"Horror","state":"Exclude"}]},"intro_seen":true}"#;
 
     fn golden_settings() -> Settings {
         Settings {
@@ -165,7 +165,31 @@ mod tests {
                     tag("Horror", TagState::Exclude),
                 ],
             },
+            intro_seen: true,
         }
+    }
+
+    #[test]
+    fn settings_without_intro_flag_load_as_not_seen() {
+        let db = Database::open_in_memory().unwrap();
+        store_raw(
+            &db,
+            r#"{"content_locale":"en-US","search":{"query":"Größe","sort":"Score"}}"#,
+        );
+        let s = db.with_conn(load).unwrap();
+        assert!(!s.intro_seen);
+        assert_eq!(s.content_locale, "en-US");
+        assert_eq!(s.search.query, "Größe");
+        assert_eq!(s.search.sort, SortOrder::Score);
+    }
+
+    #[test]
+    fn unreadable_intro_flag_loads_as_not_seen() {
+        let db = Database::open_in_memory().unwrap();
+        store_raw(&db, r#"{"content_locale":"fr-FR","intro_seen":"ja"}"#);
+        let s = db.with_conn(load).unwrap();
+        assert!(!s.intro_seen);
+        assert_eq!(s.content_locale, "fr-FR");
     }
 
     #[test]

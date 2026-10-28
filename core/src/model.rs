@@ -169,6 +169,9 @@ pub struct Settings {
     pub content_locale: String,
     #[serde(deserialize_with = "lenient")]
     pub search: SearchState,
+    /// Erststart-Info bestätigt; fehlt in älteren Ständen und gilt dann als nicht gesehen.
+    #[serde(deserialize_with = "lenient")]
+    pub intro_seen: bool,
 }
 
 /// Unlesbarer Wert ergibt den Standard des Typs.
@@ -213,6 +216,7 @@ impl Default for Settings {
         Self {
             content_locale: DEFAULT_CONTENT_LOCALE.to_string(),
             search: SearchState::default(),
+            intro_seen: false,
         }
     }
 }
