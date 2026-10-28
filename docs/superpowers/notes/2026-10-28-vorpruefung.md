@@ -41,15 +41,61 @@ android {
         }
     }
     defaultConfig {
-        minSdk = 26      // Wert aus dem Plan übernehmen, hier nur Platzhalter
+        minSdk = 34
         targetSdk = 37   // targetSdk kennt nur die Hauptversion
     }
 }
 ```
 
-Rückfallebene, falls 37.2 in CI nicht bereitsteht: `compileSdk = 37` (entspricht `platforms;android-37.0`). In CI muss `platforms;android-37.2` im SDK installiert sein.
+Rückfallebene, falls 37.2 in CI nicht bereitsteht: `compileSdk = 37` (entspricht `platforms;android-37.0`). In CI muss die Paket-ID `platforms;android-37.2` per `sdkmanager` installiert werden (Lizenzen akzeptieren).
 
 Optional: `buildToolsVersion = "37.0.0"` setzen, sonst nimmt AGP 9.4 Build-Tools 36.0.0.
+
+## 2a. Java-Toolchain 17 und Gradle-Wrapper
+
+- Vorgabe: Java-Toolchain 17 (`kotlin { jvmToolchain(17) }`), Gradle-Wrapper 9.8.2 (`gradle wrapper --gradle-version 9.8.2`; AGP 9.4 verlangt mindestens Gradle 9.6.0).
+- In WSL ist ein JDK 17 bereits vorhanden: Eclipse Temurin 17.0.21+9 unter `/usr/lib/jvm/temurin-17-jdk-amd64` (daneben Temurin 8, 11, 21 und 25). Gradle erkennt es über die automatische Erkennung („Common Linux Locations“, geprüft mit `gradle javaToolchains`). Eine zusätzliche Installation war nicht nötig.
+- Für CI und frische Rechner: Foojay-Resolver in `settings.gradle.kts` (`id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"`, Stand 28.10.2026 stabil) lässt Gradle ein fehlendes JDK 17 selbst laden. In GitHub Actions zusätzlich `actions/setup-java` mit Java 17 verwenden.
+- Gradle selbst läuft unter JDK 25 (Standard-`java` in WSL); AGP 9.4 und der Probe-Build funktionierten damit.
+
+## 2b. Kotlin mit AGP 9.4.1: integrierte Kotlin-Unterstützung (geprüft)
+
+Ergebnis: Mit AGP 9.4.1 wird das Kotlin-Android-Plugin **nicht** separat deklariert (`org.jetbrains.kotlin.android` entfällt, AGP bringt die Kotlin-Unterstützung mit). Das Compose-Compiler-Plugin und `kotlinx-serialization` werden als Kotlin-Plugins mit Version 2.4.21 deklariert. KSP ist nicht nötig, solange kein Room/Hilt o. Ä. genutzt wird (Datenhaltung liegt in Rust).
+
+Geprüft im Wegwerf-Projekt (Scratchpad, nicht eingecheckt) mit Gradle 9.8.2, Foojay 1.0.0: minimale Compose-Activity mit `@Serializable`-Klasse, compileSdk 37.2, minSdk 34, targetSdk 37; `gradle :app:assembleDebug` endete mit `BUILD SUCCESSFUL` und erzeugte `app-debug.apk`. Der Kotlin-Quelltext in `src/main/kotlin` wurde ohne `kotlin.android`-Plugin kompiliert.
+
+Funktionierender Plugin-Block (Wurzel `build.gradle.kts`):
+
+```kotlin
+plugins {
+    id("com.android.application") version "9.4.1" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.4.21" apply false
+}
+```
+
+Modul `app/build.gradle.kts`:
+
+```kotlin
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization")
+}
+
+android {
+    namespace = "probe.sdk"
+    compileSdk { version = release(37) { minorApiLevel = 2 } }
+    defaultConfig { minSdk = 34; targetSdk = 37 }
+    buildFeatures { compose = true }
+}
+
+kotlin { jvmToolchain(17) }
+```
+
+Im Projekt werden die Plugin-IDs über `libs.versions.toml` bezogen (siehe 3a). Der Build lief mit einem Deprecation-Hinweis („incompatible with Gradle 10“) ohne Fehler; er ist für Gradle 9.8.2 unkritisch.
+
+Nicht getestet: ktlint-Plugin und Robolectric im Probe-Projekt.
 
 ## 3. Versionstabelle (aktuelle stabile Versionen)
 
@@ -81,8 +127,79 @@ Pre-Releases (alpha, beta, rc) sind ausgeschlossen. Quelle: jeweils `maven-metad
 Anmerkungen:
 
 - Alle Datumsangaben der Google- und Maven-Central-Artefakte stammen aus dem Last-Modified-Header der POM-Datei; das tatsächliche Release-Datum kann abweichen (Lifecycle 2.11.0 wirkt dadurch ungewöhnlich früh).
-- Aufgrund der AGP-9-Neuerungen (integrierte Kotlin-Unterstützung, neue DSL) sollte beim Anlegen der Build-Dateien die jeweilige Migrationsdokumentation herangezogen werden. Das Kotlin-Gradle-Plugin ist nur dann separat zu deklarieren, wenn AGP es nicht selbst bereitstellt. Das wurde in dieser Vorprüfung nicht abschließend geklärt.
-- Der Zustand der Kompatibilität Kotlin 2.4.21 mit AGP 9.4.1 wurde nicht getestet (der Probe-Build nutzte nur AGP ohne Kotlin-Code).
+- Kotlin 2.4.21 mit AGP 9.4.1 und Compose wurde im Probe-Projekt geprüft, siehe Abschnitt 2b.
+
+## 3a. Direkt übernehmbare Zeilen
+
+`gradle/libs.versions.toml` (Koordinaten aus den abgefragten Repositories; Plugin-IDs und Artefaktnamen der Maven-Koordinaten wurden gegen die Metadaten geprüft, nicht jede einzelne Bibliothek wurde gebaut):
+
+```toml
+[versions]
+agp = "9.4.1"
+kotlin = "2.4.21"
+composeBom = "2026.09.00"
+activityCompose = "1.13.0"
+navigationCompose = "2.10.2"
+lifecycle = "2.11.0"
+pagingCompose = "3.5.3"
+coil = "3.6.3"
+work = "2.12.0"
+coroutines = "1.11.0"
+serialization = "1.12.0"
+jna = "5.19.1"
+robolectric = "4.17"
+ktlintGradle = "14.2.0"
+
+[libraries]
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
+androidx-compose-ui = { module = "androidx.compose.ui:ui" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-paging-compose = { module = "androidx.paging:paging-compose", version.ref = "pagingCompose" }
+androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }
+```
+
+Für JNA unter Android wird das AAR gebraucht: `implementation("net.java.dev.jna:jna:5.19.1@aar")` bzw. `libs.jna` mit `artifact`-Angabe in der Abhängigkeitszeile (`implementation(variantOf(libs.jna) { artifactType("aar") })`). Die Existenz der AAR-Variante bei Maven Central wurde hier nicht einzeln geprüft. Die Coil-Artefakte `coil-network-okhttp` und die Lifecycle-Artefakte wurden nur über Modulnamen und die gemeinsame Versionsnummer abgeleitet.
+
+`Cargo.toml` des Rust-Kerns (Abschnitte `[dependencies]` und `[dev-dependencies]`; erzeugt mit `cargo add` und geprüft):
+
+```toml
+[dependencies]
+async-trait = "0.1.92"
+regex = "1.13.1"
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls", "json"] }
+rusqlite = { version = "0.41.0", features = ["bundled"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+uniffi = { version = "0.32.2", features = ["tokio", "cli"] }
+
+[dev-dependencies]
+wiremock = "0.6.5"
+```
+
+Prüfung: Ein Wegwerf-Crate mit genau diesen Abhängigkeiten baut mit `cargo ndk -t arm64-v8a build` (NDK r30, Rust 1.99.1) erfolgreich, mit und ohne das uniffi-Feature `cli`. Hinweise:
+
+- reqwest 0.13 zieht mit Feature `rustls` den Krypto-Anbieter aws-lc-rs; er baut mit dem NDK. `default-features = false` vermeidet native-tls/OpenSSL (`openssl-sys` kommt im Baum nicht vor).
+- uniffi: `tokio` aktiviert die async-Unterstützung, `cli` das Bindgen (`uniffi-bindgen`-Binary). Für die Bibliothek selbst reicht `tokio`; `cli` kann auf ein Feature des Host-Bindgen-Binaries beschränkt werden, damit die Android-Bibliothek kleiner bleibt. Das Binary ist ein eigenes `[[bin]]` mit `uniffi::uniffi_bindgen_main()` (Vorgehen laut UniFFI-Dokumentation, in dieser Vorprüfung nicht ausgeführt).
+- Für Build-Skripte `uniffi` ggf. zusätzlich mit Feature `build` als `[build-dependencies]` einbinden, falls UDL statt Proc-Makros verwendet wird (Spec nutzt Proc-Makros, daher voraussichtlich nicht nötig).
+- Die tatsächlichen Tokio-Features sind für den Kern ausreichend gewählt (`rt-multi-thread`, `macros`, `time`, `sync`); `net` zieht reqwest selbst nach.
 
 ## 4. crunchyroll-rs: Entscheidung gegen die Bibliothek, eigene reqwest-Implementierung
 
@@ -150,5 +267,4 @@ Entscheidungsregel aus dem Plan: Nur wenn alles zutrifft, wird `crunchyroll-rs` 
 
 ## 5. Offene Punkte
 
-- Kotlin 2.4.21 und AGP 9.4.1 zusammen mit Compose sind erst im Task zur Projektanlage zu verifizieren.
 - Sudo wurde nicht benötigt; alle Installationen liegen im Home-Verzeichnis.
