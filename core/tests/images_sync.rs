@@ -676,3 +676,55 @@ async fn image_sync_reports_empty_images_phase_when_nothing_pending() {
         vec![(SyncKind::Catalog, SyncPhase::Images, 0, 0)]
     );
 }
+
+/// Stellt die Schreibrechte beim Verlassen wieder her, damit das Aufräumen gelingt.
+struct ReadOnly(std::path::PathBuf);
+
+impl ReadOnly {
+    fn set(path: std::path::PathBuf) -> Self {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o555)).unwrap();
+        Self(path)
+    }
+}
+
+impl Drop for ReadOnly {
+    fn drop(&mut self) {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&self.0, std::fs::Permissions::from_mode(0o755));
+    }
+}
+
+#[tokio::test]
+async fn image_sync_store_failure_is_fatal_but_corrupt_image_only_counted() {
+    let db = Database::open_in_memory().unwrap();
+    let dir = TempDir::new("fatal");
+    let store = dir.store();
+    let fetcher = FakeFetcher::default();
+    seed_three(&db, &fetcher);
+    // a ist unlesbar und wird nur gezählt; b scheitert an der Ablage
+    fetcher.serve(&tall_url("a"), b"kein Bild".to_vec());
+    let _lock = ReadOnly::set(dir.path().join("tmp"));
+    // Läuft der Test mit Root-Rechten, greift die Sperre nicht
+    if std::fs::File::create(dir.path().join("tmp").join("probe")).is_ok() {
+        return;
+    }
+
+    let result = run_image_sync(
+        &db,
+        &store,
+        &fetcher,
+        &TALL,
+        SyncKind::Catalog,
+        &Recorder::default(),
+    )
+    .await;
+
+    assert!(matches!(
+        result,
+        Err(crunchymate_core::error::CoreError::Database { .. })
+    ));
+    assert!(reference(&db, "a", ImageSlot::PosterTall).is_none());
+    assert!(reference(&db, "b", ImageSlot::PosterTall).is_none());
+    assert_eq!(fetcher.calls().len(), 2);
+}

@@ -254,7 +254,8 @@ async fn catalog_sync_upserts_all_pages_and_reports_progress() {
         .lock()
         .unwrap()
         .iter()
-        .all(|p| p.kind == SyncKind::Catalog));
+        .all(|p| p.kind == SyncKind::Catalog
+            && matches!(p.phase, SyncPhase::Items | SyncPhase::Images)));
     let calls = source.calls.lock().unwrap().clone();
     assert_eq!(
         calls,

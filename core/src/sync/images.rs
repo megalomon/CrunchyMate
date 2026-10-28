@@ -87,9 +87,7 @@ async fn download_one(
         .fetch(&job.source_url)
         .await
         .map_err(|_| DownloadError::Skipped)?;
-    let file = encode_and_store(store, raw)
-        .await
-        .map_err(|_| DownloadError::Skipped)?;
+    let file = encode_and_store(store, raw).await?;
     db.with_tx(|tx| {
         record(
             tx,
@@ -105,12 +103,14 @@ async fn download_one(
 }
 
 // Umwandeln und Schreiben sind rechenintensiv bzw. blockierend und laufen daher abseits der Async-Threads.
-async fn encode_and_store(store: &ImageStore, raw: Vec<u8>) -> CoreResult<StoredFile> {
+// Ein unlesbares Bild betrifft nur dieses Bild; scheitert die Ablage (z. B. Speicher voll), hat
+// jedes weitere Bild dasselbe Problem und der Lauf bricht mit dem Fehler ab.
+async fn encode_and_store(store: &ImageStore, raw: Vec<u8>) -> Result<StoredFile, DownloadError> {
     let store = store.clone();
     tokio::task::spawn_blocking(move || {
-        let image: StoredImage = encode_for_storage(&raw)?;
+        let image: StoredImage = encode_for_storage(&raw).map_err(|_| DownloadError::Skipped)?;
         let bytes = i64::try_from(image.bytes.len()).unwrap_or(i64::MAX);
-        let hash = store.put(&image)?;
+        let hash = store.put(&image).map_err(DownloadError::Fatal)?;
         Ok(StoredFile {
             hash,
             ext: image.ext,
@@ -119,16 +119,17 @@ async fn encode_and_store(store: &ImageStore, raw: Vec<u8>) -> CoreResult<Stored
     })
     .await
     .unwrap_or_else(|error| {
-        Err(CoreError::Database {
+        Err(DownloadError::Fatal(CoreError::Database {
             detail: format!("Bildverarbeitung abgebrochen: {error}"),
-        })
+        }))
     })
 }
 
 /// Entfernt Bildzeilen ohne Verweis samt Datei sowie Dateien ohne Zeile (Reste eines Abbruchs
 /// zwischen Schreiben und Speichern). Die Zeile wird nur bedingt gelöscht und zuerst: bleibt eine
 /// Datei übrig, schadet das nicht, eine Zeile ohne Datei würde dagegen ein totes Bild melden.
-/// Fehler beim Löschen von Dateien bleiben folgenlos; der nächste Lauf versucht es erneut.
+/// Scheitert das Löschen einer Datei, läuft der Lauf weiter: die Zeile ist schon fort, die Datei
+/// gilt beim Verzeichnisabgleich des nächsten Laufs als verwaist und wird dann erneut entfernt.
 fn remove_unreferenced(db: &Database, store: &ImageStore) -> CoreResult<()> {
     for (hash, ext) in db.with_conn(unreferenced)? {
         if db.with_conn(|conn| delete_image(conn, &hash))? {
