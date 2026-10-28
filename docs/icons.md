@@ -38,7 +38,6 @@ Tipp: Einige Motive können doppelt verwendet werden, etwa `ic_nav_watched` für
 | Datei | Bedeutung | Emoji-Entsprechung | Gelieferte Datei | Quelle/Lizenz |
 |---|---|---|---|---|
 | `ic_badge_score` | AniList-Bewertung in Prozent | ⭐ | `star-face.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/star-face/; Apache 2.0 (Pictogrammers Free License) |
-| `ic_badge_boost` | Anzahl der Treffer bei bevorzugten (Boost-)Tags | 🔵 | `circle.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/circle/; Apache 2.0 (Pictogrammers Free License) |
 
 ## Tag-Zustände
 

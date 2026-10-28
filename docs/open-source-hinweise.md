@@ -17,7 +17,6 @@ Die Icons stammen aus den Material Design Icons der Pictogrammers (https://picto
 | `ic_meh_on` | https://pictogrammers.com/library/mdi/icon/emoticon-confused/ | Apache 2.0 |
 | `ic_meh_off` | https://pictogrammers.com/library/mdi/icon/emoticon-confused-outline/ | Apache 2.0 |
 | `ic_badge_score` | https://pictogrammers.com/library/mdi/icon/star-face/ | Apache 2.0 |
-| `ic_badge_boost` | https://pictogrammers.com/library/mdi/icon/circle/ | Apache 2.0 |
 | `ic_tag_prefer` | https://pictogrammers.com/library/mdi/icon/circle/ | Apache 2.0 |
 | `ic_tag_must` | https://pictogrammers.com/library/mdi/icon/plus-circle/ | Apache 2.0 |
 | `ic_tag_exclude` | https://pictogrammers.com/library/mdi/icon/alert-circle/ | Apache 2.0 |

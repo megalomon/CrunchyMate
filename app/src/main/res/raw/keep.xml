@@ -1,4 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Vorübergehend: ic_badge_boost ist seit Task 15e ungenutzt (Badge zeigt nur noch die Zahl) und wird vom Auftraggeber gelöscht oder wieder verwendet. Ohne diese Liste meldet Lint die Datei als unbenutzt. -->
-<resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@drawable/ic_badge_boost" />
