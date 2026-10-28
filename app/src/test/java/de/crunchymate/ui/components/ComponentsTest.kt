@@ -10,14 +10,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTouchHeightIsEqualTo
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import de.crunchymate.R
 import de.crunchymate.core.ffi.AnimeSummary
 import de.crunchymate.core.ffi.ErrorCode
+import de.crunchymate.core.ffi.SyncKind
+import de.crunchymate.core.ffi.SyncPhase
 import de.crunchymate.core.ffi.TagState
 import de.crunchymate.sync.SyncUiState
 import de.crunchymate.ui.theme.CrunchyMateTheme
@@ -38,6 +42,7 @@ import java.util.Locale
 private const val SDK = 35
 private const val TIMESTAMP_SECONDS = 1_700_000_000L
 private val CARD_WIDTH = 160.dp
+private val MIN_TOUCH_TARGET = 48.dp
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [SDK], qualifiers = "w411dp-h891dp")
@@ -45,20 +50,27 @@ class ComponentsTest {
     @get:Rule
     val rule = createAndroidComposeRule<ComponentActivity>()
 
-    private fun string(id: Int) = rule.activity.getString(id)
+    private fun string(
+        id: Int,
+        vararg args: Any,
+    ) = rule.activity.getString(id, *args)
 
-    private fun anime(preferMatches: Int = 0) =
-        AnimeSummary(
-            id = "a1",
-            title = "Testtitel",
-            posterPath = "",
-            anilistScore = 80,
-            hasTargetDub = true,
-            hasTargetSub = true,
-            watched = false,
-            isMeh = false,
-            preferMatches = preferMatches,
-        )
+    private fun anime(
+        preferMatches: Int = 0,
+        score: Int = 80,
+        posterPath: String = "",
+    ) = AnimeSummary(
+        id = "a1",
+        title = "Testtitel",
+        posterPath = posterPath,
+        anilistScore = score,
+        hasTargetDub = true,
+        hasTargetSub = true,
+        watched = false,
+        isMeh = false,
+        preferMatches = preferMatches,
+        episodeCount = 128,
+    )
 
     @Test
     fun tagChip_exposesStateDescriptionPerState() {
@@ -82,7 +94,7 @@ class ComponentsTest {
     fun animeCard_showsBoostBadgeOnlyWhenMatches() {
         var matches by mutableIntStateOf(0)
         rule.setContent {
-            CrunchyMateTheme { AnimeCard(anime(matches), {}, {}, {}) }
+            CrunchyMateTheme { AnimeCard(anime(matches), "de-DE", {}, {}, {}) }
         }
         val badge = rule.activity.resources.getQuantityString(R.plurals.badge_boost_matches, 2, 2)
         rule.onNodeWithText(badge).assertDoesNotExist()
@@ -99,7 +111,7 @@ class ComponentsTest {
         rule.setContent {
             // Realistische Rasterzellenbreite auf einem Telefon-Bildschirm
             CrunchyMateTheme {
-                Box(Modifier.width(CARD_WIDTH)) { AnimeCard(anime(), { opened++ }, { watched++ }, { meh++ }) }
+                Box(Modifier.width(CARD_WIDTH)) { AnimeCard(anime(), "de-DE", { opened++ }, { watched++ }, { meh++ }) }
             }
         }
         rule.onNodeWithContentDescription(string(R.string.action_toggle_watched), useUnmergedTree = true).performClick()
@@ -114,7 +126,7 @@ class ComponentsTest {
     fun syncCard_showsCancelWhileRunningAndStartOtherwise() {
         var state by mutableStateOf(SyncUiState.Idle)
         rule.setContent {
-            CrunchyMateTheme { SyncCard("Katalog", state, onStart = {}, onCancel = {}) }
+            CrunchyMateTheme { SyncCard("Katalog", SyncKind.CATALOG, state, onStart = {}, onCancel = {}) }
         }
         rule.onNodeWithContentDescription(string(R.string.sync_start)).assertIsDisplayed()
         rule.onNodeWithContentDescription(string(R.string.sync_cancel)).assertDoesNotExist()
@@ -127,7 +139,7 @@ class ComponentsTest {
     @Test
     fun syncCard_formatsLastFinishedFromUnixSeconds() {
         val state = SyncUiState(false, 0, 0, TIMESTAMP_SECONDS, null)
-        rule.setContent { CrunchyMateTheme { SyncCard("Katalog", state, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SyncCard("Katalog", SyncKind.CATALOG, state, {}, {}) } }
         val expected =
             DateTimeFormatter
                 .ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
@@ -142,7 +154,7 @@ class ComponentsTest {
     @Test
     fun syncCard_showsLastErrorText() {
         val state = SyncUiState(false, 0, 0, TIMESTAMP_SECONDS, ErrorCode.NETWORK)
-        rule.setContent { CrunchyMateTheme { SyncCard("Katalog", state, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SyncCard("Katalog", SyncKind.CATALOG, state, {}, {}) } }
         assertNotNull(
             rule.onNodeWithText(rule.activity.getString(R.string.sync_last_error, string(R.string.error_network))).fetchSemanticsNode(),
         )
@@ -151,9 +163,61 @@ class ComponentsTest {
     @Test
     fun syncCard_cancelledShowsStatusWithoutErrorLine() {
         val state = SyncUiState(false, 3, 10, TIMESTAMP_SECONDS, null, cancelled = true)
-        rule.setContent { CrunchyMateTheme { SyncCard("Katalog", state, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SyncCard("Katalog", SyncKind.CATALOG, state, {}, {}) } }
         rule.onNodeWithText(string(R.string.sync_status_cancelled)).assertIsDisplayed()
         rule.onNodeWithText(string(R.string.sync_status_idle)).assertDoesNotExist()
         rule.onNodeWithText(rule.activity.getString(R.string.sync_last_error, string(R.string.error_cancelled))).assertDoesNotExist()
+    }
+
+    @Test
+    fun animeCard_showsScoreBadgeOnlyWhenScorePositive() {
+        var score by mutableIntStateOf(0)
+        rule.setContent { CrunchyMateTheme { AnimeCard(anime(score = score), "de-DE", {}, {}, {}) } }
+        rule.onNodeWithText(string(R.string.badge_score, 71)).assertDoesNotExist()
+        score = 71
+        rule.waitForIdle()
+        rule.onNodeWithText(string(R.string.badge_score, 71)).assertIsDisplayed()
+    }
+
+    @Test
+    fun animeCard_showsEpisodeCount() {
+        rule.setContent { CrunchyMateTheme { AnimeCard(anime(), "de-DE", {}, {}, {}) } }
+        rule.onNodeWithText(string(R.string.card_episodes, 128)).assertIsDisplayed()
+    }
+
+    @Test
+    fun animeCard_withoutPosterPathShowsPlaceholder() {
+        rule.setContent { CrunchyMateTheme { AnimeCard(anime(posterPath = ""), "de-DE", {}, {}, {}) } }
+        rule.onNodeWithTag(IMAGE_PLACEHOLDER_TAG, useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun animeCard_toggleButtonsKeepMinimumTouchTarget() {
+        rule.setContent { CrunchyMateTheme { AnimeCard(anime(), "de-DE", {}, {}, {}) } }
+        rule.onNodeWithContentDescription(string(R.string.action_toggle_watched)).assertTouchHeightIsEqualTo(MIN_TOUCH_TARGET)
+        rule.onNodeWithContentDescription(string(R.string.action_toggle_meh)).assertTouchHeightIsEqualTo(MIN_TOUCH_TARGET)
+    }
+
+    @Test
+    fun animeCard_flagDescribesAvailability() {
+        rule.setContent { CrunchyMateTheme { AnimeCard(anime(), "de-DE", {}, {}, {}) } }
+        rule.onNodeWithContentDescription(string(R.string.flag_dub_description)).assertIsDisplayed()
+    }
+
+    @Test
+    fun syncCard_showsPhaseNameAndProgress() {
+        var state by mutableStateOf(SyncUiState(true, 5, 10, null, null, phase = SyncPhase.ITEMS))
+        rule.setContent { CrunchyMateTheme { SyncCard("Anreicherung", SyncKind.METADATA, state, {}, {}) } }
+        rule.onNodeWithText(string(R.string.sync_phase_progress, string(R.string.sync_phase_enrichment), 5, 10)).assertIsDisplayed()
+        state = SyncUiState(true, 7, 3300, null, null, phase = SyncPhase.IMAGES)
+        rule.waitForIdle()
+        rule.onNodeWithText(string(R.string.sync_phase_progress, string(R.string.sync_phase_images), 7, 3300)).assertIsDisplayed()
+    }
+
+    @Test
+    fun syncCard_catalogItemsPhaseIsNamedCatalog() {
+        val state = SyncUiState(true, 5, 10, null, null)
+        rule.setContent { CrunchyMateTheme { SyncCard("Katalog", SyncKind.CATALOG, state, {}, {}) } }
+        rule.onNodeWithText(string(R.string.sync_phase_progress, string(R.string.sync_phase_catalog), 5, 10)).assertIsDisplayed()
     }
 }

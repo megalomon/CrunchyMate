@@ -11,6 +11,7 @@ import androidx.work.workDataOf
 import de.crunchymate.core.CoreGateway
 import de.crunchymate.core.ffi.CoreException
 import de.crunchymate.core.ffi.SyncKind
+import de.crunchymate.core.ffi.SyncPhase
 import de.crunchymate.core.ffi.SyncRunState
 import de.crunchymate.core.ffi.SyncStatus
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -79,6 +80,7 @@ class SyncScheduler(
     ): SyncUiState {
         val progressDone = active?.progress?.getLong(SyncWorker.KEY_DONE, NO_PROGRESS) ?: NO_PROGRESS
         val progressTotal = active?.progress?.getLong(SyncWorker.KEY_TOTAL, NO_PROGRESS) ?: NO_PROGRESS
+        val phase = active?.progress?.getString(SyncWorker.KEY_PHASE)?.let { name -> SyncPhase.entries.find { it.name == name } }
         val hasProgress = progressDone != NO_PROGRESS && progressTotal != NO_PROGRESS
         return SyncUiState(
             running = active != null,
@@ -89,6 +91,7 @@ class SyncScheduler(
             // Der Kern speichert auch beim Abbruch einen Fehlercode; angezeigt wird er nur bei echtem Fehlschlag
             lastError = status?.lastError?.takeIf { status.state == SyncRunState.FAILED },
             cancelled = active == null && status?.state == SyncRunState.CANCELLED,
+            phase = phase ?: SyncPhase.ITEMS,
         )
     }
 

@@ -16,6 +16,7 @@ import de.crunchymate.core.code
 import de.crunchymate.core.ffi.CoreException
 import de.crunchymate.core.ffi.SyncKind
 import de.crunchymate.core.ffi.SyncObserver
+import de.crunchymate.core.ffi.SyncPhase
 import de.crunchymate.core.ffi.SyncProgress
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -52,7 +53,8 @@ class SyncWorker internal constructor(
 
     private val kind: SyncKind? = inputData.getString(KEY_KIND)?.let { name -> SyncKind.entries.find { it.name == name } }
 
-    override suspend fun getForegroundInfo(): ForegroundInfo = foregroundInfo(kind ?: SyncKind.CATALOG, done = 0, total = 0)
+    override suspend fun getForegroundInfo(): ForegroundInfo =
+        foregroundInfo(kind ?: SyncKind.CATALOG, SyncPhase.ITEMS, done = 0, total = 0)
 
     override suspend fun doWork(): Result {
         val kind = kind ?: return Result.failure()
@@ -100,14 +102,14 @@ class SyncWorker internal constructor(
         gateway: CoreGateway,
         progress: SyncProgress,
     ) {
-        setProgress(workDataOf(KEY_DONE to progress.done, KEY_TOTAL to progress.total))
-        updateNotification(progress.kind, progress.done, progress.total)
+        setProgress(workDataOf(KEY_DONE to progress.done, KEY_TOTAL to progress.total, KEY_PHASE to progress.phase.name))
+        updateNotification(progress.kind, progress.phase, progress.done, progress.total)
         gateway.notifyChanged()
     }
 
     private suspend fun startForeground(kind: SyncKind) {
         try {
-            setForeground(foregroundInfo(kind, done = 0, total = 0))
+            setForeground(foregroundInfo(kind, SyncPhase.ITEMS, done = 0, total = 0))
             foregroundStarted = true
         } catch (e: IllegalStateException) {
             // Ohne Vordergrunddienst läuft der Sync weiter, nur ohne Benachrichtigung
@@ -120,22 +122,24 @@ class SyncWorker internal constructor(
     @SuppressLint("MissingPermission")
     private fun updateNotification(
         kind: SyncKind,
+        phase: SyncPhase,
         done: Long,
         total: Long,
     ) {
         val manager = NotificationManagerCompat.from(applicationContext)
         if (!shouldPostUpdate(foregroundStarted, manager.areNotificationsEnabled())) return
-        val info = foregroundInfo(kind, done, total)
+        val info = foregroundInfo(kind, phase, done, total)
         manager.notify(info.notificationId, info.notification)
     }
 
     private fun foregroundInfo(
         kind: SyncKind,
+        phase: SyncPhase,
         done: Long,
         total: Long,
     ): ForegroundInfo {
         val cancelIntent = WorkManager.getInstance(applicationContext).createCancelPendingIntent(id)
-        val notification = SyncNotifications.build(applicationContext, kind, done, total, cancelIntent)
+        val notification = SyncNotifications.build(applicationContext, kind, phase, done, total, cancelIntent)
         return ForegroundInfo(
             SyncNotifications.notificationId(kind),
             notification,
@@ -147,6 +151,7 @@ class SyncWorker internal constructor(
         const val KEY_KIND = "kind"
         const val KEY_DONE = "done"
         const val KEY_TOTAL = "total"
+        const val KEY_PHASE = "phase"
         const val KEY_ERROR = "error"
     }
 }

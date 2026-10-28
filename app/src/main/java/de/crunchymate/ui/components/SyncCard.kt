@@ -17,8 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import de.crunchymate.R
+import de.crunchymate.core.ffi.SyncKind
 import de.crunchymate.core.messageRes
 import de.crunchymate.sync.SyncUiState
+import de.crunchymate.sync.syncPhaseLabel
 import de.crunchymate.ui.theme.Dimens
 import java.time.Instant
 import java.time.ZoneId
@@ -36,6 +38,7 @@ private fun formatTimestamp(epochSeconds: Long): String =
 @Composable
 fun SyncCard(
     title: String,
+    kind: SyncKind,
     state: SyncUiState,
     onStart: () -> Unit,
     onCancel: () -> Unit,
@@ -71,7 +74,19 @@ fun SyncCard(
                 style = MaterialTheme.typography.bodyMedium,
             )
             if (state.total > 0) {
-                Text(stringResource(R.string.sync_progress, state.done, state.total), style = MaterialTheme.typography.bodySmall)
+                Text(
+                    if (state.running) {
+                        stringResource(
+                            R.string.sync_phase_progress,
+                            stringResource(syncPhaseLabel(kind, state.phase)),
+                            state.done,
+                            state.total,
+                        )
+                    } else {
+                        stringResource(R.string.sync_progress, state.done, state.total)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             Text(
                 state.lastFinishedAt?.let { stringResource(R.string.sync_last_finished, formatTimestamp(it)) }

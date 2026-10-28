@@ -30,3 +30,7 @@ val LightPrimary = Color(0xFFB85000)
 val LightTagPreferBlue = Color(0xFF0B76B0)
 val LightTagMustGreen = Color(0xFF1E8449)
 val LightTagExcludeRed = Color(0xFFC62828)
+
+// Halbtransparenter Grund für Beschriftungen und Schalter auf Postern, unabhängig vom Farbschema
+val PosterOverlayBackground = Color(0xB3000000)
+val PosterOverlayContent = Color(0xFFFFFFFF)

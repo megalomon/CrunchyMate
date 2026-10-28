@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -31,7 +32,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -42,14 +42,13 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import de.crunchymate.R
 import de.crunchymate.core.ffi.AniListInfo
 import de.crunchymate.core.ffi.AnimeDetail
 import de.crunchymate.core.ffi.TagSelection
 import de.crunchymate.ui.components.EmptyState
+import de.crunchymate.ui.components.LocalImage
 import de.crunchymate.ui.components.TagChip
-import de.crunchymate.ui.components.localImageModel
 import de.crunchymate.ui.tags.stateOf
 import de.crunchymate.ui.theme.Dimens
 
@@ -124,10 +123,9 @@ private fun DetailContent(
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         if (anime.bannerPath.isNotEmpty()) {
-            AsyncImage(
-                model = localImageModel(anime.bannerPath),
+            LocalImage(
+                path = anime.bannerPath,
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxWidth().height(Dimens.DetailBannerHeight),
             )
         }
@@ -160,10 +158,9 @@ private fun Header(
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
         // Der Titel steht direkt daneben; eine Bildbeschreibung würde ihn doppelt vorlesen
-        AsyncImage(
-            model = localImageModel(anime.posterPath),
+        LocalImage(
+            path = anime.posterPath,
             contentDescription = null,
-            contentScale = ContentScale.Crop,
             modifier = Modifier.width(Dimens.DetailPosterWidth).aspectRatio(POSTER_ASPECT_RATIO),
         )
         Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
@@ -182,8 +179,12 @@ private fun Header(
                 if (anime.episodeCount > 0) {
                     InfoLabel(pluralStringResource(R.plurals.detail_episodes, anime.episodeCount, anime.episodeCount))
                 }
-                if (anime.hasTargetDub) InfoLabel(stringResource(R.string.badge_dub))
-                if (anime.hasTargetSub) InfoLabel(stringResource(R.string.badge_sub))
+                if (anime.hasTargetDub) {
+                    InfoLabel(stringResource(R.string.badge_dub), R.drawable.ic_badge_dub, stringResource(R.string.badge_dub_description))
+                }
+                if (anime.hasTargetSub) {
+                    InfoLabel(stringResource(R.string.badge_sub), R.drawable.ic_badge_sub, stringResource(R.string.badge_sub_description))
+                }
             }
             ToggleButton(
                 active = anime.watched,
@@ -270,12 +271,21 @@ private fun Section(
 }
 
 @Composable
-private fun InfoLabel(text: String) {
+private fun InfoLabel(
+    text: String,
+    @DrawableRes icon: Int? = null,
+    iconDescription: String? = null,
+) {
     Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = MaterialTheme.shapes.small) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelMedium,
+        Row(
             modifier = Modifier.padding(horizontal = Dimens.SpaceSm, vertical = Dimens.SpaceXs),
-        )
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
+        ) {
+            if (icon != null) {
+                Icon(painterResource(icon), contentDescription = iconDescription, modifier = Modifier.size(Dimens.BadgeIcon))
+            }
+            Text(text, style = MaterialTheme.typography.labelMedium)
+        }
     }
 }

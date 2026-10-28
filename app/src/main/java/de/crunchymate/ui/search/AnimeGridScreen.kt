@@ -40,6 +40,11 @@ import de.crunchymate.ui.components.AnimeCard
 import de.crunchymate.ui.components.EmptyState
 import de.crunchymate.ui.theme.Dimens
 
+/** Anzahl der Spalten; auf allen Bildschirmbreiten gleich, damit die Karten überall gleich aufgebaut sind. */
+const val GRID_COLUMNS = 3
+
+fun animeGridCells(): GridCells = GridCells.Fixed(GRID_COLUMNS)
+
 // Poster (2:3) plus Titel- und Aktionszeile der AnimeCard, grob angenähert
 private const val PLACEHOLDER_ASPECT_RATIO = 0.5f
 
@@ -65,11 +70,13 @@ fun AnimeGridDestination(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val items = viewModel.items.collectAsLazyPagingItems()
+    val contentLocale by viewModel.contentLocale.collectAsStateWithLifecycle()
     AnimeGridScreen(
         mode = mode,
         state = state,
         query = viewModel.query,
         items = items,
+        contentLocale = contentLocale,
         actions =
             SearchActions(
                 onQueryChange = viewModel::onQueryChange,
@@ -95,6 +102,7 @@ fun AnimeGridScreen(
     state: SearchUiState,
     query: String,
     items: LazyPagingItems<AnimeSummary>,
+    contentLocale: String,
     actions: SearchActions,
     onOpen: (String) -> Unit,
     onToggleWatched: (AnimeSummary) -> Unit,
@@ -103,11 +111,11 @@ fun AnimeGridScreen(
 ) {
     val texts = mode.texts()
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(Dimens.GridCellMinWidth),
+        columns = animeGridCells(),
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(Dimens.SpaceSm),
-        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
-        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
+        contentPadding = PaddingValues(Dimens.GridSpacing),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
+        verticalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
     ) {
         if (mode == GridMode.Search) {
             fullWidth { SearchControls(state, query, actions) }
@@ -147,6 +155,7 @@ fun AnimeGridScreen(
             } else {
                 AnimeCard(
                     anime = anime,
+                    contentLocale = contentLocale,
                     onOpen = { onOpen(anime.id) },
                     onToggleWatched = { onToggleWatched(anime) },
                     onToggleMeh = { onToggleMeh(anime) },

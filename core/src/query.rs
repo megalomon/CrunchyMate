@@ -168,7 +168,7 @@ pub fn query_anime(
     let sql = format!(
         "SELECT a.id, a.title, \
          a.anilist_score, a.has_target_dub, a.has_target_sub, a.watched, a.is_meh, \
-         {prefer_select} AS prefer_matches, pi.hash, pi.ext \
+         {prefer_select} AS prefer_matches, pi.hash, pi.ext, a.episode_count \
          FROM anime a \
          LEFT JOIN image_refs pr ON pr.anime_id = a.id AND pr.slot = '{poster_slot}' \
          LEFT JOIN images pi ON pi.hash = pr.hash{} ORDER BY {} LIMIT ? OFFSET ?",
@@ -196,6 +196,7 @@ pub fn query_anime(
                 watched: row.get(5)?,
                 is_meh: row.get(6)?,
                 prefer_matches: row.get(7)?,
+                episode_count: row.get(10)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -408,6 +409,18 @@ mod tests {
         f.sort = SortOrder::Title;
         f.prefer_tags = strs(&["Magie"]);
         assert_eq!(ids(&db, &f), ["a3", "a1", "a2", "a7", "a4", "a6"]);
+    }
+
+    #[test]
+    fn episode_count_reported_per_item() {
+        let db = db();
+        let counts: Vec<_> = run(&db, &base())
+            .items
+            .iter()
+            .filter(|i| i.id == "a1" || i.id == "a2")
+            .map(|i| (i.id.clone(), i.episode_count))
+            .collect();
+        assert_eq!(counts, [("a2".to_string(), 24), ("a1".to_string(), 12)]);
     }
 
     #[test]

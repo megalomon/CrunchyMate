@@ -126,7 +126,7 @@ fun sampleFilter() =
         emptyList(),
     )
 
-fun sampleSummary(id: String) = AnimeSummary(id, "Titel $id", "", 0, false, false, false, false, 0)
+fun sampleSummary(id: String) = AnimeSummary(id, "Titel $id", "", 0, false, false, false, false, 0, 0)
 
 fun sampleDetail(
     id: String,

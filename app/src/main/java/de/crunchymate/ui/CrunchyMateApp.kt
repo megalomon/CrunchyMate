@@ -5,12 +5,11 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,6 +35,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import de.crunchymate.AppContainer
 import de.crunchymate.R
+import de.crunchymate.ui.components.CompactNavigationBar
+import de.crunchymate.ui.components.CompactNavigationItem
 import de.crunchymate.ui.detail.DetailDestination
 import de.crunchymate.ui.detail.DetailViewModel
 import de.crunchymate.ui.search.AnimeGridDestination
@@ -43,6 +44,7 @@ import de.crunchymate.ui.search.GridMode
 import de.crunchymate.ui.search.SearchViewModel
 import de.crunchymate.ui.settings.SettingsDestination
 import de.crunchymate.ui.settings.SettingsViewModel
+import de.crunchymate.ui.theme.Dimens
 import kotlin.reflect.KClass
 
 private enum class TopLevel(
@@ -83,13 +85,13 @@ private fun AppShell(
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
+                CompactNavigationBar {
                     TopLevel.entries.forEach { item ->
-                        NavigationBarItem(
+                        CompactNavigationItem(
                             selected = destination.isOn(item),
                             onClick = { navController.navigateTopLevel(item.route) },
                             icon = { NavIcon(item, badges, syncRunning) },
-                            label = { Text(stringResource(item.label)) },
+                            label = stringResource(item.label),
                         )
                     }
                 }
@@ -122,7 +124,7 @@ private fun NavIcon(
             }
         },
     ) {
-        Icon(painterResource(item.icon), contentDescription = null)
+        Icon(painterResource(item.icon), contentDescription = null, modifier = Modifier.size(Dimens.NavigationIcon))
     }
 }
 

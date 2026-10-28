@@ -8,6 +8,7 @@ import android.content.Context
 import android.graphics.drawable.Icon
 import de.crunchymate.R
 import de.crunchymate.core.ffi.SyncKind
+import de.crunchymate.core.ffi.SyncPhase
 
 /** Benachrichtigung für laufende Synchronisationen; eine eigene ID je Art, damit beide parallel sichtbar sind. */
 object SyncNotifications {
@@ -35,6 +36,7 @@ object SyncNotifications {
     fun build(
         context: Context,
         kind: SyncKind,
+        phase: SyncPhase,
         done: Long,
         total: Long,
         cancelIntent: PendingIntent,
@@ -46,7 +48,7 @@ object SyncNotifications {
             }
         val text =
             if (total > 0) {
-                context.getString(R.string.notification_sync_progress, done, total)
+                context.getString(R.string.notification_sync_phase_progress, context.getString(syncPhaseLabel(kind, phase)), done, total)
             } else {
                 context.getString(R.string.notification_sync_preparing)
             }

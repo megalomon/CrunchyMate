@@ -67,6 +67,7 @@ pub struct AnimeSummary {
     pub watched: bool,
     pub is_meh: bool,
     pub prefer_matches: i32,
+    pub episode_count: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]

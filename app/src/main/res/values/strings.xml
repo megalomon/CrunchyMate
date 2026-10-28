@@ -23,6 +23,11 @@
         <item quantity="one">%d bevorzugter Tag</item>
         <item quantity="other">%d bevorzugte Tags</item>
     </plurals>
+    <string name="card_episodes">%1$d Ep.</string>
+    <string name="card_series">Serie</string>
+    <string name="flag_dub_description">Synchronfassung verfügbar</string>
+    <string name="flag_sub_only_description">Nur Untertitel</string>
+    <string name="flag_none_description">Keine Fassung in der Inhaltssprache</string>
     <string name="action_toggle_watched">Als gesehen markieren</string>
     <string name="action_toggle_meh">Als uninteressant markieren</string>
     <string name="state_watched">Gesehen</string>
@@ -34,7 +39,11 @@
     <string name="sync_status_running">Synchronisation läuft</string>
     <string name="sync_status_idle">Keine Synchronisation aktiv</string>
     <string name="sync_status_cancelled">Abgebrochen</string>
+    <string name="sync_phase_catalog">Katalog</string>
+    <string name="sync_phase_enrichment">Anreicherung</string>
+    <string name="sync_phase_images">Bilder</string>
     <string name="sync_progress">%1$d / %2$d</string>
+    <string name="sync_phase_progress">%1$s: %2$d / %3$d</string>
     <string name="sync_last_finished">Zuletzt abgeschlossen: %1$s</string>
     <string name="sync_never_finished">Noch nicht abgeschlossen</string>
     <string name="sync_last_error">Letzter Fehler: %1$s</string>
@@ -48,7 +57,7 @@
     <string name="notification_sync_catalog_title">Crunchyroll-Katalog wird synchronisiert</string>
     <string name="notification_sync_metadata_title">AniList-Anreicherung läuft</string>
     <string name="notification_sync_preparing">Wird vorbereitet …</string>
-    <string name="notification_sync_progress">%1$d von %2$d</string>
+    <string name="notification_sync_phase_progress">%1$s: %2$d von %3$d</string>
     <string name="notification_action_cancel">Abbrechen</string>
     <string name="settings_title">Einstellungen</string>
     <string name="settings_sync_catalog_title">Crunchyroll-Katalog</string>
@@ -66,6 +75,8 @@
     <string name="stat_meh">Meh (ausgeblendet)</string>
     <string name="stat_enriched">AniList angereichert</string>
     <string name="stat_tags">AniList-Tags</string>
+    <string name="stat_images">Bilder</string>
+    <string name="stat_images_value">%1$d (%2$s)</string>
     <string name="search_placeholder">Suchen</string>
     <string name="search_clear">Suche löschen</string>
     <string name="filter_watched_label">Gesehene</string>

@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import android.text.format.Formatter
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
@@ -84,6 +85,7 @@ fun SettingsScreen(
         Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineSmall)
         SyncCard(
             title = stringResource(R.string.settings_sync_catalog_title),
+            kind = SyncKind.CATALOG,
             state = state.catalog,
             onStart = { startWithPermission(SyncKind.CATALOG) },
             onCancel = { onCancelSync(SyncKind.CATALOG) },
@@ -95,6 +97,7 @@ fun SettingsScreen(
         )
         SyncCard(
             title = stringResource(R.string.settings_sync_metadata_title),
+            kind = SyncKind.METADATA,
             state = state.metadata,
             onStart = { startWithPermission(SyncKind.METADATA) },
             onCancel = { onCancelSync(SyncKind.METADATA) },
@@ -172,11 +175,20 @@ private fun StatsSection(stats: Stats) {
             horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
             verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
         ) {
-            StatTile(R.drawable.ic_stat_total, R.string.stat_total, stats.total)
-            StatTile(R.drawable.ic_stat_watched, R.string.stat_watched, stats.watched)
-            StatTile(R.drawable.ic_stat_meh, R.string.stat_meh, stats.meh)
-            StatTile(R.drawable.ic_stat_enriched, R.string.stat_enriched, stats.enriched)
-            StatTile(R.drawable.ic_stat_tags, R.string.stat_tags, stats.tags)
+            StatTile(R.drawable.ic_stat_total, R.string.stat_total, stats.total.toString())
+            StatTile(R.drawable.ic_stat_watched, R.string.stat_watched, stats.watched.toString())
+            StatTile(R.drawable.ic_stat_meh, R.string.stat_meh, stats.meh.toString())
+            StatTile(R.drawable.ic_stat_enriched, R.string.stat_enriched, stats.enriched.toString())
+            StatTile(R.drawable.ic_stat_tags, R.string.stat_tags, stats.tags.toString())
+            StatTile(
+                R.drawable.ic_stat_total,
+                R.string.stat_images,
+                stringResource(
+                    R.string.stat_images_value,
+                    stats.imageCount,
+                    Formatter.formatShortFileSize(LocalContext.current, stats.imageBytes),
+                ),
+            )
         }
     }
 }
@@ -185,12 +197,12 @@ private fun StatsSection(stats: Stats) {
 private fun StatTile(
     @DrawableRes icon: Int,
     @StringRes label: Int,
-    value: Long,
+    value: String,
 ) {
     Card(Modifier.widthIn(min = Dimens.StatTileMinWidth)) {
         Column(Modifier.padding(Dimens.SpaceMd), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXs)) {
             Icon(painterResource(icon), contentDescription = null, Modifier.size(Dimens.StatTileIcon))
-            Text(value.toString(), style = MaterialTheme.typography.headlineSmall)
+            Text(value, style = MaterialTheme.typography.headlineSmall)
             Text(stringResource(label), style = MaterialTheme.typography.bodySmall)
         }
     }

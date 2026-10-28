@@ -110,7 +110,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.coil.compose)
-    implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.work.runtime.ktx)
     // Android braucht das AAR mit den nativen JNA-Bibliotheken statt des JVM-JARs
     implementation(libs.jna) {

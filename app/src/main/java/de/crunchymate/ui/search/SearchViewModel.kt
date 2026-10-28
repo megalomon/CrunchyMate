@@ -95,6 +95,13 @@ class SearchViewModel internal constructor(
                 Pager(PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = true), pagingSourceFactory = factory).flow
             }.cachedIn(viewModelScope)
 
+    /** Sprache, für die die Karten die Verfügbarkeit der Fassung anzeigen. */
+    val contentLocale: StateFlow<String> =
+        settingsStore.settings
+            .map { it.contentLocale }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.Eagerly, settingsStore.settings.value.contentLocale)
+
     val uiState: StateFlow<SearchUiState> =
         combine(search, genres, tags, tagQuery, total) { state, genreList, tagList, tagFilter, totalState ->
             SearchUiState(
