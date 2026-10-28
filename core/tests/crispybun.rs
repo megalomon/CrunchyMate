@@ -1,6 +1,6 @@
 use crunchymate_core::error::CoreError;
 use crunchymate_core::remote::catalog_source::CatalogSource;
-use crunchymate_core::remote::crunchyroll::CrunchyrollSource;
+use crunchymate_core::remote::crispybun::CrispyBunSource;
 use serde_json::json;
 use wiremock::matchers::{body_string, header, header_exists, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -9,8 +9,8 @@ fn token_body(token: &str, country: &str) -> serde_json::Value {
     json!({ "access_token": token, "expires_in": 300, "country": country })
 }
 
-fn source(server: &MockServer) -> CrunchyrollSource {
-    CrunchyrollSource::with_endpoints(
+fn source(server: &MockServer) -> CrispyBunSource {
+    CrispyBunSource::with_endpoints(
         format!("{}/auth/v1/token", server.uri()),
         format!("{}/content/v2/discover/browse", server.uri()),
     )
@@ -214,7 +214,7 @@ async fn non_json_body_is_parse_error() {
 #[tokio::test]
 async fn construction_without_network_then_first_fetch_fails_with_network() {
     // Port 1 ist nicht erreichbar; der Konstruktor darf trotzdem nicht scheitern.
-    let src = CrunchyrollSource::with_endpoints(
+    let src = CrispyBunSource::with_endpoints(
         "http://127.0.0.1:1/auth".to_string(),
         "http://127.0.0.1:1/browse".to_string(),
     )

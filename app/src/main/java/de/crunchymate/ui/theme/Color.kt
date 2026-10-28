@@ -2,8 +2,8 @@ package de.crunchymate.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val CrunchyrollOrange = Color(0xFFF47521)
-val CrunchyrollOrangeLight = Color(0xFFFF8533)
+val CrispyBunOrange = Color(0xFFF47521)
+val CrispyBunOrangeLight = Color(0xFFFF8533)
 val OnOrange = Color(0xFF1A0E05)
 
 // Tag-Zustände wie in der früheren Weboberfläche (style.css)

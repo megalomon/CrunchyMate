@@ -4,9 +4,9 @@
 
 **Goal:** CrunchyMate wird zu einer reinen Android-App mit Fachlogik in Rust (UniFFI) und nativer Jetpack-Compose-UI, gebaut und als Nightly veröffentlicht über GitHub Actions.
 
-**Architecture:** Crate `core/` (rusqlite, reqwest/rustls, tokio, crunchyroll-rs) kapselt Persistenz, Filterlogik, Remote-Quellen hinter Traits und Sync-Abläufe; exportiert wird ein UniFFI-Objekt `Core`. Das Android-Modul `app/` enthält nur Compose-Screens, ViewModels, WorkManager-Worker und Benachrichtigungen und spricht ausschließlich über einen `CoreGateway` mit dem Kern. Go-Server, Web-Frontend und die alte Kotlin-Implementierung entfallen.
+**Architecture:** Crate `core/` (rusqlite, reqwest/rustls, tokio, crispybun-rs) kapselt Persistenz, Filterlogik, Remote-Quellen hinter Traits und Sync-Abläufe; exportiert wird ein UniFFI-Objekt `Core`. Das Android-Modul `app/` enthält nur Compose-Screens, ViewModels, WorkManager-Worker und Benachrichtigungen und spricht ausschließlich über einen `CoreGateway` mit dem Kern. Go-Server, Web-Frontend und die alte Kotlin-Implementierung entfallen.
 
-**Tech Stack:** Rust (rusqlite `bundled`, reqwest `rustls-tls`, tokio, serde, uniffi, async-trait, thiserror, regex, crunchyroll-rs, wiremock), Kotlin (Compose Material 3, Navigation Compose typsicher, Lifecycle ViewModel, Paging 3, Coil, WorkManager, kotlinx-coroutines, kotlinx-serialization, JNA), Gradle mit Version Catalog, cargo-ndk, GitHub Actions.
+**Tech Stack:** Rust (rusqlite `bundled`, reqwest `rustls-tls`, tokio, serde, uniffi, async-trait, thiserror, regex, crispybun-rs, wiremock), Kotlin (Compose Material 3, Navigation Compose typsicher, Lifecycle ViewModel, Paging 3, Coil, WorkManager, kotlinx-coroutines, kotlinx-serialization, JNA), Gradle mit Version Catalog, cargo-ndk, GitHub Actions.
 
 **Spec:** `docs/superpowers/specs/2026-10-28-rust-core-native-ui-design.md`
 
@@ -48,7 +48,7 @@
 - Create: `docs/superpowers/notes/2026-10-28-vorpruefung.md`
 
 **Interfaces:**
-- Produces: die Notiz mit (a) allen Versionsnummern für `libs.versions.toml` und `Cargo.toml`, (b) NDK-Version, (c) Entscheidung `compileSdk` 37 oder 37.2 inklusive AGP-Syntax, (d) Entscheidung `crunchyroll-rs` ja/nein inklusive der konkreten API-Aufrufe (Login anonym, Browse mit Start/Anzahl/Locale/Sortierung, Felder für Audio-/Untertitel-Locales, Bilder, Kategorien, Land der Sitzung).
+- Produces: die Notiz mit (a) allen Versionsnummern für `libs.versions.toml` und `Cargo.toml`, (b) NDK-Version, (c) Entscheidung `compileSdk` 37 oder 37.2 inklusive AGP-Syntax, (d) Entscheidung `crispybun-rs` ja/nein inklusive der konkreten API-Aufrufe (Login anonym, Browse mit Start/Anzahl/Locale/Sortierung, Felder für Audio-/Untertitel-Locales, Bilder, Kategorien, Land der Sitzung).
 
 - [ ] **Step 1: rustup installieren und Distributions-Rust ersetzen**
 
@@ -65,10 +65,10 @@ Expected: `sdkmanager --list_installed` listet Plattform 37 und NDK; `actionlint
 `sdkmanager --list | grep -i "android-37"` und AGP-Release-Notes zur Minor-SDK-Konfiguration lesen.
 Expected: Notiz hält fest, ob `platforms;android-37.2` (o. ä.) stabil verfügbar ist und welche AGP-Syntax die Minor-Version setzt; sonst Entscheidung `compileSdk = 37`.
 
-- [ ] **Step 4: crunchyroll-rs prüfen**
+- [ ] **Step 4: crispybun-rs prüfen**
 
 In einem Wegwerf-Crate im Scratchpad die aktuelle Version mit rustls-Feature einbinden, Doku und Quellcode lesen, anonymen Login und eine Browse-Seite (`locale` de-DE, sortiert nach Popularität, 50 Einträge) abrufen und `cargo ndk -t arm64-v8a build` ausführen.
-Expected: Notiz hält fest: Version, Lizenz, Datum des letzten Releases, ob alle in „Produces“ genannten Daten erreichbar sind und ob der Android-Build gelingt. Entscheidungsregel: Nur wenn alles zutrifft, wird `crunchyroll-rs` verwendet; sonst eigene reqwest-Implementierung nach dem Vorbild von `git show 1d5ca54:android/app/src/main/java/de/crunchymate/sync/CrunchyrollClient.kt`. Das Wegwerf-Crate wird nicht eingecheckt.
+Expected: Notiz hält fest: Version, Lizenz, Datum des letzten Releases, ob alle in „Produces“ genannten Daten erreichbar sind und ob der Android-Build gelingt. Entscheidungsregel: Nur wenn alles zutrifft, wird `crispybun-rs` verwendet; sonst eigene reqwest-Implementierung nach dem Vorbild von `git show 1d5ca54:android/app/src/main/java/de/crunchymate/sync/CrispyBunClient.kt`. Das Wegwerf-Crate wird nicht eingecheckt.
 
 - [ ] **Step 5: Aktuelle Versionen ermitteln**
 
@@ -79,7 +79,7 @@ Expected: vollständige Versionstabelle in der Notiz.
 
 ```bash
 git add docs/superpowers/notes/2026-10-28-vorpruefung.md
-git commit -m "docs: Vorprüfung Toolchain, SDK 37.2 und crunchyroll-rs"
+git commit -m "docs: Vorprüfung Toolchain, SDK 37.2 und crispybun-rs"
 ```
 
 ### Task 2: Altbestand entfernen, Rust-Workspace und Projektregeln in CLAUDE.md
@@ -241,7 +241,7 @@ git commit -m "feat(core): Fehlertypen, Modelle und SQLite-Schema"
   pub fn unenriched(conn: &Connection) -> CoreResult<Vec<(String, String)>> // (id, title), anilist_id IS NULL, nach Titel
   pub fn count_enriched(conn: &Connection) -> CoreResult<u64>
   ```
-  Regeln: Upsert aktualisiert Crunchyroll-Felder, lässt `watched`, `is_meh`, Zeitstempel und AniList-Felder unberührt und ergänzt Genre-Zuordnungen. `apply_metadata` setzt AniList-Felder und `anilist_synced_at`, legt Tags (`INSERT OR IGNORE`) und Zuordnungen mit `rank` an (bei Konflikt `rank` aktualisieren) und ergänzt Genres. `set_watched(true)` setzt `watched_at = now`, `false` setzt `NULL`; ebenso `meh_at`. `poster_url` = `poster_tall`, sonst `poster_wide`; `banner_url` = `anilist_banner_image`, sonst `poster_wide`. `anilist` ist `Some`, wenn `anilist_id` gesetzt ist. Tags im Detail nach `rank` absteigend. `Stats.watched` zählt `watched = 1` unabhängig von Meh; `Stats.meh` zählt `is_meh = 1`; `enriched` zählt `anilist_id IS NOT NULL`; `tags` zählt Zeilen in `tags`. Eine unbekannte ID bei `set_watched`/`set_meh` ist kein Fehler.
+  Regeln: Upsert aktualisiert KnusperBrötchen-Felder, lässt `watched`, `is_meh`, Zeitstempel und AniList-Felder unberührt und ergänzt Genre-Zuordnungen. `apply_metadata` setzt AniList-Felder und `anilist_synced_at`, legt Tags (`INSERT OR IGNORE`) und Zuordnungen mit `rank` an (bei Konflikt `rank` aktualisieren) und ergänzt Genres. `set_watched(true)` setzt `watched_at = now`, `false` setzt `NULL`; ebenso `meh_at`. `poster_url` = `poster_tall`, sonst `poster_wide`; `banner_url` = `anilist_banner_image`, sonst `poster_wide`. `anilist` ist `Some`, wenn `anilist_id` gesetzt ist. Tags im Detail nach `rank` absteigend. `Stats.watched` zählt `watched = 1` unabhängig von Meh; `Stats.meh` zählt `is_meh = 1`; `enriched` zählt `anilist_id IS NOT NULL`; `tags` zählt Zeilen in `tags`. Eine unbekannte ID bei `set_watched`/`set_meh` ist kein Fehler.
 
 - [ ] **Step 1: Tests schreiben**
 
@@ -458,12 +458,12 @@ git add core
 git commit -m "feat(core): AniList-Metadatenquelle mit Batch-Suche und Backoff"
 ```
 
-### Task 8: Crunchyroll-Katalogquelle
+### Task 8: KnusperBrötchen-Katalogquelle
 
 **Files:**
-- Create: `core/src/remote/catalog_source.rs`, `core/src/remote/crunchyroll.rs`, `core/src/remote/catalog_mapping.rs`
+- Create: `core/src/remote/catalog_source.rs`, `core/src/remote/crispybun.rs`, `core/src/remote/catalog_mapping.rs`
 - Modify: `core/src/remote/mod.rs` (aus Task 7)
-- Test: `core/src/remote/catalog_mapping.rs`, `core/tests/crunchyroll.rs` (nur bei eigener reqwest-Implementierung, wiremock)
+- Test: `core/src/remote/catalog_mapping.rs`, `core/tests/crispybun.rs` (nur bei eigener reqwest-Implementierung, wiremock)
 
 **Interfaces:**
 - Consumes: `CatalogItem`, `CatalogPage` (Task 3); Entscheidung aus Task 1.
@@ -474,8 +474,8 @@ git commit -m "feat(core): AniList-Metadatenquelle mit Batch-Suche und Backoff"
       async fn session_country(&self) -> CoreResult<String>;
       async fn fetch_page(&self, start: u32, count: u32, locale: &str) -> CoreResult<CatalogPage>;
   }
-  pub struct CrunchyrollSource { /* … */ }
-  impl CrunchyrollSource { pub async fn connect() -> CoreResult<Self> }  // anonymer Login
+  pub struct CrispyBunSource { /* … */ }
+  impl CrispyBunSource { pub async fn connect() -> CoreResult<Self> }  // anonymer Login
   // catalog_mapping.rs – reine Funktionen, unabhängig von der Bibliothek
   pub struct RawSeries { pub id: String, pub title: String, pub description: String,
       pub poster_tall: Vec<ImageCandidate>, pub poster_wide: Vec<ImageCandidate>,
@@ -490,7 +490,7 @@ git commit -m "feat(core): AniList-Metadatenquelle mit Batch-Suche und Backoff"
   pub const POSTER_WIDE_WIDTH: (u32, u32) = (640, 1280);
   pub const SUPPORTED_CONTENT_LOCALES: &[&str]; // Locales, die der Katalog laut Task 1 liefert; erstes Element "de-DE"
   ```
-  Regeln (aus `git show 1d5ca54:android/app/src/main/java/de/crunchymate/sync/CrunchyrollClient.kt`): Sprachvergleich über das Primärsubtag (`de-DE` -> `de`), Groß-/Kleinschreibung egal. Titelheuristik nur, wenn das Primärsubtag `de` ist: Titel enthält „german dub“ oder „synchro“ -> Dub; „omu“ oder „(ov)“ -> Sub. `pick_image`: erster Kandidat mit Breite im Bereich, sonst der letzte, leer bei keiner Auswahl. Kategorien getrimmt, leere verworfen. `session_country` liefert das Land der Sitzung in Großbuchstaben. Sortierung beim Abruf: Popularität; `locale` steuert Locale-Parameter und `Accept-Language`. Bei eigener Implementierung: Token-Abruf mit `grant_type=client_id`, bei 401 einmal neu anmelden; Land aus dem Feld `country` der Token-Antwort; Zugangsdaten als benannte Konstante wie bisher.
+  Regeln (aus `git show 1d5ca54:android/app/src/main/java/de/crunchymate/sync/CrispyBunClient.kt`): Sprachvergleich über das Primärsubtag (`de-DE` -> `de`), Groß-/Kleinschreibung egal. Titelheuristik nur, wenn das Primärsubtag `de` ist: Titel enthält „german dub“ oder „synchro“ -> Dub; „omu“ oder „(ov)“ -> Sub. `pick_image`: erster Kandidat mit Breite im Bereich, sonst der letzte, leer bei keiner Auswahl. Kategorien getrimmt, leere verworfen. `session_country` liefert das Land der Sitzung in Großbuchstaben. Sortierung beim Abruf: Popularität; `locale` steuert Locale-Parameter und `Accept-Language`. Bei eigener Implementierung: Token-Abruf mit `grant_type=client_id`, bei 401 einmal neu anmelden; Land aus dem Feld `country` der Token-Antwort; Zugangsdaten als benannte Konstante wie bisher.
 
 - [ ] **Step 1: Tests schreiben**
 
@@ -503,14 +503,14 @@ git commit -m "feat(core): AniList-Metadatenquelle mit Batch-Suche und Backoff"
 #[test] fn pick_image_empty() { /* [] -> "" */ }
 #[test] fn to_catalog_item_trims_categories() {}
 ```
-Bei eigener Implementierung zusätzlich in `core/tests/crunchyroll.rs`: `reauthenticates_once_on_401`, `reads_country_from_token`, `maps_browse_page`.
+Bei eigener Implementierung zusätzlich in `core/tests/crispybun.rs`: `reauthenticates_once_on_401`, `reads_country_from_token`, `maps_browse_page`.
 
 - [ ] **Step 2: Tests ausführen**
 
 Run: `cargo test -p crunchymate-core catalog`
 Expected: FAIL
 
-- [ ] **Step 3: Implementieren** (`CrunchyrollSource` füllt `RawSeries` aus den Bibliothekstypen bzw. der JSON-Antwort und ruft `to_catalog_item`)
+- [ ] **Step 3: Implementieren** (`CrispyBunSource` füllt `RawSeries` aus den Bibliothekstypen bzw. der JSON-Antwort und ruft `to_catalog_item`)
 
 - [ ] **Step 4: Tests ausführen**
 
@@ -519,14 +519,14 @@ Expected: PASS
 
 - [ ] **Step 5: Manuelle Probe gegen die echte API (nicht in CI)**
 
-Run: `cargo test -p crunchymate-core --test crunchyroll_live -- --ignored` (ein `#[ignore]`-Test, der eine Seite mit 5 Einträgen abruft und `total > 0` sowie ein gesetztes Land prüft)
+Run: `cargo test -p crunchymate-core --test crispybun_live -- --ignored` (ein `#[ignore]`-Test, der eine Seite mit 5 Einträgen abruft und `total > 0` sowie ein gesetztes Land prüft)
 Expected: PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add core
-git commit -m "feat(core): Crunchyroll-Katalogquelle hinter CatalogSource"
+git commit -m "feat(core): KnusperBrötchen-Katalogquelle hinter CatalogSource"
 ```
 
 ### Task 9: Sync-Abläufe
@@ -600,7 +600,7 @@ git commit -m "feat(core): Katalog-Sync und AniList-Anreicherung mit Fortschritt
   pub struct Core { db: Arc<Database>, catalog: Arc<dyn CatalogSource>, metadata: Arc<dyn MetadataSource>, config: SyncConfig }
   #[uniffi::export(async_runtime = "tokio")]
   impl Core {
-      #[uniffi::constructor] pub fn new(db_path: String) -> CoreResult<Arc<Self>>  // öffnet DB, reset_orphaned_runs, echte Quellen (CrunchyrollSource lazy beim ersten Sync)
+      #[uniffi::constructor] pub fn new(db_path: String) -> CoreResult<Arc<Self>>  // öffnet DB, reset_orphaned_runs, echte Quellen (CrispyBunSource lazy beim ersten Sync)
       pub fn query_anime(&self, filter: AnimeFilter, offset: u32, limit: u32) -> CoreResult<AnimePage>
       pub fn get_anime(&self, id: String) -> CoreResult<Option<AnimeDetail>>
       pub fn set_watched(&self, id: String, watched: bool) -> CoreResult<()>
@@ -774,7 +774,7 @@ git commit -m "feat(app): CoreGateway, Einstellungsspeicher, Paging und Fehlerte
   @Composable fun EmptyState(@DrawableRes icon: Int, title: String, subtitle: String)
   ```
   `SyncUiState` wird in Task 15 definiert; für diesen Task wird es bereits in `app/src/main/java/de/crunchymate/sync/SyncUiState.kt` angelegt: `data class SyncUiState(val running: Boolean, val done: Long, val total: Long, val lastFinishedAt: Long?, val lastError: ErrorCode?)` mit `companion object { val Idle }`.
-  Farben: Primär Crunchyroll-Orange `#F47521`; Tag-Zustände Boost `#3DB4F2`, Muss `#4CAF50`, Ausgeschlossen `#FF9800` (Werte aus `git show 1d5ca54:web/static/style.css` übernehmen, falls dort abweichend). Dunkles und helles Schema, keine Dynamic Colors.
+  Farben: Primär Knusper-Orange `#F47521`; Tag-Zustände Boost `#3DB4F2`, Muss `#4CAF50`, Ausgeschlossen `#FF9800` (Werte aus `git show 1d5ca54:web/static/style.css` übernehmen, falls dort abweichend). Dunkles und helles Schema, keine Dynamic Colors.
   Bereits vorhandene Dateien in `app/src/main/res/drawable/`, die per `/check-svg` aus gelieferten SVGs entstanden sind (Quelle in `design/icons/`), werden nicht durch Platzhalter überschrieben.
   Icon-Dateien (Platzhalter, 24 dp, einfarbig): `ic_nav_search`, `ic_nav_watched`, `ic_nav_meh`, `ic_nav_settings`, `ic_watched_on`, `ic_watched_off`, `ic_meh_on`, `ic_meh_off`, `ic_badge_score`, `ic_badge_dub`, `ic_badge_sub`, `ic_badge_boost`, `ic_tag_prefer`, `ic_tag_must`, `ic_tag_exclude`, `ic_clear`, `ic_tags_reset`, `ic_sync_start`, `ic_sync_cancel`, `ic_open_external`, `ic_dropdown`, `ic_back`, `ic_state_empty`, `ic_state_error`, `ic_stat_total`, `ic_stat_watched`, `ic_stat_meh`, `ic_stat_enriched`, `ic_stat_tags`, `ic_notification_sync`, `ic_launcher_foreground`, `ic_launcher_background`, `ic_launcher_monochrome`. `docs/icons.md` enthält bereits jede Datei mit Bedeutung, Anforderungen und Emoji-Entsprechung; liegen in `design/icons/` gelieferte SVGs vor, werden sie umgewandelt und eingetragen, sonst bleibt die Datei unverändert.
   Jede Komponente setzt `contentDescription` aus String-Ressourcen; `TagChip` zeigt Zustand per Farbe und Icon und setzt `stateDescription`.

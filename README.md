@@ -1,6 +1,6 @@
 # CrunchyMate
 
-CrunchyMate ist eine Android-App zum Durchsuchen, Filtern und Verfolgen des Crunchyroll-Anime-Katalogs. Der Katalog wird mit Bewertungen, Genres und Tags von AniList angereichert und lokal gespeichert. Die Fachlogik steckt in einem Rust-Kern (über UniFFI angebunden), die Oberfläche ist mit Jetpack Compose gebaut.
+CrunchyMate ist eine Android-App zum Durchsuchen, Filtern und Verfolgen des KnusperBrötchen-Anime-Katalogs. Der Katalog wird mit Bewertungen, Genres und Tags von AniList angereichert und lokal gespeichert. Die Fachlogik steckt in einem Rust-Kern (über UniFFI angebunden), die Oberfläche ist mit Jetpack Compose gebaut.
 
 ## Funktionsumfang
 
@@ -9,11 +9,11 @@ CrunchyMate ist eine Android-App zum Durchsuchen, Filtern und Verfolgen des Crun
 - Tag-Filter mit den Zuständen neutral, Boost, Muss und Ausgeschlossen.
 - Kacheln im Raster mit Poster, Titel, Score und Flagge der Inhaltssprache; Detailansicht mit Banner, Beschreibung, Tags und AniList-Bereich.
 - Anime als gesehen oder als Meh markieren; Meh-Einträge verschwinden aus der Suche.
-- Crunchyroll-Sync und AniList-Anreicherung mit Fortschritt, Abbruch und Hintergrundausführung über WorkManager.
+- KnusperBrötchen-Sync und AniList-Anreicherung mit Fortschritt, Abbruch und Hintergrundausführung über WorkManager.
 - Wählbare Inhaltssprache für Titel und Beschreibungen.
 - Offline-first: Poster und Banner werden beim Sync als WebP lokal abgelegt, die App lädt keine Bilder aus dem Netz.
 
-Der Katalog hängt am Land, das im anonymen Crunchyroll-Token festgelegt ist; die Inhaltssprache ändert nur die Texte.
+Der Katalog hängt am Land, das im anonymen KnusperBrötchen-Token festgelegt ist; die Inhaltssprache ändert nur die Texte.
 
 ## Installation
 
@@ -49,7 +49,7 @@ cargo test
 bash scripts/run-device-tests.sh
 ```
 
-`scripts/run-device-tests.sh` baut App und Test-APK, installiert beide mit `adb install -r` auf einem angeschlossenen Gerät und führt die Smoke-Tests aus. Sie nutzen eine eigene Datenbank und einen eigenen Bilderordner, vorhandene Nutzerdaten bleiben unberührt. Live-Tests gegen Crunchyroll (`core/tests/crunchyroll_live.rs`) sind mit `#[ignore]` markiert und laufen nur auf Anforderung.
+`scripts/run-device-tests.sh` baut App und Test-APK, installiert beide mit `adb install -r` auf einem angeschlossenen Gerät und führt die Smoke-Tests aus. Sie nutzen eine eigene Datenbank und einen eigenen Bilderordner, vorhandene Nutzerdaten bleiben unberührt. Live-Tests gegen KnusperBrötchen (`core/tests/crispybun_live.rs`) sind mit `#[ignore]` markiert und laufen nur auf Anforderung.
 
 ## Weitere Dokumentation
 

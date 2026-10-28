@@ -17,7 +17,7 @@ CrunchyMate wird komplett renoviert. Der Go-Webserver und das JS/HTML/CSS-Fronte
 - Build über GitHub Actions; Nightly-Release, zusätzlich manuell auslösbar.
 - Funktionsumfang 1:1 wie die heutige Web-UI.
 - Mehrsprachigkeit von Anfang an vorbereitet; zum Start nur Deutsch.
-- Crunchyroll-Inhaltssprache umstellbar (siehe 5.3).
+- KnusperBrötchen-Inhaltssprache umstellbar (siehe 5.3).
 - Code modular, wartbar, erweiterbar; Clean-Code-Prinzipien.
 - Keine Emojis – weder in UI noch Code, Kommentaren oder Dokumentation. Icons als SVG (VectorDrawable), Rastergrafiken als WebP. Die konkreten Symbole wählt der Auftraggeber selbst aus (Liste in 7.6).
 - Bestehende Installationen und Daten müssen nicht migriert werden (frischer Start).
@@ -31,7 +31,7 @@ CrunchyMate wird komplett renoviert. Der Go-Webserver und das JS/HTML/CSS-Fronte
 
 ## 2. Nicht-Ziele
 
-- Kein echter Länderkatalog: Das Katalogland ist im signierten Crunchyroll-Token festgelegt und wird serverseitig bestimmt (Ergebnis des Spikes, siehe 5.3). Geo-Sperren werden nicht umgangen.
+- Kein echter Länderkatalog: Das Katalogland ist im signierten KnusperBrötchen-Token festgelegt und wird serverseitig bestimmt (Ergebnis des Spikes, siehe 5.3). Geo-Sperren werden nicht umgangen.
 - Keine Datenmigration aus der bisherigen App.
 - Keine Strings in einer Datenbank; Texte liegen in Android-Ressourcen.
 - Kein Hilt/Dagger; Abhängigkeiten werden manuell verdrahtet.
@@ -45,7 +45,7 @@ CrunchyMate wird komplett renoviert. Der Go-Webserver und das JS/HTML/CSS-Fronte
 - Kachel: Poster, Titel, Score, Anzahl Boost-Treffer, Fassungs-Badge, Gesehen- und Meh-Umschalter.
 - Meh-markierte Einträge sind in der Suche ausgeblendet.
 - Detailansicht: Banner, Poster, Titel und Alternativtitel, Jahr, Episoden, Fassung, Genres, Beschreibung, Tags mit Rang, AniList-Bereich (Score, Status, Link), Gesehen/Meh.
-- Einstellungen: Crunchyroll-Sync und AniList-Anreicherung jeweils starten und abbrechen, mit Fortschritt, Status, Zähler, letztem Lauf und letztem Fehler; „Gesehene ausblenden“; Statistik (Gesamt, Gesehen, Meh, Angereichert, Tags).
+- Einstellungen: KnusperBrötchen-Sync und AniList-Anreicherung jeweils starten und abbrechen, mit Fortschritt, Status, Zähler, letztem Lauf und letztem Fehler; „Gesehene ausblenden“; Statistik (Gesamt, Gesehen, Meh, Angereichert, Tags).
 - Suchzustand und „Gesehene ausblenden“ werden gespeichert und beim Start wiederhergestellt.
 
 Änderungen gegenüber heute: Paging statt fester Grenze von 150 Einträgen; Detailansicht als eigenes Navigationsziel statt Modal; Fassungsfilter bezieht sich auf die eingestellte Inhaltssprache statt fest auf Deutsch; Icons statt Emojis.
@@ -54,7 +54,7 @@ CrunchyMate wird komplett renoviert. Der Go-Webserver und das JS/HTML/CSS-Fronte
 
 ### 4.1. Aufgabenteilung
 
-- **Rust-Kern (`core/`)**: gesamte Fachlogik und Persistenz – SQLite, Filter/Suche/Sortierung, Crunchyroll- und AniList-Anbindung, Sync-Abläufe, Einstellungen.
+- **Rust-Kern (`core/`)**: gesamte Fachlogik und Persistenz – SQLite, Filter/Suche/Sortierung, KnusperBrötchen- und AniList-Anbindung, Sync-Abläufe, Einstellungen.
 - **Kotlin (`app/`)**: Compose-Screens, ViewModels, Navigation, WorkManager-Worker, Benachrichtigungen, Übersetzung von Fehlercodes in Texte. Keine Fachlogik.
 - **Schnittstelle**: UniFFI (Proc-Macros). Rust-`async fn` werden zu Kotlin-`suspend fun`; Objekte erhalten generierte Interfaces (z. B. `CoreInterface`), gegen die Kotlin programmiert und testet.
 
@@ -76,11 +76,11 @@ core/                     Crate "crunchymate-core" (cdylib + lib)
     model.rs              Domänentypen
     remote/
       catalog_source.rs   trait CatalogSource
-      crunchyroll.rs      CatalogSource auf Basis von crunchyroll-rs
+      crispybun.rs      CatalogSource auf Basis von crispybun-rs
       metadata_source.rs  trait MetadataSource
       anilist.rs          MetadataSource, eigene GraphQL-Implementierung
     sync/
-      catalog_sync.rs     Crunchyroll-Sync
+      catalog_sync.rs     KnusperBrötchen-Sync
       enrichment.rs       AniList-Anreicherung
       progress.rs         SyncKind, SyncProgress, trait SyncObserver
       config.rs           SyncConfig (Pausen, Batch-Größen, Retries)
@@ -112,7 +112,7 @@ Entfernt werden: `cmd/`, `internal/`, `web/`, `go.mod`, `go.sum`, `android/` (In
 
 ### 4.3. Technologie
 
-- Rust: `rusqlite` (Feature `bundled`), `reqwest` mit `rustls`, `serde`/`serde_json`, `tokio`, `uniffi`, `crunchyroll-rs` (TLS über rustls), `thiserror`. Tests: `wiremock`.
+- Rust: `rusqlite` (Feature `bundled`), `reqwest` mit `rustls`, `serde`/`serde_json`, `tokio`, `uniffi`, `crispybun-rs` (TLS über rustls), `thiserror`. Tests: `wiremock`.
 - Kotlin: Jetpack Compose mit Material 3, Navigation Compose, Lifecycle/ViewModel, Paging 3, Coil, WorkManager, kotlinx-coroutines, JNA (Laufzeit für UniFFI).
 - Build: Gradle, AGP und Kotlin (K2, Compose-Compiler-Plugin) jeweils in aktueller stabiler Version, zentral in `gradle/libs.versions.toml`. Java-Toolchain 17. Die konkreten Versionen werden im Plan anhand der zum Umsetzungszeitpunkt aktuellen Releases festgelegt.
 - Rust-Build: Gradle-Task vor `preBuild` ruft `cargo ndk -t arm64-v8a build --release` auf, kopiert die `.so` nach `jniLibs` und erzeugt die Kotlin-Bindings mit `uniffi-bindgen` in `build/generated`. Generierter Code wird nicht eingecheckt.
@@ -130,7 +130,7 @@ Frisches Schema, Versionierung über `PRAGMA user_version`, Migrationen als geor
 
 Zwei SQLite-Dateien (Ergänzung vom 28.10.2026, Vorgabe des Auftraggebers: ins Backup gehören nur Nutzerdaten):
 
-- **Katalog-Datenbank** `crunchymate.db` (WAL): Cache aus Crunchyroll und AniList samt Bildverweisen und Sync-Zustand; jederzeit durch einen Sync neu aufbaubar, nicht im Backup.
+- **Katalog-Datenbank** `crunchymate.db` (WAL): Cache aus KnusperBrötchen und AniList samt Bildverweisen und Sync-Zustand; jederzeit durch einen Sync neu aufbaubar, nicht im Backup.
 - **Nutzer-Datenbank** `crunchymate-user.db` (Rollback-Journal, damit nach jedem Commit alles in einer Datei liegt): Einstellungen und Markierungen; einzige Datei im Android-Backup (`data_extraction_rules.xml`, Cloud-Backup und Gerätewechsel).
 
 Beide hängen auf einer Verbindung (`ATTACH … AS userdata`), damit Filter, Sortierung und Zähler über Markierungen weiter in einer SQL-Abfrage laufen. Markierungen hängen bewusst nicht per Fremdschlüssel am Katalog: sie überstehen das Löschen oder Neuladen des Katalogs und erscheinen nach einer Wiederherstellung, sobald der erste Sync die Einträge geladen hat.
@@ -149,7 +149,7 @@ Nutzer-Datenbank:
 
 Migration von Schema v2 (eine Datei) auf v3: Zuerst werden Markierungen und Einstellungen in die Nutzer-Datenbank kopiert und dort festgeschrieben (Vereinigung mit eventuell vorhandenen Zeilen, wiederholbar), erst danach entfernt eine zweite Transaktion die alten Spalten und die Tabelle `settings` aus dem Katalog. Ein Abbruch dazwischen lässt den Katalog auf v2, die Kopie wird beim nächsten Start wiederholt.
 
-Ändert sich die Inhaltssprache, werden `has_target_sub`/`has_target_dub` erst beim nächsten Crunchyroll-Sync neu berechnet. Bis dahin zeigen die Flaggen die Sprache der gespeicherten Daten, und die Einstellungen weisen auf den nötigen Sync hin (eingestellte Sprache ungleich Sprache des letzten vollständigen Syncs).
+Ändert sich die Inhaltssprache, werden `has_target_sub`/`has_target_dub` erst beim nächsten KnusperBrötchen-Sync neu berechnet. Bis dahin zeigen die Flaggen die Sprache der gespeicherten Daten, und die Einstellungen weisen auf den nötigen Sync hin (eingestellte Sprache ungleich Sprache des letzten vollständigen Syncs).
 
 ### 5.2. Kern-API
 
@@ -196,7 +196,7 @@ Nebenläufigkeit: `Core` hält eine `Mutex<Connection>`; Sync und UI greifen auf
 
 Fehler: `CoreError` als UniFFI-Enum (`Network`, `RateLimited { retry_after_secs }`, `Auth`, `Parse`, `Database`, `UnsupportedSchema { found, supported }`, `Storage` (Bildspeicher), `Incomplete { done, total }` (Katalog endete vor der angekündigten Gesamtzahl), `Internal` (Panic im Kern), `Cancelled`); in Kotlin heißt er `CoreException`. Die Textfelder heißen `detail` statt `message` (Kollision mit `Throwable.message`). Der Kern liefert keine anzeigefertigen Texte.
 
-### 5.3. Crunchyroll-Anbindung und Inhaltssprache
+### 5.3. KnusperBrötchen-Anbindung und Inhaltssprache
 
 Spike-Ergebnis (28.10.2026): Das anonyme Token enthält `country` in den signierten JWT-Claims; der Katalog lieferte für `de-DE`, `en-US`, `fr-FR` und `ja-JP` jeweils `total = 1686`, nur die Texte unterschieden sich. Das Katalogland lässt sich über die API nicht legitim wählen.
 
@@ -206,7 +206,7 @@ Daraus folgt:
 - Das **Katalogland** wird beim Sync aus dem Token gelesen, in `sync_state` gespeichert und in den Einstellungen angezeigt („automatisch erkannt“).
 - Die bisherige Heuristik, Dub/Sub zusätzlich aus dem Titel abzuleiten, wird im Plan anhand des Bestandscodes übernommen, sofern sie sprachunabhängig formulierbar ist; sonst gilt sie nur für Deutsch.
 
-Umsetzung über `crunchyroll-rs` (MIT/Apache-2.0) hinter dem Trait `CatalogSource { token_country(), fetch_page(start, count, locale) }`. Erster Planschritt: prüfen, dass die Bibliothek anonymen Login, paginiertes Browsing sowie Audio- und Untertitel-Locales bietet und mit rustls für `aarch64-linux-android` baut. Fehlt etwas, wird `CatalogSource` mit eigener reqwest-Implementierung umgesetzt (wie heute). Hinweise der Bibliothek zum Umgehen von Cloudflare-Sperren werden nicht übernommen.
+Umsetzung über `crispybun-rs` (MIT/Apache-2.0) hinter dem Trait `CatalogSource { token_country(), fetch_page(start, count, locale) }`. Erster Planschritt: prüfen, dass die Bibliothek anonymen Login, paginiertes Browsing sowie Audio- und Untertitel-Locales bietet und mit rustls für `aarch64-linux-android` baut. Fehlt etwas, wird `CatalogSource` mit eigener reqwest-Implementierung umgesetzt (wie heute). Hinweise der Bibliothek zum Umgehen von Cloudflare-Sperren werden nicht übernommen.
 
 ### 5.4. AniList-Anbindung
 
@@ -214,7 +214,7 @@ Eigene Implementierung hinter `MetadataSource { search_batch(titles) }`: GraphQL
 
 ### 5.5. Sync-Abläufe
 
-- **Crunchyroll-Sync**: lädt den Katalog seitenweise mit Pause zwischen den Seiten, Upsert pro Seite in einer Transaktion. Kein Löschen verschwundener Serien. Bei Abbruch bleiben gespeicherte Seiten erhalten; ein neuer Lauf beginnt von vorn. Eine leere Seite vor der angekündigten Gesamtzahl gilt als Fehler (`Incomplete`), nicht als Ende.
+- **KnusperBrötchen-Sync**: lädt den Katalog seitenweise mit Pause zwischen den Seiten, Upsert pro Seite in einer Transaktion. Kein Löschen verschwundener Serien. Bei Abbruch bleiben gespeicherte Seiten erhalten; ein neuer Lauf beginnt von vorn. Eine leere Seite vor der angekündigten Gesamtzahl gilt als Fehler (`Incomplete`), nicht als Ende.
 - **AniList-Anreicherung**: verarbeitet nur Einträge ohne AniList-Daten in Batches mit Pause; Fehler einzelner Batches werden toleriert und gezählt. Titel ohne Treffer werden erst nach einer Frist (`SyncConfig`, 7 Tage) erneut gesucht.
 - Das Ergebnis jedes Laufs (auch eines gescheiterten) steht in `sync_state`; die Sync-Karte nennt fehlgeschlagene Batches und Bilder, wenn es welche gab. Eine Panic im Kern wird als Fehler (`Internal`) vermerkt, nicht als Abbruch.
 - Fortschritt über UniFFI-Callback-Interface `SyncObserver::on_progress(kind, done, total)`.
@@ -260,7 +260,7 @@ Ein ViewModel je Screen mit `StateFlow<UiState>` (unveränderliche Data Classes)
 
 ### 7.4. Theme
 
-Material 3, dunkles Schema angelehnt an die heutigen Farben (Crunchyroll-Orange als Primärfarbe), zusätzlich helles Schema; keine Dynamic Colors. Edge-to-Edge.
+Material 3, dunkles Schema angelehnt an die heutigen Farben (Knusper-Orange als Primärfarbe), zusätzlich helles Schema; keine Dynamic Colors. Edge-to-Edge.
 
 ### 7.5. Texte und Mehrsprachigkeit
 
@@ -315,7 +315,7 @@ Benötigte Symbole (Auswahl durch den Auftraggeber):
 - `db`: idempotenter Upsert, Gesehen/Meh inklusive Zeitstempel, Migrationen.
 - `sync`: Fakes für `CatalogSource`/`MetadataSource`; Fortschritt, Abbruch nach Seite N, tolerierte Batch-Fehler, nur nicht angereicherte Einträge.
 - `remote/anilist`: `wiremock` für Mapping, `Retry-After`, Aufgeben nach maximaler Versuchszahl.
-- `remote/crunchyroll`: Mapping der Bibliothekstypen (u. a. Dub/Sub-Erkennung je Inhaltssprache). Keine Tests gegen die echte API in der CI.
+- `remote/crispybun`: Mapping der Bibliothekstypen (u. a. Dub/Sub-Erkennung je Inhaltssprache). Keine Tests gegen die echte API in der CI.
 
 ### 9.2. Kotlin (JVM)
 
@@ -344,7 +344,7 @@ Die lokale Toolchain in WSL2 (rustup statt Distributions-cargo, Android-Target, 
 ## 10. Offene Prüfpunkte für den ersten Planschritt
 
 1. Verfügbarkeit von SDK 37.2 und Konfiguration der Minor-Version in AGP.
-2. `crunchyroll-rs`: anonymer Login, paginiertes Browsing, Audio-/Untertitel-Locales, Build für `aarch64-linux-android` mit rustls; Lizenz- und Pflegestatus bestätigen.
+2. `crispybun-rs`: anonymer Login, paginiertes Browsing, Audio-/Untertitel-Locales, Build für `aarch64-linux-android` mit rustls; Lizenz- und Pflegestatus bestätigen.
 3. Einrichtung der lokalen Toolchain in WSL2.
 
 ## 11. Mögliche zukünftige Features

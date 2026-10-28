@@ -60,13 +60,13 @@
     <string name="nav_settings">Einstellungen</string>
     <string name="notification_channel_sync_name">Synchronisation</string>
     <string name="notification_channel_sync_description">Fortschritt der Katalog-Synchronisation und der AniList-Anreicherung</string>
-    <string name="notification_sync_catalog_title">Crunchyroll-Katalog wird synchronisiert</string>
+    <string name="notification_sync_catalog_title">KnusperBrötchen-Katalog wird synchronisiert</string>
     <string name="notification_sync_metadata_title">AniList-Anreicherung läuft</string>
     <string name="notification_sync_preparing">Wird vorbereitet …</string>
     <string name="notification_sync_phase_progress">%1$s: %2$d von %3$d</string>
     <string name="notification_action_cancel">Abbrechen</string>
     <string name="settings_title">Einstellungen</string>
-    <string name="settings_sync_catalog_title">Crunchyroll-Katalog</string>
+    <string name="settings_sync_catalog_title">KnusperBrötchen-Katalog</string>
     <string name="settings_sync_metadata_title">AniList-Metadaten und Tags</string>
     <string name="settings_catalog_country">Katalog: %1$s</string>
     <string name="settings_catalog_country_unknown">Katalog: unbekannt</string>

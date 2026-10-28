@@ -25,9 +25,9 @@ val LocalCrunchyMateColors = staticCompositionLocalOf { DarkExtendedColors }
 
 private val DarkScheme =
     darkColorScheme(
-        primary = CrunchyrollOrange,
+        primary = CrispyBunOrange,
         onPrimary = OnOrange,
-        secondary = CrunchyrollOrangeLight,
+        secondary = CrispyBunOrangeLight,
         background = DarkBackground,
         onBackground = DarkOnSurface,
         surface = DarkSurface,
@@ -41,7 +41,7 @@ private val LightScheme =
     lightColorScheme(
         primary = LightPrimary,
         onPrimary = LightSurface,
-        secondary = CrunchyrollOrange,
+        secondary = CrispyBunOrange,
         background = LightBackground,
         onBackground = LightOnSurface,
         surface = LightSurface,

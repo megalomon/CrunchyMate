@@ -12,8 +12,10 @@ use crate::remote::catalog_source::CatalogSource;
 
 /// Zeitlimit pro HTTP-Anfrage.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
-const DEFAULT_AUTH_URL: &str = "https://beta-api.crunchyroll.com/auth/v1/token";
-const DEFAULT_BROWSE_URL: &str = "https://beta-api.crunchyroll.com/content/v2/discover/browse";
+/// Einziger Ort des API-Hosts der Katalogquelle.
+const API_BASE_URL: &str = "https://beta-api.crunchyroll.com";
+const AUTH_PATH: &str = "/auth/v1/token";
+const BROWSE_PATH: &str = "/content/v2/discover/browse";
 /// Zugangsdaten des anonymen Web-Clients (unverändert aus dem bisherigen Client).
 const BASIC_AUTH_HEADER: &str = "Basic Y3Jfd2ViOg==";
 const USER_AGENT_HEADER: &str =
@@ -35,18 +37,21 @@ struct Session {
     expires_at: Instant,
 }
 
-pub struct CrunchyrollSource {
+pub struct CrispyBunSource {
     http: reqwest::Client,
     auth_url: String,
     browse_url: String,
     session: Mutex<Option<Session>>,
 }
 
-impl CrunchyrollSource {
+impl CrispyBunSource {
     /// Quelle mit den Standard-Endpunkten. Es findet kein Netzwerkzugriff statt;
     /// die Anmeldung erfolgt beim ersten Abruf.
     pub fn new() -> CoreResult<Self> {
-        Self::with_endpoints(DEFAULT_AUTH_URL.to_string(), DEFAULT_BROWSE_URL.to_string())
+        Self::with_endpoints(
+            format!("{API_BASE_URL}{AUTH_PATH}"),
+            format!("{API_BASE_URL}{BROWSE_PATH}"),
+        )
     }
 
     /// Wie `new`, aber mit frei wählbaren Endpunkten (für Tests).
@@ -144,7 +149,7 @@ impl CrunchyrollSource {
 }
 
 #[async_trait::async_trait]
-impl CatalogSource for CrunchyrollSource {
+impl CatalogSource for CrispyBunSource {
     async fn session_country(&self) -> CoreResult<String> {
         Ok(self.session(None).await?.country)
     }

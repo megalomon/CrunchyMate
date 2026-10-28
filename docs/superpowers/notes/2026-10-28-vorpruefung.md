@@ -1,4 +1,4 @@
-# Vorprüfung: Toolchain, SDK 37.2 und crunchyroll-rs
+# Vorprüfung: Toolchain, SDK 37.2 und crispybun-rs
 
 Stand: 28.10.2026. Alle Versionen wurden am 28.10.2026 abgefragt (Quellen siehe Tabelle). Sie sind eine Momentaufnahme und vor dem Einchecken der Build-Dateien erneut zu prüfen, falls zwischen Notiz und Umsetzung Tage liegen.
 
@@ -201,7 +201,7 @@ Prüfung: Ein Wegwerf-Crate mit genau diesen Abhängigkeiten baut mit `cargo ndk
 - Für Build-Skripte `uniffi` ggf. zusätzlich mit Feature `build` als `[build-dependencies]` einbinden, falls UDL statt Proc-Makros verwendet wird (Spec nutzt Proc-Makros, daher voraussichtlich nicht nötig).
 - Die tatsächlichen Tokio-Features sind für den Kern ausreichend gewählt (`rt-multi-thread`, `macros`, `time`, `sync`); `net` zieht reqwest selbst nach.
 
-## 4. crunchyroll-rs: Entscheidung gegen die Bibliothek, eigene reqwest-Implementierung
+## 4. crispybun-rs: Entscheidung gegen die Bibliothek, eigene reqwest-Implementierung
 
 Geprüft wurde ausschließlich der normale anonyme Login und Browse. Es wurden keine Optionen zum Umgehen von Cloudflare- oder Geo-Sperren verwendet (kein Proxy, kein Header-Spoofing, keine eigene Client-Konfiguration).
 
@@ -215,12 +215,12 @@ Geprüft wurde ausschließlich der normale anonyme Login und Browse. Es wurden k
 ### 4.2 Konkrete API-Aufrufe (alle im Wegwerf-Crate ausgeführt)
 
 ```rust
-use crunchyroll_rs::{Crunchyroll, Locale};
-use crunchyroll_rs::auth::DeviceIdentifier;
-use crunchyroll_rs::search::{BrowseOptions, BrowseSortType, SearchMediaCollection};
+use crispybun_rs::{CrispyBun, Locale};
+use crispybun_rs::auth::DeviceIdentifier;
+use crispybun_rs::search::{BrowseOptions, BrowseSortType, SearchMediaCollection};
 
 // Anonymer Login (wie Besuch ohne Konto)
-let cr = Crunchyroll::builder()
+let cr = CrispyBun::builder()
     .locale(Locale::de_DE)
     .login_anonymously(DeviceIdentifier::default())
     .await?;
@@ -241,7 +241,7 @@ Erreichbare Felder (Typ `Series`, per Deref aus `SearchSeries`):
 | Untertitel-Locales | `series.subtitle_locales: Vec<Locale>` | vorhanden |
 | Bilder | `series.images.poster_tall` / `poster_wide: Vec<Image>` (`source`, `width`, `height`) | vorhanden (je 9 Größen) |
 | Kategorien | `series.categories: Option<Vec<Category>>` (Quelle `tenant_categories`) | vorhanden |
-| Locale der Texte | `CrunchyrollBuilder::locale(Locale)` bzw. intern `apply_locale_query()` | vorhanden |
+| Locale der Texte | `CrispyBunBuilder::locale(Locale)` bzw. intern `apply_locale_query()` | vorhanden |
 | Sortierung | `BrowseOptions::sort(BrowseSortType::Popularity)` | vorhanden |
 | Anzahl pro Seite | `Pagination::page_size(u32)` | vorhanden |
 | Start-Offset | nicht setzbar | siehe 4.3 |
@@ -251,15 +251,15 @@ Erreichbare Felder (Typ `Series`, per Deref aus `SearchSeries`):
 
 1. **Kein wahlfreier Start-Offset.** `BrowseOptions` kennt kein `start`. `Pagination` beginnt immer bei 0 und zählt intern hoch (`options.start = this.count`). Ein Wiederaufsetzen an einer gespeicherten Position (Trait `CatalogSource::fetch_page(start, count, locale)` aus Spec 5.3, Fortsetzen nach Abbruch) ist damit nur möglich, indem alle vorherigen Seiten erneut abgerufen werden. Das widerspricht der geforderten Schnittstelle.
 2. **Land der Sitzung nicht öffentlich.** Der Wert steckt im Login-Ergebnis, die Bibliothek gibt ihn aber nicht heraus. Als Umweg lässt sich der JWT aus `cr.access_token().await` selbst dekodieren (Claim `country`, im Test: `DE`). Das funktioniert, ist aber ein Zugriff auf das Token-Format ohne Zusicherung der Bibliothek.
-3. **Zugangsdaten in der Bibliothek.** Die Bibliothek bringt ein fest einkompiliertes Basic-Auth-Token samt User-Agent einer Fremd-App (Android TV) mit; im Quelltext steht, dass Crunchyroll es regelmäßig rotiert und die Bibliothek dann kurzzeitig ungültig wird. Der vorgeschriebene Weg für den anonymen Login läuft über die Web-Plattform mit fest verdrahteten Werten. Der Kern wäre damit an die Release-Frequenz einer Drittbibliothek gekoppelt.
+3. **Zugangsdaten in der Bibliothek.** Die Bibliothek bringt ein fest einkompiliertes Basic-Auth-Token samt User-Agent einer Fremd-App (Android TV) mit; im Quelltext steht, dass KnusperBrötchen es regelmäßig rotiert und die Bibliothek dann kurzzeitig ungültig wird. Der vorgeschriebene Weg für den anonymen Login läuft über die Web-Plattform mit fest verdrahteten Werten. Der Kern wäre damit an die Release-Frequenz einer Drittbibliothek gekoppelt.
 4. **Client-Konfiguration.** `predefined_client_builder()` setzt ein angepasstes TLS-Profil (feste Cipher-Suites, nur X25519). Das ist laut Dokumentation auf Cloudflare-Erkennung ausgerichtet. Die Spec schließt das Übernehmen solcher Maßnahmen aus (Spec 5.3: Hinweise zum Umgehen von Cloudflare-Sperren werden nicht übernommen). Eine eigene Implementierung vermeidet das von vornherein.
 5. **Größe und Build-Zeit.** Die Bibliothek zieht u. a. `jsonwebtoken`, `dash-mpd`, `chrono`, `regex` mit; für Katalog-Browse wird nur ein Bruchteil benötigt.
 
-Entscheidungsregel aus dem Plan: Nur wenn alles zutrifft, wird `crunchyroll-rs` verwendet. Punkt 1 (Start-Offset) trifft nicht zu. Entscheidung: **eigene reqwest-Implementierung** hinter dem Trait `CatalogSource`, nach dem Vorbild von `git show 1d5ca54:android/app/src/main/java/de/crunchymate/sync/CrunchyrollClient.kt`.
+Entscheidungsregel aus dem Plan: Nur wenn alles zutrifft, wird `crispybun-rs` verwendet. Punkt 1 (Start-Offset) trifft nicht zu. Entscheidung: **eigene reqwest-Implementierung** hinter dem Trait `CatalogSource`, nach dem Vorbild von `git show 1d5ca54:android/app/src/main/java/de/crunchymate/sync/CrispyBunClient.kt`.
 
 ### 4.4 Vorgaben für die eigene Implementierung (aus Bibliothek und Altcode abgeleitet)
 
-- Auth-Endpunkt wie im Altcode: `https://beta-api.crunchyroll.com/auth/v1/token`; Browse: `https://beta-api.crunchyroll.com/content/v2/discover/browse` mit `locale=de-DE&start={start}&n={count}&sort_by=popularity`. Die Bibliothek nutzt für Browse `https://www.crunchyroll.com/content/v2/discover/browse`; beide Hosts sind vor der Umsetzung gegen die Live-API zu prüfen (nicht verbindlich zugesagt).
+- Auth-Endpunkt wie im Altcode: `<API-Basis-URL>/auth/v1/token`; Browse: `<API-Basis-URL>/content/v2/discover/browse` mit `locale=de-DE&start={start}&n={count}&sort_by=popularity`. Die Bibliothek nutzt für Browse `<API-Basis-URL>/content/v2/discover/browse`; beide Hosts sind vor der Umsetzung gegen die Live-API zu prüfen (nicht verbindlich zugesagt).
 - Land: Claim `country` aus dem JWT des anonymen Tokens lesen (Payload Base64-URL-dekodieren, JSON-Feld `country`); Wert in `sync_state` speichern.
 - Felder der Browse-Antwort, die zu mappen sind: `id`, `title`, `description`, `audio_locales`, `subtitle_locales`, `images.poster_tall` / `poster_wide`, `tenant_categories`, `is_dubbed`, `is_subbed`, `series_launch_year`, `episode_count`, `season_count`.
 - Bei Cloudflare-Block (HTTP 403 mit Block-Seite) nur Fehler melden, nicht umgehen.

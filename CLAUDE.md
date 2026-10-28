@@ -4,7 +4,7 @@ Arbeitsanleitung für Claude Code in diesem Repository. Details stehen in Spec u
 
 ## Projekt
 
-CrunchyMate ist eine Android-App (nur arm64-v8a, minSdk 34, targetSdk 37) zum Durchsuchen und Verfolgen des Crunchyroll-Katalogs, angereichert mit AniList-Daten. Fachlogik in Rust (`core/`, UniFFI), Oberfläche in Jetpack Compose (`app/`). Go-Server, Web-Frontend und das alte `android/` sind entfernt.
+CrunchyMate ist eine Android-App (nur arm64-v8a, minSdk 34, targetSdk 37) zum Durchsuchen und Verfolgen des KnusperBrötchen-Katalogs, angereichert mit AniList-Daten. Fachlogik in Rust (`core/`, UniFFI), Oberfläche in Jetpack Compose (`app/`). Go-Server, Web-Frontend und das alte `android/` sind entfernt.
 
 - Spec: `docs/superpowers/specs/2026-10-28-rust-core-native-ui-design.md`
 - Plan: `docs/superpowers/plans/2026-10-28-rust-core-native-ui.md`
@@ -29,7 +29,7 @@ bash scripts/run-device-tests.sh
 
 ## Architektur
 
-- Rust-Kern hinter UniFFI. Module kommunizieren über Traits: `db/` (SQLite), `remote/` (Crunchyroll, AniList), `sync/`, `images/`, `query.rs`, Fassade `core_api.rs`. TLS über `webpki-roots`. Fehler: `CoreError` in Rust, `CoreException` mit Feld `detail` in Kotlin.
+- Rust-Kern hinter UniFFI. Module kommunizieren über Traits: `db/` (SQLite), `remote/` (KnusperBrötchen, AniList), `sync/`, `images/`, `query.rs`, Fassade `core_api.rs`. TLS über `webpki-roots`. Fehler: `CoreError` in Rust, `CoreException` mit Feld `detail` in Kotlin.
 - Kotlin spricht den Kern ausschließlich über `CoreGateway` (`app/.../core/`); das Änderungssignal des Kerns löst Neuladen aus. Fehlertexte entstehen in `ErrorMessages.kt`, nicht im Kern.
 - Sync läuft über WorkManager (`sync/`). Bilder werden beim Sync lokal als WebP mit SHA-256-Dateinamen abgelegt; die App lädt nur lokale Dateien. Netzwerkclients in Kotlin sind verboten (Gradle-Task `checkNoNetworkClients`).
 - UI: `ui/` mit ViewModels je Bereich (Suche, Detail, Einstellungen), Grid mit drei festen Spalten, Inhaltssprache als Einstellung.

@@ -12,7 +12,7 @@ use crate::query;
 use crate::remote::anilist::{AniListClient, RetryConfig};
 use crate::remote::catalog_mapping::SUPPORTED_CONTENT_LOCALES;
 use crate::remote::catalog_source::CatalogSource;
-use crate::remote::crunchyroll::CrunchyrollSource;
+use crate::remote::crispybun::CrispyBunSource;
 use crate::remote::metadata_source::MetadataSource;
 use crate::sync::catalog_sync::run_catalog_sync;
 use crate::sync::config::SyncConfig;
@@ -43,7 +43,7 @@ impl Core {
     pub fn new(db_path: String, user_db_path: String, image_dir: String) -> CoreResult<Arc<Self>> {
         let db = Database::open(&db_path, &user_db_path)?;
         db.with_conn(|conn| sync_state::reset_orphaned_runs(conn, now_unix()))?;
-        let catalog = Arc::new(CrunchyrollSource::new()?);
+        let catalog = Arc::new(CrispyBunSource::new()?);
         let metadata = Arc::new(AniListClient::new(
             AniListClient::DEFAULT_ENDPOINT.to_string(),
             RetryConfig::default(),

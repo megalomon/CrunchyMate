@@ -4,7 +4,7 @@ use crate::db::USER_SCHEMA;
 use crate::error::{CoreError, CoreResult};
 use crate::model::{Settings, DEFAULT_CONTENT_LOCALE};
 
-/// Version der Katalog-Datenbank (Cache aus Crunchyroll und AniList).
+/// Version der Katalog-Datenbank (Cache aus dem Katalog der Streamingquelle und AniList).
 pub const SCHEMA_VERSION: i32 = 3;
 /// Version der Nutzer-Datenbank (Einstellungen und Markierungen); zählt unabhängig vom Katalog.
 pub const USER_SCHEMA_VERSION: i32 = 1;

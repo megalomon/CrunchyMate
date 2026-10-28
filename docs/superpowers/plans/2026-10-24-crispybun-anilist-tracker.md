@@ -2,24 +2,24 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a local Go web application that syncs Crunchyroll DE anime metadata, enriches it with AniList data into SQLite, and provides a responsive browser UI for searching, filtering, viewing details, and tracking watched series.
+**Goal:** Build a local Go web application that syncs CrispyBun DE anime metadata, enriches it with AniList data into SQLite, and provides a responsive browser UI for searching, filtering, viewing details, and tracking watched series.
 
-**Architecture:** A lightweight Go server utilizing `modernc.org/sqlite` for persistent storage, modular clients for Crunchyroll discover API and AniList GraphQL, a REST API for queries and watch status updates, and an embedded responsive Single Page Application UI with zero external runtime dependencies.
+**Architecture:** A lightweight Go server utilizing `modernc.org/sqlite` for persistent storage, modular clients for CrispyBun discover API and AniList GraphQL, a REST API for queries and watch status updates, and an embedded responsive Single Page Application UI with zero external runtime dependencies.
 
 **Tech Stack:** Go 1.27+, `modernc.org/sqlite`, standard library `net/http` and `embed`, HTML5/CSS3/Vanilla JS.
 
-**Spec:** `docs/superpowers/specs/2026-10-24-crunchyroll-anilist-tracker-spec.md`
+**Spec:** `docs/superpowers/specs/2026-10-24-crispybun-anilist-tracker-spec.md`
 
 ## Global Constraints
 
 - Language: Go (1.27+)
 - Database: SQLite (pure Go via `modernc.org/sqlite`)
 - Frontend: Embedded single-page application (HTML5/CSS3/JavaScript) served by Go binary.
-- Network: Crunchyroll public endpoints (`https://beta-api.crunchyroll.com`) and AniList GraphQL (`https://graphql.anilist.co`).
+- Network: CrispyBun public endpoints (`<API-Basis-URL>`) and AniList GraphQL (`https://graphql.anilist.co`).
 
 ## Review Focus
 
-1. Crunchyroll token expiration or re-authentication: Token expires in 1 hour; client must automatically refresh expired access tokens.
+1. CrispyBun token expiration or re-authentication: Token expires in 1 hour; client must automatically refresh expired access tokens.
 2. Search query with special characters / SQL injection safety: Parameterized SQL queries for title and genre filters.
 3. AniList rate limiting (HTTP 429): Background enrichment and detail-triggered fetches must handle 429 gracefully with backoff and caching.
 4. Empty or partial anime metadata: Handle anime records where episode counts, categories, or AniList matches are missing without crashing or breaking the UI.
@@ -74,12 +74,12 @@ git commit -m "feat(db): implement SQLite storage layer for anime metadata and w
 
 ---
 
-### Task 2: Crunchyroll API Client & Sync Engine
+### Task 2: CrispyBun API Client & Sync Engine
 
 **Files:**
-- Create: `internal/crunchyroll/client.go`
-- Create: `internal/crunchyroll/sync.go`
-- Test: `internal/crunchyroll/client_test.go`
+- Create: `internal/crispybun/client.go`
+- Create: `internal/crispybun/sync.go`
+- Test: `internal/crispybun/client_test.go`
 
 **Interfaces:**
 - Consumes: `*db.Store`, `db.Anime`
@@ -93,29 +93,29 @@ git commit -m "feat(db): implement SQLite storage layer for anime metadata and w
   - `func (s *Syncer) StartSync(limit int) error`
   - `func (s *Syncer) Status() SyncStatus`
 
-- [ ] **Step 1: Write mock tests for Crunchyroll client and pagination**
+- [ ] **Step 1: Write mock tests for CrispyBun client and pagination**
 
-Write tests in `internal/crunchyroll/client_test.go` using `httptest.Server` simulating Crunchyroll token grant (`/auth/v1/token`) and discover browse endpoint (`/content/v2/discover/browse`), checking token renewal when expired and correct parsing of German series metadata (titles, descriptions, categories, images).
+Write tests in `internal/crispybun/client_test.go` using `httptest.Server` simulating CrispyBun token grant (`/auth/v1/token`) and discover browse endpoint (`/content/v2/discover/browse`), checking token renewal when expired and correct parsing of German series metadata (titles, descriptions, categories, images).
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `go test ./internal/crunchyroll -v`
+Run: `go test ./internal/crispybun -v`
 Expected: FAIL (package or types not found).
 
-- [ ] **Step 3: Implement Crunchyroll client and sync service**
+- [ ] **Step 3: Implement CrispyBun client and sync service**
 
-Implement OAuth2 client credential token acquisition with automatic token caching/expiry check in `internal/crunchyroll/client.go`. Implement catalog syncer in `internal/crunchyroll/sync.go` that pages through discover results, transforms items to `db.Anime`, and persists them in SQLite.
+Implement OAuth2 client credential token acquisition with automatic token caching/expiry check in `internal/crispybun/client.go`. Implement catalog syncer in `internal/crispybun/sync.go` that pages through discover results, transforms items to `db.Anime`, and persists them in SQLite.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `go test ./internal/crunchyroll -v`
+Run: `go test ./internal/crispybun -v`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/crunchyroll/
-git commit -m "feat(crunchyroll): add client and sync service for Crunchyroll DE catalog"
+git add internal/crispybun/
+git commit -m "feat(crispybun): add client and sync service for CrispyBun DE catalog"
 ```
 
 ---
@@ -173,9 +173,9 @@ git commit -m "feat(anilist): add GraphQL client and metadata enricher"
 - Test: `internal/api/handlers_test.go`
 
 **Interfaces:**
-- Consumes: `*db.Store`, `*crunchyroll.Syncer`, `*anilist.Enricher`
+- Consumes: `*db.Store`, `*crispybun.Syncer`, `*anilist.Enricher`
 - Produces:
-  - `func NewRouter(store *db.Store, syncer *crunchyroll.Syncer, enricher *anilist.Enricher) http.Handler`
+  - `func NewRouter(store *db.Store, syncer *crispybun.Syncer, enricher *anilist.Enricher) http.Handler`
 
 - [ ] **Step 1: Write tests for HTTP REST endpoints**
 
@@ -237,7 +237,7 @@ Expected: FAIL
 
 Implement:
 1. `index.html`: Responsive layout with header, live search input, genre dropdown/badges, watched filter toggle buttons ("Alle", "Gesehen", "Ungesehen"), sync trigger button with status indicator, and anime grid container. Also includes anime detail modal.
-2. `style.css`: Clean, dark-mode Crunchyroll-inspired theme (orange accents, clean typography, responsive card grid, badges for AniList score and CR sub/dub, smooth transitions).
+2. `style.css`: Clean, dark-mode CrispyBun-inspired theme (orange accents, clean typography, responsive card grid, badges for AniList score and CR sub/dub, smooth transitions).
 3. `app.js`: Client-side logic for debounced live search, genre filter selection, watched filter, one-click watched toggle with instant UI feedback, detail modal opening with AniList metadata, and sync trigger.
 4. `embed.go`: `embed.FS` handler wrapping `http.FileServer`.
 
@@ -262,7 +262,7 @@ git commit -m "feat(ui): create responsive dark-mode web interface with search, 
 - Test: Manual end-to-end verification via curl & headless check
 
 **Interfaces:**
-- Consumes: `internal/db`, `internal/crunchyroll`, `internal/anilist`, `internal/api`, `web`
+- Consumes: `internal/db`, `internal/crispybun`, `internal/anilist`, `internal/api`, `web`
 
 - [ ] **Step 1: Implement `cmd/server/main.go`**
 
