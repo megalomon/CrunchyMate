@@ -92,7 +92,7 @@ git commit -m "docs: Vorprüfung Toolchain, SDK 37.2 und crunchyroll-rs"
 
 **Interfaces:**
 - Produces: Crate `crunchymate-core` (`crate-type = ["cdylib", "lib"]`, `lib.name = "crunchymate_core"`); `uniffi::setup_scaffolding!()` in `lib.rs`; `core/uniffi.toml` mit `[bindings.kotlin] package_name = "de.crunchymate.core.ffi"`; Binary `uniffi-bindgen` (ruft `uniffi::uniffi_bindgen_main()`, Feature `cli`).
-- Produces: `CLAUDE.md` mit dem Präfix laut `/init` und den verbindlichen Projektregeln, damit alle folgenden Tasks sie automatisch sehen: keine Emojis in Code, Kommentaren, Ressourcen, Markdown und Commit-Nachrichten; Icons als VectorDrawable aus SVG, die der Auftraggeber liefert (keine eigene Icon-Auswahl), Raster nur als WebP; Strings nur in `strings.xml`; Einzel-APK ohne Splits; Clean-Code-Leitlinien aus Spec 9.5; Verweis auf Spec und Plan als maßgebliche Dokumente; Hinweis, dass Go, Web und `android/` Altbestand sind. Befehle und Architektur ergänzt Task 18.
+- Produces: `CLAUDE.md` mit dem Präfix laut `/init` und den verbindlichen Projektregeln, damit alle folgenden Tasks sie automatisch sehen: keine Emojis in Code, Kommentaren, Ressourcen, Markdown und Commit-Nachrichten (einzige Ausnahme: Spalte „Emoji-Entsprechung“ in `docs/icons.md`); Icons als VectorDrawable aus SVG, die der Auftraggeber liefert (keine eigene Icon-Auswahl), Raster nur als WebP; Strings nur in `strings.xml`; Einzel-APK ohne Splits; Clean-Code-Leitlinien aus Spec 9.5; Verweis auf Spec und Plan als maßgebliche Dokumente; Hinweis, dass Go, Web und `android/` Altbestand sind. Befehle und Architektur ergänzt Task 18.
 
 Das Verzeichnis `android/` bleibt bis Task 11 als Referenz bestehen.
 
@@ -755,7 +755,8 @@ git commit -m "feat(app): CoreGateway, Einstellungsspeicher, Paging und Fehlerte
 
 **Files:**
 - Create: `app/src/main/java/de/crunchymate/ui/theme/{Color.kt,Theme.kt,Type.kt}`, `app/src/main/java/de/crunchymate/ui/components/{AnimeCard.kt,TagChip.kt,FilterDropdownChip.kt,SyncCard.kt,EmptyState.kt}`, `app/src/main/java/de/crunchymate/ui/tags/TagCycle.kt`
-- Create: Vector-Platzhalter `app/src/main/res/drawable/ic_*.xml` (Namen siehe unten), `app/src/main/res/mipmap-anydpi/ic_launcher.xml` (adaptive mit `monochrome`), `docs/icons.md`
+- Create: Vector-Platzhalter `app/src/main/res/drawable/ic_*.xml` (Namen siehe unten), `app/src/main/res/mipmap-anydpi/ic_launcher.xml` (adaptive mit `monochrome`)
+- Modify: `docs/icons.md` (existiert bereits, vom Auftraggeber genutzt; nur ergänzen, nichts entfernen. Die Spalte „Emoji-Entsprechung“ ist eine ausdrücklich erlaubte Ausnahme vom Emoji-Verbot und bleibt stehen.)
 - Test: `app/src/test/java/de/crunchymate/ui/tags/TagCycleTest.kt`, `app/src/test/java/de/crunchymate/ui/components/ComponentsTest.kt` (Robolectric + Compose)
 
 **Interfaces:**
@@ -773,7 +774,7 @@ git commit -m "feat(app): CoreGateway, Einstellungsspeicher, Paging und Fehlerte
   ```
   `SyncUiState` wird in Task 15 definiert; für diesen Task wird es bereits in `app/src/main/java/de/crunchymate/sync/SyncUiState.kt` angelegt: `data class SyncUiState(val running: Boolean, val done: Long, val total: Long, val lastFinishedAt: Long?, val lastError: ErrorCode?)` mit `companion object { val Idle }`.
   Farben: Primär Crunchyroll-Orange `#F47521`; Tag-Zustände Boost `#3DB4F2`, Muss `#4CAF50`, Ausgeschlossen `#FF9800` (Werte aus `git show 1d5ca54:web/static/style.css` übernehmen, falls dort abweichend). Dunkles und helles Schema, keine Dynamic Colors.
-  Icon-Dateien (Platzhalter, 24 dp, einfarbig): `ic_nav_search`, `ic_nav_watched`, `ic_nav_meh`, `ic_nav_settings`, `ic_watched_on`, `ic_watched_off`, `ic_meh_on`, `ic_meh_off`, `ic_badge_score`, `ic_badge_dub`, `ic_badge_sub`, `ic_badge_boost`, `ic_tag_prefer`, `ic_tag_must`, `ic_tag_exclude`, `ic_clear`, `ic_tags_reset`, `ic_sync_start`, `ic_sync_cancel`, `ic_open_external`, `ic_dropdown`, `ic_back`, `ic_state_empty`, `ic_state_error`, `ic_stat_total`, `ic_stat_watched`, `ic_stat_meh`, `ic_stat_enriched`, `ic_stat_tags`, `ic_notification_sync`, `ic_launcher_foreground`, `ic_launcher_background`, `ic_launcher_monochrome`. `docs/icons.md` listet jede Datei mit Zweck und Anforderungen (Spec 7.6) und beschreibt die Umwandlung SVG -> VectorDrawable (Android Studio „Vector Asset“ oder `vd-tool`).
+  Icon-Dateien (Platzhalter, 24 dp, einfarbig): `ic_nav_search`, `ic_nav_watched`, `ic_nav_meh`, `ic_nav_settings`, `ic_watched_on`, `ic_watched_off`, `ic_meh_on`, `ic_meh_off`, `ic_badge_score`, `ic_badge_dub`, `ic_badge_sub`, `ic_badge_boost`, `ic_tag_prefer`, `ic_tag_must`, `ic_tag_exclude`, `ic_clear`, `ic_tags_reset`, `ic_sync_start`, `ic_sync_cancel`, `ic_open_external`, `ic_dropdown`, `ic_back`, `ic_state_empty`, `ic_state_error`, `ic_stat_total`, `ic_stat_watched`, `ic_stat_meh`, `ic_stat_enriched`, `ic_stat_tags`, `ic_notification_sync`, `ic_launcher_foreground`, `ic_launcher_background`, `ic_launcher_monochrome`. `docs/icons.md` enthält bereits jede Datei mit Bedeutung, Anforderungen und Emoji-Entsprechung; liegen in `design/icons/` gelieferte SVGs vor, werden sie umgewandelt und eingetragen, sonst bleibt die Datei unverändert.
   Jede Komponente setzt `contentDescription` aus String-Ressourcen; `TagChip` zeigt Zustand per Farbe und Icon und setzt `stateDescription`.
 
 - [ ] **Step 1: Tests schreiben**
