@@ -20,7 +20,7 @@ const FIXTURE_TITLES: [&str; 5] = [
 ];
 
 fn catalog_item(index: usize, title: &str) -> CatalogItem {
-    let dubbed = index % 2 == 0;
+    let dubbed = index.is_multiple_of(2);
     CatalogItem {
         id: format!("fixture-{}", index + 1),
         title: title.to_string(),

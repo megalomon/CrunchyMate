@@ -124,11 +124,11 @@ git commit -m "chore: Go-Server und Web-Frontend entfernen, Rust-Workspace und P
   ```rust
   #[derive(Debug, thiserror::Error, uniffi::Error)]
   pub enum CoreError {
-      Network { message: String },
-      RateLimited { retry_after_secs: u64 },
-      Auth { message: String },
-      Parse { message: String },
-      Database { message: String },
+      Network { detail: String },
+      RateLimited { retry_after_secs: i64 },
+      Auth { detail: String },
+      Parse { detail: String },
+      Database { detail: String },
       Cancelled,
   }
   #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]

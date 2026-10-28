@@ -178,7 +178,7 @@ Filtersemantik (unverändert gegenüber heute):
 
 Nebenläufigkeit: `Core` hält eine `Mutex<Connection>`; Sync und UI greifen auf dieselbe Instanz zu. Schreibvorgänge des Syncs laufen in einer Transaktion pro Katalogseite bzw. pro Batch.
 
-Fehler: `CoreError` als UniFFI-Enum (`Network`, `RateLimited { retry_after_secs }`, `Auth`, `Parse`, `Database`, `Cancelled`). Der Kern liefert keine anzeigefertigen Texte.
+Fehler: `CoreError` als UniFFI-Enum (`Network`, `RateLimited { retry_after_secs }`, `Auth`, `Parse`, `Database`, `Cancelled`); in Kotlin heißt er `CoreException`. Die Textfelder heißen `detail` statt `message` (Kollision mit `Throwable.message`). Der Kern liefert keine anzeigefertigen Texte.
 
 ### 5.3. Crunchyroll-Anbindung und Inhaltssprache
 
