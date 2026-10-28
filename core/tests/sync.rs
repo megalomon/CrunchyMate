@@ -644,7 +644,7 @@ impl MetadataSource for NoMatches {
 }
 
 #[tokio::test]
-async fn titles_without_match_are_not_searched_again_before_retry_period() {
+async fn titles_without_match_are_searched_again_on_next_run() {
     let dir = TempDir::new("sync");
     let db = Database::open_in_memory().unwrap();
     seed(&db, 2);
@@ -669,22 +669,8 @@ async fn titles_without_match_are_not_searched_again_before_retry_period() {
 
     run(fast()).await;
     assert_eq!(source.asked.lock().unwrap().len(), 2);
-    // Innerhalb der Frist bleibt der zweite Lauf ohne Anfrage
-    let summary = run(fast()).await;
-    assert_eq!(source.asked.lock().unwrap().len(), 2);
-    assert_eq!(summary.processed, 0);
-    assert_eq!(
-        db.with_conn(|c| status(c, SyncKind::Metadata))
-            .unwrap()
-            .total,
-        0
-    );
-    // Nach Ablauf der Frist wird erneut gesucht
-    run(SyncConfig {
-        metadata_miss_retry: Duration::ZERO,
-        ..fast()
-    })
-    .await;
+    // Ohne Treffer bleibt der Titel offen und wird beim nächsten Lauf erneut angefragt
+    run(fast()).await;
     assert_eq!(source.asked.lock().unwrap().len(), 4);
 }
 
@@ -749,8 +735,4 @@ fn default_config_matches_spec() {
     assert_eq!(config.catalog_page_delay, Duration::from_millis(100));
     assert_eq!(config.metadata_batch_size, 10);
     assert_eq!(config.metadata_batch_delay, Duration::from_millis(2100));
-    assert_eq!(
-        config.metadata_miss_retry,
-        Duration::from_secs(7 * 24 * 60 * 60)
-    );
 }

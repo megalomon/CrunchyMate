@@ -37,8 +37,7 @@ const UPDATE_ANILIST: &str = "
         anilist_status = ?7,
         anilist_banner_image = ?8,
         anilist_site_url = ?9,
-        anilist_synced_at = unixepoch(),
-        anilist_missed_at = NULL
+        anilist_synced_at = unixepoch()
     WHERE id = ?1";
 
 const SELECT_DETAIL: &str = "
@@ -312,28 +311,16 @@ pub fn stats(conn: &Connection) -> CoreResult<Stats> {
     })
 }
 
-/// Noch nicht angereicherte Einträge als (ID, Titel). Titel, deren letzte Suche nach
-/// `retry_missed_before` (Unix-Sekunden) ohne Treffer blieb, werden noch nicht erneut versucht.
-pub fn unenriched(
-    conn: &Connection,
-    retry_missed_before: i64,
-) -> CoreResult<Vec<(String, String)>> {
+/// Noch nicht angereicherte Einträge als (ID, Titel). Titel ohne früheren Treffer werden bei
+/// jedem Lauf erneut angefragt, weil AniList neue Einträge laufend ergänzt.
+pub fn unenriched(conn: &Connection) -> CoreResult<Vec<(String, String)>> {
     let mut stmt = conn.prepare_cached(
-        "SELECT id, title FROM anime
-         WHERE anilist_id IS NULL AND (anilist_missed_at IS NULL OR anilist_missed_at <= ?1)
-         ORDER BY title, id",
+        "SELECT id, title FROM anime WHERE anilist_id IS NULL ORDER BY title, id",
     )?;
     let rows = stmt
-        .query_map([retry_missed_before], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(rows)
-}
-
-/// Merkt sich eine Suche ohne Treffer, damit der Titel erst nach einer Frist erneut angefragt wird.
-pub fn mark_metadata_miss(tx: &Transaction, anime_id: &str, now: i64) -> CoreResult<()> {
-    tx.prepare_cached("UPDATE anime SET anilist_missed_at = ?2 WHERE id = ?1")?
-        .execute(params![anime_id, now])?;
-    Ok(())
 }
 
 pub fn count_enriched(conn: &Connection) -> CoreResult<u64> {
@@ -511,37 +498,6 @@ mod tests {
     }
 
     #[test]
-    fn metadata_miss_postpones_retry_until_deadline() {
-        let db = Database::open_in_memory().unwrap();
-        insert_all(
-            &db,
-            &[AnimeFixture::new("a", "A"), AnimeFixture::new("b", "B")],
-        )
-        .unwrap();
-        db.with_tx(|tx| mark_metadata_miss(tx, "a", 1_000)).unwrap();
-        let ids = |before: i64| -> Vec<String> {
-            db.with_conn(|c| unenriched(c, before))
-                .unwrap()
-                .into_iter()
-                .map(|(id, _)| id)
-                .collect()
-        };
-        assert_eq!(ids(999), ["b"]);
-        assert_eq!(ids(1_000), ["a", "b"]);
-        // Ein späterer Treffer löscht den Vermerk
-        db.with_tx(|tx| apply_metadata(tx, "a", &metadata(3, &[])))
-            .unwrap();
-        assert_eq!(
-            column_i64(
-                &db,
-                "SELECT anilist_missed_at FROM anime WHERE id = ?1",
-                "a"
-            ),
-            None
-        );
-    }
-
-    #[test]
     fn get_anime_returns_detail_with_sorted_tags_and_fallbacks() {
         let db = Database::open_in_memory().unwrap();
         insert_all(
@@ -631,7 +587,7 @@ mod tests {
             ],
         )
         .unwrap();
-        let list = db.with_conn(|c| unenriched(c, 0)).unwrap();
+        let list = db.with_conn(unenriched).unwrap();
         assert_eq!(
             list,
             vec![

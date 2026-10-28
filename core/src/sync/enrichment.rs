@@ -1,4 +1,4 @@
-use crate::db::anime::{apply_metadata, mark_metadata_miss, unenriched};
+use crate::db::anime::{apply_metadata, unenriched};
 use crate::db::images::ImageSlot;
 use crate::db::sync_state::update_progress;
 use crate::db::Database;
@@ -12,7 +12,7 @@ use super::config::SyncConfig;
 use super::images::{images_may_follow, merge_image_result, run_image_sync};
 use super::progress::SyncObserver;
 use super::run_guard::{RunGuard, RunOutcome};
-use super::{catch_panic, now_unix, pause};
+use super::{catch_panic, pause};
 
 const KIND: SyncKind = SyncKind::Metadata;
 const METADATA_IMAGE_SLOTS: [ImageSlot; 1] = [ImageSlot::Banner];
@@ -71,8 +71,7 @@ async fn enrich(
     observer: &dyn SyncObserver,
     summary: &mut SyncSummary,
 ) -> CoreResult<()> {
-    let retry_secs = i64::try_from(config.metadata_miss_retry.as_secs()).unwrap_or(i64::MAX);
-    let pending = db.with_conn(|conn| unenriched(conn, now_unix().saturating_sub(retry_secs)))?;
+    let pending = db.with_conn(unenriched)?;
     let total = len_i64(pending.len());
     db.with_conn(|conn| update_progress(conn, KIND, 0, total))?;
 
@@ -85,16 +84,12 @@ async fn enrich(
         done += len_i64(batch.len());
         match source.search_batch(&titles).await {
             Ok(results) => {
-                let now = now_unix();
                 let applied = db.with_tx(|tx| {
                     let mut applied = 0;
                     for ((id, _), result) in batch.iter().zip(&results) {
-                        match result {
-                            Some(item) => {
-                                apply_metadata(tx, id, item)?;
-                                applied += 1;
-                            }
-                            None => mark_metadata_miss(tx, id, now)?,
+                        if let Some(item) = result {
+                            apply_metadata(tx, id, item)?;
+                            applied += 1;
                         }
                     }
                     update_progress(tx, KIND, done, total)?;

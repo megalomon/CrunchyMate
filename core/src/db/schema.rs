@@ -5,7 +5,7 @@ use crate::error::{CoreError, CoreResult};
 use crate::model::{Settings, DEFAULT_CONTENT_LOCALE};
 
 /// Version der Katalog-Datenbank (Cache aus dem Katalog der Streamingquelle und AniList).
-pub const SCHEMA_VERSION: i32 = 4;
+pub const SCHEMA_VERSION: i32 = 5;
 /// Version der Nutzer-Datenbank (Einstellungen und Markierungen); zählt unabhängig vom Katalog.
 pub const USER_SCHEMA_VERSION: i32 = 1;
 
@@ -161,6 +161,11 @@ const MIGRATION_V4: &str = "
     );
 ";
 
+// Die Sperre für erneute AniList-Suchen entfällt: Titel ohne Treffer werden bei jedem Lauf gesucht.
+const MIGRATION_V5: &str = "
+    ALTER TABLE main.anime DROP COLUMN anilist_missed_at;
+";
+
 /// Bringt Nutzer- und Katalog-Datenbank auf den aktuellen Stand. Eine Datei aus einer neueren
 /// App-Version wird abgewiesen statt still weiterverwendet.
 pub fn migrate(conn: &Connection) -> CoreResult<()> {
@@ -188,6 +193,11 @@ pub fn migrate(conn: &Connection) -> CoreResult<()> {
     if catalog_version < 4 {
         run_step(conn, MAIN_SCHEMA, 4, |tx| {
             Ok(tx.execute_batch(MIGRATION_V4)?)
+        })?;
+    }
+    if catalog_version < 5 {
+        run_step(conn, MAIN_SCHEMA, 5, |tx| {
+            Ok(tx.execute_batch(MIGRATION_V5)?)
         })?;
     }
     Ok(())
@@ -541,6 +551,7 @@ mod tests {
             "DROP TABLE anime_descriptors;
              ALTER TABLE anime DROP COLUMN age_rating;
              ALTER TABLE anime DROP COLUMN is_adult;
+             ALTER TABLE anime ADD COLUMN anilist_missed_at INTEGER;
              PRAGMA user_version = 3;",
         )
         .unwrap();
@@ -555,7 +566,7 @@ mod tests {
         let db = Database::open(&catalog, &user).unwrap();
 
         db.with_conn(|c| {
-            assert_eq!(version(c, MAIN_SCHEMA), 4);
+            assert_eq!(version(c, MAIN_SCHEMA), SCHEMA_VERSION);
             Ok(())
         })
         .unwrap();
@@ -578,6 +589,51 @@ mod tests {
             .with_conn(|c| Ok(c.query_row("SELECT SUM(is_adult) FROM anime", [], |r| r.get(0))?))
             .unwrap();
         assert_eq!(adult, 0);
+    }
+
+    /// Katalog im Stand von Schema v4: mit den Feldern von v4 und der späteren Sperrspalte.
+    fn write_v4_catalog(catalog: &str, user: &str) {
+        write_v3_catalog(catalog, user);
+        let conn = Connection::open(catalog).unwrap();
+        conn.execute_batch(MIGRATION_V4).unwrap();
+        conn.execute_batch(
+            "UPDATE anime SET anilist_missed_at = 1000, age_rating = 16, is_adult = 1
+             WHERE id = 'wm';
+             INSERT INTO anime_descriptors (anime_id, position, name) VALUES ('wm', 0, 'Gewalt');
+             PRAGMA user_version = 4;",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn migration_v4_to_v5_drops_miss_column_and_keeps_data() {
+        let dir = TempDir::new("schema-v4");
+        let (catalog, user) = paths(&dir);
+        write_v4_catalog(&catalog, &user);
+
+        let db = Database::open(&catalog, &user).unwrap();
+
+        db.with_conn(|c| {
+            assert_eq!(version(c, MAIN_SCHEMA), 5);
+            let columns: i64 = c.query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('anime') WHERE name = 'anilist_missed_at'",
+                [],
+                |r| r.get(0),
+            )?;
+            assert_eq!(columns, 0);
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(marks(&db), expected_v2_marks());
+        let store = ImageStore::new(dir.path().join("images")).unwrap();
+        let detail = db
+            .with_conn(|c| anime::get_anime(c, &store, "wm"))
+            .unwrap()
+            .unwrap();
+        assert_eq!(detail.age_rating, Some(16));
+        assert_eq!(detail.content_descriptors, ["Gewalt"]);
+        assert_eq!(db.with_conn(anime::stats).unwrap().total, 6);
+        assert_eq!(db.with_conn(anime::unenriched).unwrap().len(), 6);
     }
 
     #[test]
