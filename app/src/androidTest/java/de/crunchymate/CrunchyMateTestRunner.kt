@@ -19,6 +19,7 @@ class CrunchyMateTestRunner : AndroidJUnitRunner() {
     }
 
     private fun installFixtureDatabase() {
+        TestStorage.requireTestDatabase(TestStorage.DB_NAME)
         val database = targetContext.getDatabasePath(TestStorage.DB_NAME)
         database.parentFile?.mkdirs()
         // WAL-Reste eines früheren Laufs würden zur neuen Datei nicht passen

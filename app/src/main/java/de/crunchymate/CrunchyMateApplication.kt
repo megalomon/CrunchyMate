@@ -2,6 +2,7 @@ package de.crunchymate
 
 import android.app.Application
 
+// open nur, damit die Instrumentation-Tests createContainer mit Test-Pfaden überschreiben können
 open class CrunchyMateApplication : Application() {
     // Genau ein Container pro Prozess: Core::new setzt verwaiste Sync-Läufe zurück
     // und darf deshalb nicht neben einer bereits laufenden Instanz erneut entstehen.
