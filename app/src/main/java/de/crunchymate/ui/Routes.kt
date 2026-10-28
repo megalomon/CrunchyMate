@@ -15,6 +15,9 @@ data object MehRoute
 data object SettingsRoute
 
 @Serializable
+data object LicensesRoute
+
+@Serializable
 data class DetailRoute(
     val id: String,
 )

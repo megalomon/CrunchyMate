@@ -3,6 +3,8 @@ package de.crunchymate.ui.components
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +21,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -147,9 +151,10 @@ fun AnimeCard(
 }
 
 /**
- * Kleiner runder Schalter auf dem Poster. Die 48 dp große Berührfläche umgibt den sichtbaren Kreis und wird
- * so verschoben, dass der Kreis exakt mit Abstand [Dimens.OverlayInset] von der Ecke sitzt; [row] stapelt
- * die Kreise mit [Dimens.OverlayGap] Abstand. Berührflächen benachbarter Zeilen überlappen dabei leicht.
+ * Kleiner runder Schalter auf dem Poster. Die Berührfläche ist [Dimens.MinTouchTarget] hoch und breit, aber nicht
+ * symmetrisch um den Kreis: Benachbarte Zeilen teilen sich die Lücke zwischen den Kreisen je zur Hälfte, damit sich
+ * die Flächen nie überlappen. Der sichtbare Kreis sitzt mit Abstand [Dimens.OverlayInset] von der Ecke; [row]
+ * stapelt die Kreise mit [Dimens.OverlayGap] Abstand.
  */
 @Composable
 private fun OverlayToggle(
@@ -163,24 +168,30 @@ private fun OverlayToggle(
 ) {
     val touchPadding = (Dimens.MinTouchTarget - Dimens.OverlayButton) / 2
     val rowStep = Dimens.OverlayButton + Dimens.OverlayGap
+    val gapShare = Dimens.OverlayGap / 2
+    val freeSide = Dimens.MinTouchTarget - Dimens.OverlayButton - gapShare
+    val isFirstRow = row == 0
+    val above = if (isFirstRow) freeSide else gapShare
+    val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier =
             modifier
-                .offset(x = touchPadding - Dimens.OverlayInset, y = Dimens.OverlayInset - touchPadding + rowStep * row)
+                .offset(x = touchPadding - Dimens.OverlayInset, y = Dimens.OverlayInset + rowStep * row - above)
                 .size(Dimens.MinTouchTarget)
-                .clip(CircleShape)
-                .clickable(role = Role.Button, onClick = onClick)
+                .clickable(interactionSource = interactionSource, indication = null, role = Role.Button, onClick = onClick)
                 .semantics {
                     contentDescription = description
                     stateDescription = state
                 },
-        contentAlignment = Alignment.Center,
     ) {
         Box(
             Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = above)
                 .size(Dimens.OverlayButton)
                 .clip(CircleShape)
                 .background(PosterOverlayBackground)
+                .indication(interactionSource, ripple())
                 .testTag(circleTag),
             contentAlignment = Alignment.Center,
         ) {

@@ -14,6 +14,7 @@ object TestStorage {
 
     init {
         require(DB_NAME !in productionDatabaseNames) { "Test-Datenbank darf nicht die Produktionsdatenbank sein: $DB_NAME" }
+        require(USER_DB_NAME !in productionDatabaseNames) { "Test-Nutzerdatenbank darf nicht die Produktionsdatei sein: $USER_DB_NAME" }
         require(IMAGE_DIR !in productionImageDirs) { "Test-Bilderordner darf nicht der Produktionsordner sein: $IMAGE_DIR" }
     }
 

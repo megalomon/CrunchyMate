@@ -36,8 +36,11 @@ import de.crunchymate.AppContainer
 import de.crunchymate.R
 import de.crunchymate.ui.components.CompactNavigationBar
 import de.crunchymate.ui.components.CompactNavigationItem
+import de.crunchymate.ui.components.EmptyState
 import de.crunchymate.ui.detail.DetailDestination
 import de.crunchymate.ui.detail.DetailViewModel
+import de.crunchymate.ui.licenses.LicensesDestination
+import de.crunchymate.ui.licenses.LicensesViewModel
 import de.crunchymate.ui.search.AnimeGridDestination
 import de.crunchymate.ui.search.GridMode
 import de.crunchymate.ui.search.SearchViewModel
@@ -60,14 +63,16 @@ private enum class TopLevel(
 
 @Composable
 fun CrunchyMateApp(container: AppContainer) {
-    val appViewModel = viewModel { AppViewModel(container.settingsStore) }
-    val ready by appViewModel.ready.collectAsStateWithLifecycle()
-    if (!ready) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        return
+    val appViewModel = viewModel { AppViewModel(container::initializeCore, { container.settingsStore }) }
+    val startup by appViewModel.state.collectAsStateWithLifecycle()
+    when (startup) {
+        StartupState.LOADING -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        StartupState.FAILED -> EmptyState(icon = R.drawable.ic_state_error, title = stringResource(R.string.startup_error_title))
+        StartupState.READY -> {
+            val syncRunning by container.syncScheduler.anyRunning.collectAsStateWithLifecycle(initialValue = false)
+            AppShell(container, syncRunning)
+        }
     }
-    val syncRunning by container.syncScheduler.anyRunning.collectAsStateWithLifecycle(initialValue = false)
-    AppShell(container, syncRunning)
 }
 
 @Composable
@@ -135,6 +140,13 @@ private fun AppNavHost(
         composable<SettingsRoute> {
             SettingsDestination(
                 viewModel { SettingsViewModel(container.gateway, container.settingsStore, container.syncScheduler) },
+                onOpenLicenses = { navController.navigate(LicensesRoute) },
+            )
+        }
+        composable<LicensesRoute> {
+            LicensesDestination(
+                viewModel = viewModel { LicensesViewModel(container.noticesSource) },
+                onBack = dropUnlessResumed { navController.popBackStack() },
             )
         }
         composable<DetailRoute> { entry ->

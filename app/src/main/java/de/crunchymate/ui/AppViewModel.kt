@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import de.crunchymate.core.SettingsStore
 import de.crunchymate.core.ffi.CoreException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,26 +13,44 @@ import kotlinx.coroutines.launch
 
 private const val LOG_TAG = "CrunchyMate"
 
-/** Zustand der App-Hülle: Laden der Einstellungen beim Start. */
-class AppViewModel(
-    private val settingsStore: SettingsStore,
-) : ViewModel() {
-    private val _ready = MutableStateFlow(settingsStore.loaded.value)
+enum class StartupState { LOADING, READY, FAILED }
 
-    /** true, sobald die Suche den gespeicherten Zustand lesen darf. */
-    val ready: StateFlow<Boolean> = _ready.asStateFlow()
+/**
+ * Zustand der App-Hülle: Kern öffnen, dann Einstellungen laden.
+ * [openCore] läuft abseits des Main-Threads; [settingsStore] wird erst danach angefragt,
+ * weil schon der Zugriff auf den Store den Kern öffnen würde.
+ */
+class AppViewModel(
+    private val openCore: suspend () -> Unit,
+    private val settingsStore: () -> SettingsStore,
+) : ViewModel() {
+    private val _state = MutableStateFlow(StartupState.LOADING)
+
+    /** READY, sobald die Suche den gespeicherten Zustand lesen darf. */
+    val state: StateFlow<StartupState> = _state.asStateFlow()
 
     init {
-        if (!settingsStore.loaded.value) {
-            viewModelScope.launch {
-                try {
-                    settingsStore.load()
-                } catch (e: CoreException) {
-                    // Ohne gespeicherten Stand startet die Suche mit den Standardwerten
-                    Log.w(LOG_TAG, "Einstellungen konnten nicht geladen werden: ${e::class.simpleName}")
-                }
-                _ready.value = true
+        viewModelScope.launch { _state.value = start() }
+    }
+
+    private suspend fun start(): StartupState {
+        try {
+            openCore()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(LOG_TAG, "Kern konnte nicht geöffnet werden: ${e::class.simpleName}")
+            return StartupState.FAILED
+        }
+        val store = settingsStore()
+        if (!store.loaded.value) {
+            try {
+                store.load()
+            } catch (e: CoreException) {
+                // Ohne gespeicherten Stand startet die Suche mit den Standardwerten
+                Log.w(LOG_TAG, "Einstellungen konnten nicht geladen werden: ${e::class.simpleName}")
             }
         }
+        return StartupState.READY
     }
 }

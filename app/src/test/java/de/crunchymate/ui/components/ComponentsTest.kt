@@ -8,16 +8,19 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTouchHeightIsEqualTo
 import androidx.compose.ui.test.assertTouchWidthIsEqualTo
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import de.crunchymate.R
 import de.crunchymate.core.ffi.AnimeSummary
@@ -27,8 +30,8 @@ import de.crunchymate.core.ffi.SyncPhase
 import de.crunchymate.core.ffi.TagState
 import de.crunchymate.sync.SyncUiState
 import de.crunchymate.ui.theme.CrunchyMateTheme
+import de.crunchymate.ui.theme.Dimens
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -40,13 +43,13 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
+import java.util.TimeZone
 
 private const val SDK = 35
 private const val TIMESTAMP_SECONDS = 1_700_000_000L
 private val CARD_WIDTH = 160.dp
-private val MIN_TOUCH_TARGET = 48.dp
-private val OVERLAY_INSET = 6.dp
-private val OVERLAY_GAP = 4.dp
+private val FIXED_LOCALE = Locale.GERMANY
+private val FIXED_ZONE = ZoneId.of("UTC")
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [SDK], qualifiers = "w411dp-h891dp")
@@ -127,13 +130,27 @@ class ComponentsTest {
 
     @Test
     fun syncCard_formatsLastFinishedFromUnixSeconds() {
+        // Der Test soll auf keiner Entwicklermaschine von deren Region oder Zeitzone abhängen
+        val previousLocale = Locale.getDefault()
+        val previousZone = TimeZone.getDefault()
+        Locale.setDefault(FIXED_LOCALE)
+        TimeZone.setDefault(TimeZone.getTimeZone(FIXED_ZONE))
+        try {
+            assertLastFinishedFormatting()
+        } finally {
+            Locale.setDefault(previousLocale)
+            TimeZone.setDefault(previousZone)
+        }
+    }
+
+    private fun assertLastFinishedFormatting() {
         val state = SyncUiState(false, 0, 0, TIMESTAMP_SECONDS, null)
         rule.setContent { CrunchyMateTheme { SyncCard("Katalog", SyncKind.CATALOG, state, {}, {}) } }
         val expected =
             DateTimeFormatter
                 .ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
-                .withLocale(Locale.getDefault())
-                .withZone(ZoneId.systemDefault())
+                .withLocale(FIXED_LOCALE)
+                .withZone(FIXED_ZONE)
                 .format(Instant.ofEpochSecond(TIMESTAMP_SECONDS))
         rule.onNodeWithText(rule.activity.getString(R.string.sync_last_finished, expected)).assertIsDisplayed()
         // 2023 statt Jahr 55841 bei fälschlicher Millisekunden-Deutung
@@ -144,9 +161,7 @@ class ComponentsTest {
     fun syncCard_showsLastErrorText() {
         val state = SyncUiState(false, 0, 0, TIMESTAMP_SECONDS, ErrorCode.NETWORK)
         rule.setContent { CrunchyMateTheme { SyncCard("Katalog", SyncKind.CATALOG, state, {}, {}) } }
-        assertNotNull(
-            rule.onNodeWithText(rule.activity.getString(R.string.sync_last_error, string(R.string.error_network))).fetchSemanticsNode(),
-        )
+        rule.onNodeWithText(rule.activity.getString(R.string.sync_last_error, string(R.string.error_network))).assertIsDisplayed()
     }
 
     @Test
@@ -193,8 +208,8 @@ class ComponentsTest {
     @Test
     fun animeCard_toggleButtonsKeepMinimumTouchTarget() {
         rule.setContent { CrunchyMateTheme { AnimeCard(anime(), "de-DE", {}, {}, {}) } }
-        rule.onNodeWithContentDescription(string(R.string.action_toggle_watched)).assertTouchHeightIsEqualTo(MIN_TOUCH_TARGET)
-        rule.onNodeWithContentDescription(string(R.string.action_toggle_meh)).assertTouchHeightIsEqualTo(MIN_TOUCH_TARGET)
+        rule.onNodeWithContentDescription(string(R.string.action_toggle_watched)).assertTouchHeightIsEqualTo(Dimens.MinTouchTarget)
+        rule.onNodeWithContentDescription(string(R.string.action_toggle_meh)).assertTouchHeightIsEqualTo(Dimens.MinTouchTarget)
     }
 
     @Test
@@ -231,12 +246,33 @@ class ComponentsTest {
         val watched = bounds(WATCHED_CIRCLE_TAG)
         val meh = bounds(MEH_CIRCLE_TAG)
         val score = bounds(SCORE_BADGE_TAG)
-        assertEquals(OVERLAY_INSET, poster.right - watched.right)
-        assertEquals(OVERLAY_INSET, watched.top - poster.top)
-        assertEquals(OVERLAY_INSET, score.left - poster.left)
+        assertEquals(Dimens.OverlayInset, poster.right - watched.right)
+        assertEquals(Dimens.OverlayInset, watched.top - poster.top)
+        assertEquals(Dimens.OverlayInset, score.left - poster.left)
         assertEquals(watched.top, score.top)
         assertEquals(watched.bottom - watched.top, score.bottom - score.top)
-        assertEquals(OVERLAY_GAP, meh.top - watched.bottom)
-        rule.onNodeWithContentDescription(string(R.string.action_toggle_watched)).assertTouchWidthIsEqualTo(MIN_TOUCH_TARGET)
+        assertEquals(Dimens.OverlayGap, meh.top - watched.bottom)
+        rule.onNodeWithContentDescription(string(R.string.action_toggle_watched)).assertTouchWidthIsEqualTo(Dimens.MinTouchTarget)
+    }
+
+    @Test
+    fun animeCard_tapOnLowerEdgeOfWatchedCircleTogglesWatchedOnly() {
+        var watched = 0
+        var meh = 0
+        rule.setContent {
+            CrunchyMateTheme {
+                Box(Modifier.width(CARD_WIDTH)) { AnimeCard(anime(), "de-DE", {}, { watched++ }, { meh++ }) }
+            }
+        }
+        rule.onNodeWithTag(WATCHED_CIRCLE_TAG, useUnmergedTree = true).performTouchInput {
+            click(Offset(centerX, height - 1f))
+        }
+        assertEquals(1, watched)
+        assertEquals(0, meh)
+        rule.onNodeWithTag(MEH_CIRCLE_TAG, useUnmergedTree = true).performTouchInput {
+            click(Offset(centerX, 1f))
+        }
+        assertEquals(1, watched)
+        assertEquals(1, meh)
     }
 }
