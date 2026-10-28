@@ -160,7 +160,7 @@ async fn graphql_errors_without_data_are_parse_errors() {
         .await
         .unwrap_err();
     match err {
-        CoreError::Parse { message } => assert!(message.contains("kaputt")),
+        CoreError::Parse { detail } => assert!(detail.contains("kaputt")),
         other => panic!("unerwartet: {other:?}"),
     }
 }

@@ -52,7 +52,7 @@ impl Database {
 
 fn poisoned() -> CoreError {
     CoreError::Database {
-        message: "Datenbankverbindung ist nicht mehr nutzbar".to_string(),
+        detail: "Datenbankverbindung ist nicht mehr nutzbar".to_string(),
     }
 }
 

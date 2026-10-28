@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Gelieferte Icons bleiben erhalten, bis die Bildschirme aus den Tasks 13 bis 16 sie referenzieren -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_*" />

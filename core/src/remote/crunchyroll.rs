@@ -90,7 +90,7 @@ impl CrunchyrollSource {
         let status = response.status();
         if status == StatusCode::UNAUTHORIZED {
             return Err(CoreError::Auth {
-                message: "Token-Anfrage abgelehnt (HTTP 401)".to_string(),
+                detail: "Token-Anfrage abgelehnt (HTTP 401)".to_string(),
             });
         }
         let bytes = check_status(response, "Token-Anfrage").await?;
@@ -164,8 +164,7 @@ impl CatalogSource for CrunchyrollSource {
                 .await?;
             if response.status() == StatusCode::UNAUTHORIZED {
                 return Err(CoreError::Auth {
-                    message: "Katalogabruf nach erneuter Anmeldung abgelehnt (HTTP 401)"
-                        .to_string(),
+                    detail: "Katalogabruf nach erneuter Anmeldung abgelehnt (HTTP 401)".to_string(),
                 });
             }
         }
@@ -181,12 +180,12 @@ async fn check_status(response: reqwest::Response, what: &str) -> CoreResult<Vec
     if status == StatusCode::FORBIDDEN {
         // Kein Umgehungsversuch, z. B. bei einer Cloudflare-Sperrseite.
         return Err(CoreError::Network {
-            message: format!("{what} abgelehnt (HTTP 403)"),
+            detail: format!("{what} abgelehnt (HTTP 403)"),
         });
     }
     if !status.is_success() {
         return Err(CoreError::Network {
-            message: format!("{what} fehlgeschlagen (HTTP {})", status.as_u16()),
+            detail: format!("{what} fehlgeschlagen (HTTP {})", status.as_u16()),
         });
     }
     Ok(response.bytes().await?.to_vec())
@@ -198,7 +197,7 @@ fn saturating_u32(value: u64) -> u32 {
 
 fn parse_error(message: &str) -> CoreError {
     CoreError::Parse {
-        message: message.to_string(),
+        detail: message.to_string(),
     }
 }
 

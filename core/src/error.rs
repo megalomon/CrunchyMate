@@ -1,15 +1,17 @@
+// Feldname "detail" statt "message": UniFFI erzeugt daraus Kotlin-Exceptions, deren
+// Property "message" mit Throwable.message kollidieren würde.
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum CoreError {
-    #[error("Netzwerkfehler: {message}")]
-    Network { message: String },
+    #[error("Netzwerkfehler: {detail}")]
+    Network { detail: String },
     #[error("Zu viele Anfragen, erneut versuchen in {retry_after_secs} s")]
     RateLimited { retry_after_secs: i64 },
-    #[error("Authentifizierung fehlgeschlagen: {message}")]
-    Auth { message: String },
-    #[error("Antwort nicht lesbar: {message}")]
-    Parse { message: String },
-    #[error("Datenbankfehler: {message}")]
-    Database { message: String },
+    #[error("Authentifizierung fehlgeschlagen: {detail}")]
+    Auth { detail: String },
+    #[error("Antwort nicht lesbar: {detail}")]
+    Parse { detail: String },
+    #[error("Datenbankfehler: {detail}")]
+    Database { detail: String },
     #[error("Abgebrochen")]
     Cancelled,
 }
@@ -40,7 +42,7 @@ impl CoreError {
 impl From<rusqlite::Error> for CoreError {
     fn from(error: rusqlite::Error) -> Self {
         CoreError::Database {
-            message: error.to_string(),
+            detail: error.to_string(),
         }
     }
 }
@@ -48,7 +50,7 @@ impl From<rusqlite::Error> for CoreError {
 impl From<reqwest::Error> for CoreError {
     fn from(error: reqwest::Error) -> Self {
         CoreError::Network {
-            message: error.to_string(),
+            detail: error.to_string(),
         }
     }
 }
@@ -56,7 +58,7 @@ impl From<reqwest::Error> for CoreError {
 impl From<serde_json::Error> for CoreError {
     fn from(error: serde_json::Error) -> Self {
         CoreError::Parse {
-            message: error.to_string(),
+            detail: error.to_string(),
         }
     }
 }

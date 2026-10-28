@@ -208,7 +208,7 @@ impl MetadataSource for FakeMetadata {
 
 fn network() -> CoreError {
     CoreError::Network {
-        message: "weg".to_string(),
+        detail: "weg".to_string(),
     }
 }
 

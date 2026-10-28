@@ -189,7 +189,7 @@ async fn forbidden_is_network_error() {
         .await;
     let src = source(&server);
     match src.fetch_page(0, 50, "de-DE").await.unwrap_err() {
-        CoreError::Network { message } => assert!(message.contains("403")),
+        CoreError::Network { detail } => assert!(detail.contains("403")),
         other => panic!("unerwarteter Fehler: {other:?}"),
     }
 }

@@ -141,7 +141,7 @@ impl AniListClient {
                 }
                 other => {
                     return Err(CoreError::Network {
-                        message: format!("AniList antwortete mit Status {other}"),
+                        detail: format!("AniList antwortete mit Status {other}"),
                     })
                 }
             }
@@ -319,10 +319,10 @@ fn parse_root(root: Value) -> CoreResult<Option<Map<String, Value>>> {
                 .filter(|m| !m.is_empty());
             match (message, root.get("errors").and_then(Value::as_array)) {
                 (Some(m), _) => Err(CoreError::Parse {
-                    message: format!("AniList-GraphQL-Fehler: {m}"),
+                    detail: format!("AniList-GraphQL-Fehler: {m}"),
                 }),
                 (None, Some(list)) if !list.is_empty() => Err(CoreError::Parse {
-                    message: "AniList-GraphQL-Fehler: Unbekannter Fehler".to_string(),
+                    detail: "AniList-GraphQL-Fehler: Unbekannter Fehler".to_string(),
                 }),
                 _ => Ok(None),
             }

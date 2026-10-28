@@ -14,9 +14,7 @@ target/
 /build/
 app/build/
 .gradle/
-android/.gradle/
-android/build/
-android/app/build/
-android/local.properties
-android/.idea/
+.kotlin/
+local.properties
+.idea/
 *.iml
