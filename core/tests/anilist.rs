@@ -12,6 +12,7 @@ fn fast() -> RetryConfig {
         max_retries: 3,
         default_wait: Duration::ZERO,
         min_wait: Duration::ZERO,
+        max_wait: Duration::from_secs(300),
     }
 }
 
@@ -192,4 +193,40 @@ async fn other_status_is_network_error() {
         .await
         .unwrap_err();
     assert!(matches!(err, CoreError::Network { .. }));
+}
+
+#[tokio::test]
+async fn invalid_json_body_is_parse_error() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("<html>kein json"))
+        .mount(&server)
+        .await;
+
+    let err = client(&server)
+        .search_batch(&titles(&["A"]))
+        .await
+        .unwrap_err();
+    assert!(matches!(err, CoreError::Parse { .. }));
+}
+
+#[tokio::test]
+async fn expired_ratelimit_reset_does_not_delay_next_request() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("X-RateLimit-Remaining", "0")
+                .insert_header("X-RateLimit-Reset", "1")
+                .set_body_json(json!({ "data": {} })),
+        )
+        .mount(&server)
+        .await;
+
+    let c = client(&server);
+    let start = std::time::Instant::now();
+    c.search_batch(&titles(&["A"])).await.unwrap();
+    c.search_batch(&titles(&["A"])).await.unwrap();
+    assert!(start.elapsed() < Duration::from_secs(5));
+    assert_eq!(server.received_requests().await.unwrap().len(), 2);
 }
