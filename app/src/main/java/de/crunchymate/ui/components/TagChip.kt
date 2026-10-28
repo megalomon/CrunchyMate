@@ -54,9 +54,9 @@ fun TagChip(
     state: TagState?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    label: String = if (count == null) name else stringResource(R.string.tag_label_with_count, name, count),
 ) {
     val description = stringResource(state.descriptionRes())
-    val label = if (count == null) name else stringResource(R.string.tag_label_with_count, name, count)
     val stateColor = state?.color(LocalCrunchyMateColors.current)
     FilterChip(
         selected = state != null,

@@ -66,6 +66,7 @@
     <string name="tags_filter_placeholder">Tag filtern …</string>
     <string name="tags_reset">Tag-Filter löschen</string>
     <string name="results_loading">Lade Anime …</string>
+    <string name="results_error">Trefferzahl konnte nicht ermittelt werden.</string>
     <string name="results_count">Treffer: %1$d</string>
     <string name="empty_search_title">Keine Anime gefunden</string>
     <string name="empty_search_subtitle">Passe deine Suchbegriffe oder Filter an oder starte einen Sync in den Einstellungen.</string>
@@ -82,6 +83,7 @@
     <string name="detail_error_title">Anime konnte nicht geladen werden</string>
     <string name="detail_description">Beschreibung</string>
     <string name="detail_tags">AniList-Tags</string>
+    <string name="detail_tag_rank">%1$s (%2$d\u00A0%%)</string>
     <string name="detail_anilist">AniList</string>
     <string name="detail_anilist_score">Bewertung: %1$d %%</string>
     <string name="detail_anilist_open">Auf AniList ansehen</string>

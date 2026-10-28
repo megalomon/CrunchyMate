@@ -6,7 +6,9 @@ import de.crunchymate.core.CoreGateway
 import de.crunchymate.core.FakeCore
 import de.crunchymate.core.SAVE_DEBOUNCE
 import de.crunchymate.core.SettingsStore
+import de.crunchymate.core.ffi.AnimeFilter
 import de.crunchymate.core.ffi.AnimeSummary
+import de.crunchymate.core.ffi.CoreException
 import de.crunchymate.core.ffi.NameCount
 import de.crunchymate.core.ffi.TagSelection
 import de.crunchymate.core.ffi.TagState
@@ -49,6 +51,7 @@ class SearchViewModelTest {
         val store: SettingsStore,
         val viewModel: SearchViewModel,
         val sources: List<PagingSource<Int, AnimeSummary>>,
+        val pagingFilters: List<AnimeFilter>,
     )
 
     private suspend fun TestScope.fixture(
@@ -59,12 +62,14 @@ class SearchViewModelTest {
         val store = SettingsStore(gateway, backgroundScope, dispatcher)
         store.load()
         val sources = mutableListOf<PagingSource<Int, AnimeSummary>>()
+        val pagingFilters = mutableListOf<AnimeFilter>()
         val viewModel =
             SearchViewModel(mode, gateway, store) { filter ->
+                pagingFilters += filter
                 AnimePagingSource(gateway, filter).also { sources += it }
             }
         runCurrent()
-        return Fixture(core, store, viewModel, sources)
+        return Fixture(core, store, viewModel, sources, pagingFilters)
     }
 
     @Test
@@ -96,10 +101,17 @@ class SearchViewModelTest {
             assertFalse(state.tags.any { it.name == "Alt" })
             assertEquals(listOf(TagSelection("Alt", TagState.PREFER)), state.activeTags)
 
-            repeat(3) { f.viewModel.onTagTapped("Alt") }
+            f.viewModel.onTagTapped("Alt")
             runCurrent()
-            val activeTags = f.viewModel.uiState.value.activeTags
-            assertEquals(emptyList<TagSelection>(), activeTags)
+            assertEquals(listOf(TagSelection("Alt", TagState.MUST)), f.viewModel.uiState.value.activeTags)
+
+            f.viewModel.onTagTapped("Alt")
+            runCurrent()
+            assertEquals(listOf(TagSelection("Alt", TagState.EXCLUDE)), f.viewModel.uiState.value.activeTags)
+
+            f.viewModel.onTagTapped("Alt")
+            runCurrent()
+            assertEquals(emptyList<TagSelection>(), f.viewModel.uiState.value.activeTags)
         }
 
     @Test
@@ -135,6 +147,67 @@ class SearchViewModelTest {
             assertEquals(listOf("a" to true), f.core.watchedCalls)
             assertTrue(f.sources.first().invalid)
             assertTrue(f.core.queryCalls.count { it.third == 0 } > totalQueriesBefore)
+        }
+
+    @Test
+    fun queryTyping_showsTextImmediatelyButLoadsAfterDebounce() =
+        runTest(dispatcher) {
+            val f = fixture()
+            backgroundScope.launch { f.viewModel.items.collect {} }
+            runCurrent()
+
+            f.viewModel.onQueryChange("Frie")
+            f.viewModel.onQueryChange("Frieren")
+            assertEquals("Frieren", f.viewModel.query)
+            assertEquals("Frieren", f.store.settings.value.search.query)
+
+            advanceTimeBy(QUERY_DEBOUNCE_MS - 1)
+            runCurrent()
+            assertFalse(f.core.queryCalls.any { it.first.query.isNotEmpty() })
+            assertFalse(f.pagingFilters.any { it.query.isNotEmpty() })
+
+            advanceTimeBy(2)
+            runCurrent()
+            assertEquals(
+                listOf("Frieren"),
+                f.core.queryCalls
+                    .map { it.first.query }
+                    .filter { it.isNotEmpty() }
+                    .distinct(),
+            )
+            assertEquals("Frieren", f.pagingFilters.last().query)
+        }
+
+    @Test
+    fun watchedAndMeh_useFixedFilterAndSkipFacets() =
+        runTest(dispatcher) {
+            for (mode in listOf(GridMode.Watched, GridMode.Meh)) {
+                val f = fixture(mode = mode)
+                backgroundScope.launch { f.viewModel.items.collect {} }
+                runCurrent()
+
+                val expected =
+                    f.store.settings.value.search
+                        .toFilter(mode)
+                assertEquals(expected, f.pagingFilters.single())
+                assertEquals(
+                    expected,
+                    f.core.queryCalls
+                        .last()
+                        .first,
+                )
+                assertEquals(0, f.core.facetCalls)
+            }
+        }
+
+    @Test
+    fun totalFailure_setsTotalError() =
+        runTest(dispatcher) {
+            val f = fixture(FakeCore().apply { queryError = CoreException.Database("x") })
+
+            val state = f.viewModel.uiState.value
+            assertTrue(state.totalError)
+            assertEquals(null, state.total)
         }
 
     @Test

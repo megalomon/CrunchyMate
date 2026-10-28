@@ -60,6 +60,24 @@ class DetailViewModelTest {
         }
 
     @Test
+    fun detail_tagTap_cyclesSearchTagState() =
+        runTest(dispatcher) {
+            val core = FakeCore().apply { details = mapOf("a" to sampleDetail("a", tags = listOf(TagRank("Magie", 80)))) }
+            val gateway = CoreGateway(core, dispatcher)
+            val store = SettingsStore(gateway, backgroundScope, dispatcher)
+            store.load()
+            val viewModel = DetailViewModel("a", gateway, store)
+            runCurrent()
+
+            viewModel.onTagTapped("Magie")
+            runCurrent()
+
+            val expected = listOf(TagSelection("Magie", TagState.PREFER))
+            assertEquals(expected, store.settings.value.search.tags)
+            assertEquals(expected, viewModel.uiState.value.tagStates)
+        }
+
+    @Test
     fun detail_unknownId_showsError() =
         runTest(dispatcher) {
             val gateway = CoreGateway(FakeCore(), dispatcher)

@@ -1,6 +1,9 @@
 package de.crunchymate.ui.search
 
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.InvalidatingPagingSourceFactory
@@ -59,8 +62,14 @@ class SearchViewModel internal constructor(
 
     private val search = settingsStore.settings.map { it.search }.distinctUntilChanged()
 
-    // Das Suchfeld zeigt jede Eingabe sofort, geladen wird erst nach einer Tipp-Pause
-    private val loadedQuery = MutableStateFlow(settingsStore.settings.value.search.query)
+    /**
+     * Text im Suchfeld als synchroner Compose-Zustand: Ein an einen asynchronen Flow gebundenes
+     * TextField verliert bei schnellem Tippen Zeichen. Geladen wird erst nach einer Tipp-Pause.
+     */
+    var query by mutableStateOf(settingsStore.settings.value.search.query)
+        private set
+
+    private val loadedQuery = MutableStateFlow(query)
     private var queryJob: Job? = null
 
     private val filter: Flow<AnimeFilter> =
@@ -70,7 +79,7 @@ class SearchViewModel internal constructor(
     private val genres = MutableStateFlow(emptyList<NameCount>())
     private val tags = MutableStateFlow(emptyList<NameCount>())
     private val tagQuery = MutableStateFlow("")
-    private val total = MutableStateFlow<Long?>(null)
+    private val total = MutableStateFlow(TotalState(count = null, error = false))
 
     private val changesWithStart = gateway.changes.onStart { emit(Unit) }
 
@@ -82,25 +91,30 @@ class SearchViewModel internal constructor(
             .flatMapLatest { current ->
                 val factory = InvalidatingPagingSourceFactory { pagingSourceFactory(current) }
                 currentFactory = factory
-                Pager(PagingConfig(pageSize = PAGE_SIZE), pagingSourceFactory = factory).flow
+                // Platzhalter halten die Positionen stabil, wenn nach einer Änderung mitten in der Liste neu geladen wird
+                Pager(PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = true), pagingSourceFactory = factory).flow
             }.cachedIn(viewModelScope)
 
     val uiState: StateFlow<SearchUiState> =
-        combine(search, genres, tags, tagQuery, total) { state, genreList, tagList, query, count ->
+        combine(search, genres, tags, tagQuery, total) { state, genreList, tagList, tagFilter, totalState ->
             SearchUiState(
                 search = state,
                 genres = genreList,
                 tags = tagList,
-                tagQuery = query,
-                visibleTags = if (query.isBlank()) tagList else tagList.filter { it.name.contains(query.trim(), ignoreCase = true) },
+                tagQuery = tagFilter,
+                visibleTags = tagList.filterByName(tagFilter),
                 activeTags = state.tags,
-                total = count,
+                total = totalState.count,
+                totalError = totalState.error,
             )
         }.stateIn(viewModelScope, SharingStarted.Eagerly, initialState(settingsStore.settings.value.search))
 
     init {
         gateway.changes.onEach { currentFactory?.invalidate() }.launchIn(viewModelScope)
-        changesWithStart.onEach { loadFacets() }.launchIn(viewModelScope)
+        // Genres und Tags braucht nur die Suche; Gesehen und Meh haben keine Steuerelemente
+        if (mode == GridMode.Search) {
+            changesWithStart.onEach { loadFacets() }.launchIn(viewModelScope)
+        }
         combine(filter, changesWithStart) { current, _ -> current }
             .mapLatest { current -> loadTotal(current) }
             .onEach { total.value = it }
@@ -108,6 +122,7 @@ class SearchViewModel internal constructor(
     }
 
     fun onQueryChange(q: String) {
+        query = q
         updateSearch { it.copy(query = q) }
         queryJob?.cancel()
         queryJob =
@@ -150,12 +165,12 @@ class SearchViewModel internal constructor(
         }
     }
 
-    private suspend fun loadTotal(current: AnimeFilter): Long? =
+    private suspend fun loadTotal(current: AnimeFilter): TotalState =
         try {
-            gateway.queryAnime(current, 0, TOTAL_ONLY_LIMIT).total
+            TotalState(count = gateway.queryAnime(current, 0, TOTAL_ONLY_LIMIT).total, error = false)
         } catch (e: CoreException) {
             Log.w(LOG_TAG, "Trefferzahl konnte nicht geladen werden: ${e::class.simpleName}")
-            null
+            TotalState(count = null, error = true)
         }
 
     private fun runCatchingCore(block: suspend () -> Unit) {
@@ -178,6 +193,17 @@ class SearchViewModel internal constructor(
                 visibleTags = emptyList(),
                 activeTags = search.tags,
                 total = null,
+                totalError = false,
             )
     }
+}
+
+private data class TotalState(
+    val count: Long?,
+    val error: Boolean,
+)
+
+private fun List<NameCount>.filterByName(query: String): List<NameCount> {
+    val needle = query.trim()
+    return if (needle.isEmpty()) this else filter { it.name.contains(needle, ignoreCase = true) }
 }

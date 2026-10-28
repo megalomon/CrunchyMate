@@ -36,6 +36,7 @@ class FakeCore(
     var details: Map<String, AnimeDetail> = emptyMap()
     var tagList: List<NameCount> = listOf(NameCount("Magie", 2L))
     var currentStats: Stats? = null
+    var facetCalls = 0
 
     override fun queryAnime(
         filter: AnimeFilter,
@@ -64,9 +65,15 @@ class FakeCore(
         mehCalls += id to meh
     }
 
-    override fun listGenres(): List<NameCount> = listOf(NameCount("Action", 3L))
+    override fun listGenres(): List<NameCount> {
+        facetCalls++
+        return listOf(NameCount("Action", 3L))
+    }
 
-    override fun listTags(): List<NameCount> = tagList
+    override fun listTags(): List<NameCount> {
+        facetCalls++
+        return tagList
+    }
 
     override fun stats(): Stats = currentStats ?: Stats(items.size.toLong(), 0L, 0L, 0L, 0L)
 

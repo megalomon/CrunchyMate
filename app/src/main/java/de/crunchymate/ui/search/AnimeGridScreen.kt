@@ -2,23 +2,29 @@ package de.crunchymate.ui.search
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -26,12 +32,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import de.crunchymate.R
 import de.crunchymate.core.ffi.AnimeSummary
 import de.crunchymate.core.messageRes
 import de.crunchymate.ui.components.AnimeCard
 import de.crunchymate.ui.components.EmptyState
 import de.crunchymate.ui.theme.Dimens
+
+// Poster (2:3) plus Titel- und Aktionszeile der AnimeCard, grob angenähert
+private const val PLACEHOLDER_ASPECT_RATIO = 0.5f
 
 /** Texte, die sich zwischen Suche, Gesehen und Meh unterscheiden. */
 private data class ModeTexts(
@@ -67,6 +77,7 @@ fun AnimeGridDestination(
     AnimeGridScreen(
         mode = mode,
         state = state,
+        query = viewModel.query,
         items = items,
         actions =
             SearchActions(
@@ -90,6 +101,7 @@ fun AnimeGridDestination(
 fun AnimeGridScreen(
     mode: GridMode,
     state: SearchUiState,
+    query: String,
     items: LazyPagingItems<AnimeSummary>,
     actions: SearchActions,
     onOpen: (String) -> Unit,
@@ -106,12 +118,12 @@ fun AnimeGridScreen(
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
     ) {
         if (mode == GridMode.Search) {
-            fullWidth { SearchControls(state, actions) }
+            fullWidth { SearchControls(state, query, actions) }
         }
         if (texts.bannerTitle != null && texts.bannerSubtitle != null) {
             fullWidth { Banner(texts.bannerTitle, texts.bannerSubtitle) }
         }
-        fullWidth { ResultCount(state.total) }
+        fullWidth { ResultCount(state.total, state.totalError) }
         when (val refresh = items.loadState.refresh) {
             is LoadState.Error ->
                 fullWidth {
@@ -136,10 +148,12 @@ fun AnimeGridScreen(
                     }
                 }
         }
-        // Ohne Schlüssel: Offset-Paging kann während eines Syncs dieselbe ID auf zwei Seiten liefern,
-        // doppelte Schlüssel würden das Grid zum Absturz bringen
-        items(count = items.itemCount) { index ->
-            items[index]?.let { anime ->
+        // Eindeutige IDs garantiert AnimePagingSource je Ladegeneration
+        items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
+            val anime = items[index]
+            if (anime == null) {
+                CardPlaceholder()
+            } else {
                 AnimeCard(
                     anime = anime,
                     onOpen = { onOpen(anime.id) },
@@ -177,12 +191,39 @@ private fun Banner(
 }
 
 @Composable
-private fun ResultCount(total: Long?) {
+private fun ResultCount(
+    total: Long?,
+    error: Boolean,
+) {
+    if (error) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+            Icon(
+                painterResource(R.drawable.ic_state_error),
+                contentDescription = null,
+                modifier = Modifier.size(Dimens.BadgeIcon),
+                tint = MaterialTheme.colorScheme.error,
+            )
+            Text(
+                stringResource(R.string.results_error),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        return
+    }
     Text(
         if (total == null) stringResource(R.string.results_loading) else stringResource(R.string.results_count, total),
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+}
+
+/** Platzhalter für noch nicht geladene Einträge; hält die Positionen im Grid stabil. */
+@Composable
+private fun CardPlaceholder() {
+    Card(Modifier.fillMaxWidth()) {
+        Box(Modifier.fillMaxWidth().aspectRatio(PLACEHOLDER_ASPECT_RATIO))
+    }
 }
 
 @Composable

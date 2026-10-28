@@ -19,7 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -146,7 +149,8 @@ private fun AppNavHost(
             val id = entry.toRoute<DetailRoute>().id
             DetailDestination(
                 viewModel = viewModel { DetailViewModel(id, container.gateway, container.settingsStore) },
-                onBack = { navController.popBackStack() },
+                // Doppeltippen auf Zurück darf nicht auch den Tab darunter entfernen
+                onBack = dropUnlessResumed { navController.popBackStack() },
             )
         }
     }
@@ -158,10 +162,12 @@ private fun GridTab(
     mode: GridMode,
     onOpen: (String) -> Unit,
 ) {
+    // Nach dem ersten Tippen ist der Tab nicht mehr RESUMED; ein zweites Tippen öffnet kein weiteres Detail
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     AnimeGridDestination(
         mode = mode,
         viewModel = viewModel { SearchViewModel(mode, container.gateway, container.settingsStore) },
-        onOpen = onOpen,
+        onOpen = { id -> if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) onOpen(id) },
     )
 }
 

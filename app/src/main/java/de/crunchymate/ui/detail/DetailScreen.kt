@@ -158,9 +158,10 @@ private fun Header(
     onToggleMeh: () -> Unit,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+        // Der Titel steht direkt daneben; eine Bildbeschreibung würde ihn doppelt vorlesen
         AsyncImage(
             model = anime.posterUrl.ifEmpty { null },
-            contentDescription = anime.title,
+            contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.width(Dimens.DetailPosterWidth).aspectRatio(POSTER_ASPECT_RATIO),
         )
@@ -227,9 +228,10 @@ private fun Tags(
         anime.tags.forEach { tag ->
             TagChip(
                 name = tag.name,
-                count = tag.rank.toLong(),
+                count = null,
                 state = tagStates.stateOf(tag.name),
                 onClick = { onTagTapped(tag.name) },
+                label = stringResource(R.string.detail_tag_rank, tag.name, tag.rank),
             )
         }
     }

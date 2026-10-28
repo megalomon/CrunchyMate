@@ -69,11 +69,12 @@ private fun SortOrder.labelRes(): Int =
 @Composable
 fun SearchControls(
     state: SearchUiState,
+    query: String,
     actions: SearchActions,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
-        QueryField(state.search.query, actions.onQueryChange)
+        QueryField(query, actions.onQueryChange)
         FilterChips(state, actions)
         TagSection(state, actions)
     }
