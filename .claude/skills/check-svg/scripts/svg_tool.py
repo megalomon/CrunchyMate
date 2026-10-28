@@ -51,6 +51,8 @@ BACKGROUND_AREA_RATIO = 0.95
 # Ab dieser Pfadanzahl wird das Rendern auf Geräten spürbar teurer
 MAX_RECOMMENDED_PATHS = 60
 # Erlaubte mittlere Pixelabweichung beim Gegentest (0..255)
+# Großzügig gewählt, weil resvg und der Rückrender Kanten leicht unterschiedlich glätten; echte Fehler
+# (fehlende Form, falsche Farbe) liegen um ein Vielfaches darüber. Die Flaggen liegen bei höchstens 0,15.
 MAX_VERIFY_DIFF = 6.0
 RENDER_SIZE = 96
 
@@ -302,7 +304,7 @@ def path_vertices(d):
 
 def expand_markers(parent, ids):
     """Setzt marker-mid als Kopien des Marker-Inhalts an die Pfad-Eckpunkte (Standard-Marker ohne viewBox/Ref/Orient)."""
-    for index, child in enumerate(list(parent)):
+    for child in list(parent):
         if not isinstance(child.tag, str):
             continue
         expand_markers(child, ids)
@@ -317,11 +319,13 @@ def expand_markers(parent, ids):
             continue
         scale = 1.0 if marker.get("markerUnits") == "userSpaceOnUse" else float(child.get("stroke-width", 1))
         del child.attrib["marker-mid"]
+        # Position zum Einfügezeitpunkt bestimmen: frühere Geschwister haben die Liste bereits verlängert
+        position = list(parent).index(child)
         for offset, (vx, vy) in enumerate(vertices[1:-1], start=1):
             group = ET.Element(f"{{{SVG_NS}}}g", {"transform": f"translate({vx:g} {vy:g}) scale({scale:g})"})
             for part in marker:
                 group.append(copy.deepcopy(part))
-            parent.insert(index + offset, group)
+            parent.insert(position + offset, group)
 
 
 def expand_references(root):
