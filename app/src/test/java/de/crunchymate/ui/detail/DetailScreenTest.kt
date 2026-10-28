@@ -9,10 +9,10 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.unit.dp
 import de.crunchymate.R
 import de.crunchymate.core.sampleDetail
 import de.crunchymate.ui.theme.CrunchyMateTheme
+import de.crunchymate.ui.theme.Dimens
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -21,7 +21,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 private const val SDK = 35
-private val MIN_TOUCH_TARGET = 48.dp
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [SDK], qualifiers = "w411dp-h891dp")
@@ -68,8 +67,8 @@ class DetailScreenTest {
         listOf(R.string.action_toggle_watched, R.string.action_toggle_meh).forEach {
             rule
                 .onNodeWithContentDescription(string(it))
-                .assertTouchWidthIsEqualTo(MIN_TOUCH_TARGET)
-                .assertTouchHeightIsEqualTo(MIN_TOUCH_TARGET)
+                .assertTouchWidthIsEqualTo(Dimens.MinTouchTarget)
+                .assertTouchHeightIsEqualTo(Dimens.MinTouchTarget)
         }
         rule.onNodeWithContentDescription(string(R.string.action_toggle_watched)).performClick()
         rule.onNodeWithContentDescription(string(R.string.action_toggle_meh)).performClick()

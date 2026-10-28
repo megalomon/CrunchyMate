@@ -83,8 +83,6 @@ android {
     }
 
     testOptions {
-        // android.util.Log liefert in JVM-Tests Standardwerte statt Fehler
-        unitTests.isReturnDefaultValues = true
         // Robolectric braucht die Ressourcen (strings, drawables) für Compose-Tests
         unitTests.isIncludeAndroidResources = true
     }

@@ -20,6 +20,6 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         val container = (application as CrunchyMateApplication).container
-        container.applicationScope.launch { container.settingsStore.flush() }
+        container.applicationScope.launch { container.flushSettings() }
     }
 }

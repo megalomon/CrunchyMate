@@ -5,7 +5,9 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.graphics.drawable.Icon
+import de.crunchymate.MainActivity
 import de.crunchymate.R
 import de.crunchymate.core.ffi.SyncKind
 import de.crunchymate.core.ffi.SyncPhase
@@ -15,6 +17,7 @@ object SyncNotifications {
     const val CHANNEL_ID = "sync"
     const val NOTIFICATION_ID_CATALOG = 1
     const val NOTIFICATION_ID_METADATA = 2
+    private const val OPEN_APP_REQUEST_CODE = 0
 
     fun notificationId(kind: SyncKind): Int =
         when (kind) {
@@ -64,6 +67,7 @@ object SyncNotifications {
             .setSmallIcon(R.drawable.ic_notification_sync)
             .setContentTitle(context.getString(title))
             .setContentText(text)
+            .setContentIntent(openAppIntent(context))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(Notification.CATEGORY_PROGRESS)
@@ -77,6 +81,15 @@ object SyncNotifications {
             }.addAction(cancelAction)
             .build()
     }
+
+    // Tippen auf die Benachrichtigung bringt die App nach vorn, statt nichts zu tun
+    private fun openAppIntent(context: Context): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            OPEN_APP_REQUEST_CODE,
+            Intent(context, MainActivity::class.java).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
 
     // Notification.setProgress erwartet Int; Katalog- und Anreicherungszähler bleiben weit darunter
     private fun Long.toProgressMax(): Int = coerceAtMost(Int.MAX_VALUE.toLong()).toInt()

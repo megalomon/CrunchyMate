@@ -30,7 +30,15 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+private const val SDK = 35
+
+// Robolectric stellt android.util.Log bereit, das die Fehlerpfade aufrufen
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [SDK])
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchViewModelTest {
     private val dispatcher = StandardTestDispatcher()

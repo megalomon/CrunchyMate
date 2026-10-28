@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Erzeugt den Abschnitt „Abhängigkeiten (automatisch erzeugt)“ in docs/open-source-hinweise.md."""
+"""Erzeugt den Abschnitt „Abhängigkeiten (automatisch erzeugt)“ in docs/open-source-hinweise.md
+und daraus das App-Asset app/src/main/assets/open_source_notices.json.
+
+Quelle der Wahrheit bleibt docs/open-source-hinweise.md: Die Abschnitte Icons, Länderflaggen und
+Lizenztexte pflegt man dort von Hand; das Skript liest sie beim Erzeugen des Assets wieder ein.
+"""
 
 import glob
 import json
@@ -12,6 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DOC = ROOT / "docs" / "open-source-hinweise.md"
+ASSET = ROOT / "app" / "src" / "main" / "assets" / "open_source_notices.json"
 BEGIN, END = "<!-- oss:begin -->", "<!-- oss:end -->"
 RUST_TARGET = "aarch64-linux-android"
 RUST_ROOT_PACKAGE = "crunchymate-core"
@@ -21,6 +27,12 @@ LICENSE_FILE_GLOBS = ("LICENSE*", "LICENCE*", "COPYING*", "UNLICENSE*")
 COPYRIGHT_RE = re.compile(r"^\W*(copyright\b.*\d{4}.*|\(c\)\s.*\d{4}.*|©.*\d{4}.*)$", re.I)
 APACHE_SPDX = "Apache-2.0"  # POMs nennen die Lizenz uneinheitlich
 POM_NS = {"m": "http://maven.apache.org/POM/4.0.0"}
+ICONS_NAME = "Material Design Icons (Pictogrammers)"
+ICONS_HOLDER = "Pictogrammers"
+ICONS_LICENSE_ID = "Apache-2.0"
+FLAGS_NAME = "flag-icons"
+FLAGS_LICENSE_ID = "MIT (flag-icons)"
+FLAGS_SOURCE = "https://github.com/lipis/flag-icons"
 
 
 def run(cmd):
@@ -127,7 +139,7 @@ def pom_info(group, artifact, version, depth=0):
 # ---------- Ausgabe ----------
 
 def build_section():
-    rust, unknown, spdx_ids = [], [], set()
+    rust, unknown, spdx_ids, components = [], [], set(), []
     for p in rust_packages():
         lic = p.get("license")
         if not lic:
@@ -136,6 +148,8 @@ def build_section():
         else:
             spdx_ids.update(re.findall(r"[A-Za-z0-9.\-+]+", re.sub(r"\b(OR|AND|WITH)\b", " ", lic)))
         holder = "; ".join(rust_copyrights(p)) or f"{p['name']} ({p.get('repository') or 'crates.io/crates/' + p['name']})"
+        components.append({"group": "rust", "name": p["name"], "version": p["version"], "license": lic,
+                           "source": p.get("repository") or "", "holder": holder})
         rust.append(f"| {cell(p['name'])} | {p['version']} | {cell(lic)} | {cell(p.get('repository') or '-')} | {cell(holder)} |")
 
     kotlin = []
@@ -147,6 +161,8 @@ def build_section():
         if not names:
             unknown.append(f"Android: {group}:{artifact} {version}")
         owner = info["owner"] or "siehe Quelle"
+        components.append({"group": "android", "name": f"{group}:{artifact}", "version": version, "license": lic,
+                           "source": info["url"] or "", "holder": owner})
         kotlin.append(f"| {group}:{artifact} | {version} | {cell(lic)} | {cell(info['url'] or '-')} | {cell(owner)} |")
 
     lines = [BEGIN, "## Abhängigkeiten (automatisch erzeugt)", "",
@@ -158,11 +174,74 @@ def build_section():
              "### Lizenz nicht ermittelbar", ""]
     lines += [f"- {u}" for u in unknown] or ["Keine."]
     lines += ["", END]
-    return "\n".join(lines), len(rust), len(kotlin), len(unknown), spdx_ids
+    return "\n".join(lines), components, unknown, spdx_ids
+
+
+# ---------- Asset ----------
+
+def doc_section(text, heading):
+    """Text eines Abschnitts mit Überschrift `## heading` bis zur nächsten `## `-Überschrift."""
+    m = re.search(rf"^## {re.escape(heading)}\n(.*?)(?=^## |\Z)", text, re.S | re.M)
+    if not m:
+        sys.exit(f"Abschnitt „{heading}“ fehlt in {DOC.name}")
+    return m.group(1)
+
+
+def require(pattern, text, what):
+    m = re.search(pattern, text)
+    if not m:
+        sys.exit(f"{what} nicht in {DOC.name} gefunden (Muster {pattern})")
+    return m
+
+
+def hand_written_components(text):
+    """Icons und Flaggen stehen von Hand im Dokument und werden hier eingelesen."""
+    icons = doc_section(text, "Icons")
+    icon_licenses = set(re.findall(r"^\| `ic_[^`]+` \| \S+ \| ([^|]+?) \|$", icons, re.M))
+    if icon_licenses != {"Apache 2.0"}:
+        sys.exit(f"Icon-Tabelle nennt unerwartete Lizenzen {sorted(icon_licenses)}; Skript und Dokument abgleichen")
+    flags = doc_section(text, "Länderflaggen")
+    return [
+        {"group": "icons", "name": ICONS_NAME, "version": "", "license": ICONS_LICENSE_ID,
+         "source": require(r"\((https://pictogrammers\.com/)\)", icons, "Icon-Quelle").group(1),
+         "holder": ICONS_HOLDER},
+        {"group": "flags", "name": FLAGS_NAME,
+         "version": require(r"flag-icons \(Version ([\d.]+)", flags, "Flaggen-Version").group(1),
+         "license": "MIT", "source": FLAGS_SOURCE,
+         "holder": require(r"Copyright \(c\) [^.]+?(?=\. )", flags, "Flaggen-Copyright").group(0)},
+    ]
+
+
+def license_texts(text):
+    """Volltexte aus dem Abschnitt „Lizenztexte“: je `### Kennung`, Titelzeile und ```text-Block."""
+    body = doc_section(text, "Lizenztexte")
+    texts = []
+    for m in re.finditer(r"^### (.+?)\n\n(.+?)\n\n```text\n(.*?)\n```", body, re.S | re.M):
+        texts.append({"id": m.group(1), "title": m.group(2), "text": m.group(3)})
+    if not texts:
+        sys.exit("Keine Lizenztexte gefunden")
+    return texts
+
+
+def license_ids(license_expression, known_ids):
+    tokens = re.findall(r"[A-Za-z0-9.\-+]+", re.sub(r"\b(OR|AND|WITH)\b", " ", license_expression))
+    return [t for t in tokens if t in known_ids]
+
+
+def write_asset(components, text):
+    texts = license_texts(text)
+    known = {t["id"] for t in texts}
+    all_components = components + hand_written_components(text)
+    for c in all_components:
+        # Flaggen stehen unter dem eigenen MIT-Text mit Copyright von flag-icons
+        c["licenseIds"] = [FLAGS_LICENSE_ID] if c["group"] == "flags" else license_ids(c["license"], known)
+    ASSET.parent.mkdir(parents=True, exist_ok=True)
+    ASSET.write_text(json.dumps({"components": all_components, "licenses": texts},
+                                ensure_ascii=False, indent=1) + "\n")
 
 
 def main():
-    section, n_rust, n_kotlin, n_unknown, ids = build_section()
+    section, components, unknown, ids = build_section()
     text = DOC.read_text()
     if BEGIN in text and END in text:
         head, rest = text.split(BEGIN, 1)
@@ -171,8 +250,10 @@ def main():
     else:
         text = text.rstrip("\n") + "\n\n" + section + "\n"
     DOC.write_text(text)
+    write_asset(components, text)
     missing = sorted(i for i in ids if f"### {i}\n" not in text)
-    print(f"Rust-Crates: {n_rust}, Android-Bibliotheken: {n_kotlin}, nicht ermittelbar: {n_unknown}")
+    n_rust = sum(c["group"] == "rust" for c in components)
+    print(f"Rust-Crates: {n_rust}, Android-Bibliotheken: {len(components) - n_rust}, nicht ermittelbar: {len(unknown)}")
     if missing:
         print("Lizenztext fehlt im Abschnitt „Lizenztexte“ für: " + ", ".join(missing), file=sys.stderr)
 

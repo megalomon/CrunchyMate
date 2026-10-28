@@ -25,7 +25,13 @@ class FakeCore(
     var items: List<AnimeSummary> = emptyList(),
     var storedSettings: Settings = sampleSettings(),
     private val totalOverride: Long? = null,
+    failOnCreate: Throwable? = null,
 ) : CoreInterface {
+    init {
+        // Wie Core::new, das bei Migrationsfehlern schon beim Erzeugen wirft
+        failOnCreate?.let { throw it }
+    }
+
     val watchedCalls = mutableListOf<Pair<String, Boolean>>()
     val mehCalls = mutableListOf<Pair<String, Boolean>>()
     val savedSettings = mutableListOf<Settings>()

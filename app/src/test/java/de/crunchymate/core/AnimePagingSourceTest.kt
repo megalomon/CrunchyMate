@@ -116,4 +116,53 @@ class AnimePagingSourceTest {
             val result = source.load(LoadParams.Refresh(60, PAGE_SIZE, false)) as LoadResult.Page
             assertNull(result.nextKey)
         }
+
+    @Test
+    fun duplicateIds_keepPlaceholderCountStable() =
+        runTest {
+            val core = FakeCore(items = listOf("a", "b", "c", "b", "d").map { sampleSummary(it) })
+            val source = AnimePagingSource(CoreGateway(core, UnconfinedTestDispatcher(testScheduler)), sampleFilter())
+
+            val first = source.load(LoadParams.Refresh(0, 3, false)) as LoadResult.Page
+            val second = source.load(LoadParams.Append(3, 3, false)) as LoadResult.Page
+
+            // Listenlänge = Gesamtzahl, auch wenn ein Duplikat verworfen wurde
+            assertEquals(5, first.itemsBefore + first.data.size + first.itemsAfter)
+            assertEquals(5, second.itemsBefore + second.data.size + second.itemsAfter)
+            assertEquals(1, second.data.size)
+            assertEquals(1, second.itemsAfter)
+        }
+
+    @Test
+    fun getRefreshKey_isClampedToKnownTotal() =
+        runTest {
+            val core = FakeCore(items = (0 until 300).map { sampleSummary("$it") })
+            val source = AnimePagingSource(CoreGateway(core, UnconfinedTestDispatcher(testScheduler)), sampleFilter())
+            source.load(LoadParams.Refresh(0, PAGE_SIZE, false))
+
+            val config = PagingConfig(PAGE_SIZE)
+            val page = LoadResult.Page<Int, AnimeSummary>(emptyList(), null, null)
+            val key = source.getRefreshKey(PagingState(listOf(page), 500, config, 0))
+            assertEquals(300 - config.initialLoadSize, key)
+        }
+
+    @Test
+    fun refreshBeyondShrunkCatalog_reloadsLastFullPage() =
+        runTest {
+            val core = FakeCore(items = (0 until 120).map { sampleSummary("$it") })
+            val source = AnimePagingSource(CoreGateway(core, UnconfinedTestDispatcher(testScheduler)), sampleFilter())
+
+            val result = source.load(LoadParams.Refresh(400, PAGE_SIZE, false)) as LoadResult.Page
+
+            assertEquals(70, result.itemsBefore)
+            assertEquals((70 until 120).map { "$it" }, result.data.map { it.id })
+            assertNull(result.nextKey)
+        }
+
+    @Test
+    fun clampOffset_staysWithinCatalog() {
+        assertEquals(0, AnimePagingSource.clampOffset(10, total = 20L, pageSize = 50))
+        assertEquals(70, AnimePagingSource.clampOffset(90, total = 120L, pageSize = 50))
+        assertEquals(40, AnimePagingSource.clampOffset(40, total = 120L, pageSize = 50))
+    }
 }

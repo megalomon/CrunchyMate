@@ -39,7 +39,7 @@ class SettingsScreenTest {
                 hideWatched = false,
                 contentLocaleChangePending = false,
             )
-        rule.setContent { CrunchyMateTheme { SettingsScreen(state, {}, {}, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SettingsScreen(state, {}, {}, {}, {}, {}) } }
         val size = Formatter.formatShortFileSize(rule.activity, IMAGE_BYTES)
         rule.onNodeWithText(rule.activity.getString(R.string.stat_images)).performScrollTo().assertIsDisplayed()
         rule.onNodeWithText(rule.activity.getString(R.string.stat_images_value, IMAGE_COUNT, size)).assertIsDisplayed()

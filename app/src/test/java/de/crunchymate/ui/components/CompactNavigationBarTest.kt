@@ -16,8 +16,8 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.unit.dp
 import de.crunchymate.ui.theme.CrunchyMateTheme
+import de.crunchymate.ui.theme.Dimens
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -26,7 +26,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 private const val SDK = 35
-private val EXPECTED_HEIGHT = 56.dp
 private val LABELS = listOf("Eins", "Zwei", "Drei")
 
 @RunWith(RobolectricTestRunner::class)
@@ -82,11 +81,11 @@ class CompactNavigationBarTest {
     fun bar_hasCompactHeight() {
         showBar({ 0 }, {})
         // Der Test-Activity hat keine Systemleisten-Abstände; die Zeile der Einträge ist das Maß
-        rule.onNodeWithText("Eins").fetchSemanticsNode()
+        rule.waitForIdle()
         rule
             .onRoot()
             .onChildren()
             .onFirst()
-            .assertHeightIsEqualTo(EXPECTED_HEIGHT)
+            .assertHeightIsEqualTo(Dimens.NavigationBarHeight)
     }
 }

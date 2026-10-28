@@ -54,7 +54,10 @@ import java.util.Locale
 private const val LOG_TAG = "CrunchyMate"
 
 @Composable
-fun SettingsDestination(viewModel: SettingsViewModel) {
+fun SettingsDestination(
+    viewModel: SettingsViewModel,
+    onOpenLicenses: () -> Unit,
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     SettingsScreen(
         state = state,
@@ -62,6 +65,7 @@ fun SettingsDestination(viewModel: SettingsViewModel) {
         onCancelSync = viewModel::onCancelSync,
         onHideWatchedChange = viewModel::onHideWatchedChange,
         onContentLocaleChange = viewModel::onContentLocaleChange,
+        onOpenLicenses = onOpenLicenses,
     )
 }
 
@@ -72,6 +76,7 @@ fun SettingsScreen(
     onCancelSync: (SyncKind) -> Unit,
     onHideWatchedChange: (Boolean) -> Unit,
     onContentLocaleChange: (String) -> Unit,
+    onOpenLicenses: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val startWithPermission = rememberNotificationPermissionStart(onStartSync)
@@ -104,6 +109,7 @@ fun SettingsScreen(
         )
         DisplaySettings(state, onHideWatchedChange, onContentLocaleChange)
         state.stats?.let { StatsSection(it) }
+        OutlinedButton(onClick = onOpenLicenses) { Text(stringResource(R.string.settings_licenses)) }
     }
 }
 

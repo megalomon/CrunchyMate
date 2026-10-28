@@ -8,7 +8,15 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+private const val SDK = 35
+
+// Robolectric stellt android.util.Log bereit, das die Fehlerpfade aufrufen
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [SDK])
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsStoreTest {
     @Test

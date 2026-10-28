@@ -1,6 +1,6 @@
 # Open-Source-Hinweise
 
-Diese Datei sammelt die Lizenzen und Quellen der in CrunchyMate verwendeten fremden Bestandteile. Sie ist die Grundlage für die Hinweise, die in der App angezeigt werden sollen. Bei jedem neuen fremden Bestandteil wird sie ergänzt.
+Diese Datei sammelt die Lizenzen und Quellen der in CrunchyMate verwendeten fremden Bestandteile. Sie ist die Quelle für den Lizenzbildschirm der App (Einstellungen, „Open-Source-Lizenzen“): `python3 scripts/gen-oss-notices.py` liest sie ein und schreibt `app/src/main/assets/open_source_notices.json`. Bei jedem neuen fremden Bestandteil wird sie ergänzt.
 
 ## Icons
 
@@ -37,10 +37,6 @@ Die Icons stammen aus den Material Design Icons der Pictogrammers (https://picto
 | `ic_launcher_foreground` | https://pictogrammers.com/library/mdi/icon/movie-roll/ | Apache 2.0 |
 | `ic_launcher_monochrome` | https://pictogrammers.com/library/mdi/icon/movie-roll/ | Apache 2.0 |
 | `ic_launcher_background` | https://pictogrammers.com/library/mdi/icon/square-rounded/ | Apache 2.0 |
-
-## Offen
-
-- Offene Entscheidung: Ob und wo die Lizenzhinweise in der App angezeigt werden (z. B. als Unterpunkt in den Einstellungen), steht nicht in der Spec und ist vom Auftraggeber festzulegen.
 
 ## Länderflaggen
 
@@ -358,7 +354,6 @@ Neu erzeugen mit `python3 scripts/gen-oss-notices.py`. Nicht von Hand bearbeiten
 | androidx.work:work-runtime-ktx | 2.12.0 | Apache-2.0 | https://developer.android.com/jetpack/androidx/releases/work#2.12.0 | The Android Open Source Project |
 | com.google.accompanist:accompanist-drawablepainter | 0.37.3 | Apache-2.0 | https://github.com/google/accompanist/ | Google |
 | com.google.guava:listenablefuture | 1.0 | Apache-2.0 | https://github.com/google/guava | Kevin Bourrillion |
-| com.squareup.okhttp3:okhttp | 4.12.0 | Apache-2.0 | https://square.github.io/okhttp/ | Square, Inc. |
 | com.squareup.okio:okio | 3.18.1 | Apache-2.0 | https://github.com/lysine-dev/okio/ | Square, Inc. |
 | com.squareup.okio:okio-jvm | 3.18.1 | Apache-2.0 | https://github.com/lysine-dev/okio/ | Square, Inc. |
 | io.coil-kt.coil3:coil | 3.6.3 | Apache-2.0 | https://github.com/coil-kt/coil | Coil Contributors |
@@ -369,10 +364,6 @@ Neu erzeugen mit `python3 scripts/gen-oss-notices.py`. Nicht von Hand bearbeiten
 | io.coil-kt.coil3:coil-compose-core-android | 3.6.3 | Apache-2.0 | https://github.com/coil-kt/coil | Coil Contributors |
 | io.coil-kt.coil3:coil-core | 3.6.3 | Apache-2.0 | https://github.com/coil-kt/coil | Coil Contributors |
 | io.coil-kt.coil3:coil-core-android | 3.6.3 | Apache-2.0 | https://github.com/coil-kt/coil | Coil Contributors |
-| io.coil-kt.coil3:coil-network-core | 3.6.3 | Apache-2.0 | https://github.com/coil-kt/coil | Coil Contributors |
-| io.coil-kt.coil3:coil-network-core-android | 3.6.3 | Apache-2.0 | https://github.com/coil-kt/coil | Coil Contributors |
-| io.coil-kt.coil3:coil-network-okhttp | 3.6.3 | Apache-2.0 | https://github.com/coil-kt/coil | Coil Contributors |
-| io.coil-kt.coil3:coil-network-okhttp-android | 3.6.3 | Apache-2.0 | https://github.com/coil-kt/coil | Coil Contributors |
 | net.java.dev.jna:jna | 5.19.1 | LGPL-2.1-or-later; Apache-2.0 | https://github.com/java-native-access/jna | Timothy Wall |
 | org.jetbrains:annotations | 23.0.0 | Apache-2.0 | https://github.com/JetBrains/java-annotations | JetBrains Team |
 | org.jetbrains.androidx.lifecycle:lifecycle-common | 2.9.6 | Apache-2.0 | https://github.com/JetBrains/compose-jb | Compose Multiplatform Team |
@@ -405,8 +396,6 @@ Neu erzeugen mit `python3 scripts/gen-oss-notices.py`. Nicht von Hand bearbeiten
 | org.jetbrains.compose.ui:ui-util | 1.12.0 | Apache-2.0 | https://github.com/JetBrains/compose-multiplatform | Compose Multiplatform Team |
 | org.jetbrains.compose.ui:ui-util-android | 1.12.0 | Apache-2.0 | https://github.com/JetBrains/compose-multiplatform | Compose Multiplatform Team |
 | org.jetbrains.kotlin:kotlin-stdlib | 2.4.21 | Apache-2.0 | https://kotlinlang.org/ | Kotlin Team |
-| org.jetbrains.kotlin:kotlin-stdlib-jdk7 | 1.8.21 | Apache-2.0 | https://kotlinlang.org/ | Kotlin Team |
-| org.jetbrains.kotlin:kotlin-stdlib-jdk8 | 1.8.21 | Apache-2.0 | https://kotlinlang.org/ | Kotlin Team |
 | org.jetbrains.kotlinx:kotlinx-coroutines-android | 1.11.0 | Apache-2.0 | https://github.com/Kotlin/kotlinx.coroutines | JetBrains Team |
 | org.jetbrains.kotlinx:kotlinx-coroutines-core | 1.11.0 | Apache-2.0 | https://github.com/Kotlin/kotlinx.coroutines | JetBrains Team |
 | org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm | 1.11.0 | Apache-2.0 | https://github.com/Kotlin/kotlinx.coroutines | JetBrains Team |
