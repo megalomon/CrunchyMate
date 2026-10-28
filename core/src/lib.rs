@@ -1,3 +1,4 @@
+pub mod core_api;
 pub mod db;
 pub mod error;
 pub mod model;
