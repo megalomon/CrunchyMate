@@ -46,3 +46,7 @@ Die Icons stammen aus den Material Design Icons der Pictogrammers (https://picto
 
 - Rust-Abhängigkeiten und Kotlin-Bibliotheken sind hier noch nicht erfasst. Die Liste sollte später aus `Cargo.lock` und den Gradle-Abhängigkeiten erzeugt werden, nicht von Hand gepflegt.
 - Eine Anzeige in der App (z. B. Unterpunkt in den Einstellungen) steht nicht in der Spec. Ob und wo sie entsteht, ist zu entscheiden.
+
+## Länderflaggen
+
+Die Flaggen für die Anzeige der Inhaltssprache stammen aus dem Paket flag-icons (Version 7.6.0, 4:3-Variante, https://github.com/lipis/flag-icons) und stehen unter der MIT-Lizenz. Copyright (c) 2013 Panayiotis Lipiridis. Welche Datei woher kommt, steht im Abschnitt „Flaggen (Inhaltssprache)“ in `docs/icons.md`; die unveränderten Originale liegen in `design/icons/flags/originals/`.

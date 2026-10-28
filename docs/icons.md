@@ -90,6 +90,23 @@ Jeder Tag wird per Tippen durchgeschaltet: neutral → Boost → Muss → Ausges
 | `ic_launcher_background` | App-Icon, Hintergrund (Fläche oder Muster, z. B. Crunchyroll-Orange) | 🟧 | `square-rounded.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/square-rounded/; Apache 2.0 (Pictogrammers Free License); Form durch vollflächiges Quadrat ersetzt (Launcher-Hintergrund muss die Fläche decken) |
 | `ic_launcher_monochrome` | App-Icon, einfarbige Variante für Themed Icons | 🍿 | `movie-roll.svg` | Pictogrammers Material Design Icons, https://pictogrammers.com/library/mdi/icon/movie-roll/; Apache 2.0 (Pictogrammers Free License) |
 
+## Flaggen (Inhaltssprache)
+
+Farbige Flaggen im Format 4:3 (24 × 18 dp) für die Anzeige der Inhaltssprache auf der Kachel. Sie behalten ihre Farben und werden nicht im Theme eingefärbt. Alle Flaggen sind VectorDrawables, erzeugt und geprüft über das Profil `flag` des Skills `/check-svg`.
+
+| Datei | Bedeutung | Emoji-Entsprechung | Gelieferte Datei | Quelle/Lizenz |
+|---|---|---|---|---|
+| `ic_flag_de` | Flagge für Inhaltssprache de-DE | 🇩🇪 | `flag-icons de.svg` | flag-icons (https://github.com/lipis/flag-icons), MIT |
+| `ic_flag_us` | Flagge für Inhaltssprache en-US | 🇺🇸 | `flag-icons us.svg` | flag-icons (https://github.com/lipis/flag-icons), MIT |
+| `ic_flag_mx` | Flagge für Inhaltssprache es-419 | 🇲🇽 | `flag-icons mx.svg` | flag-icons (https://github.com/lipis/flag-icons), MIT |
+| `ic_flag_es` | Flagge für Inhaltssprache es-ES | 🇪🇸 | `flag-icons es.svg` | flag-icons (https://github.com/lipis/flag-icons), MIT |
+| `ic_flag_fr` | Flagge für Inhaltssprache fr-FR | 🇫🇷 | `flag-icons fr.svg` | flag-icons (https://github.com/lipis/flag-icons), MIT |
+| `ic_flag_it` | Flagge für Inhaltssprache it-IT | 🇮🇹 | `flag-icons it.svg` | flag-icons (https://github.com/lipis/flag-icons), MIT |
+| `ic_flag_br` | Flagge für Inhaltssprache pt-BR | 🇧🇷 | `flag-icons br.svg` | flag-icons (https://github.com/lipis/flag-icons), MIT |
+| `ic_flag_ru` | Flagge für Inhaltssprache ru-RU | 🇷🇺 | `flag-icons ru.svg` | flag-icons (https://github.com/lipis/flag-icons), MIT |
+| `ic_flag_sa` | Flagge für Inhaltssprache ar-SA | 🇸🇦 | `flag-icons sa.svg` | flag-icons (https://github.com/lipis/flag-icons), MIT |
+| `ic_flag_in` | Flagge für Inhaltssprache hi-IN | 🇮🇳 | `flag-icons in.svg` | flag-icons (https://github.com/lipis/flag-icons), MIT |
+
 ## Umwandlung SVG in VectorDrawable
 
 Die Umwandlung übernimmt die Entwicklung (Android Studio „Vector Asset“ bzw. `vd-tool`). Gelieferte SVGs können dafür einfach im Ordner `design/icons/ablage/` abgelegt werden (dessen Inhalt wird nicht versioniert) und mit `/check-svg <name> design/icons/ablage/<datei>.svg` eingebunden werden.

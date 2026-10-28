@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Die Flaggen sind noch nirgends referenziert; ohne diese Liste meldet Lint sie als unbenutzt. Eintrag entfernen, sobald die Kachel sie verwendet. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_flag_de,@drawable/ic_flag_us,@drawable/ic_flag_mx,@drawable/ic_flag_es,@drawable/ic_flag_fr,@drawable/ic_flag_it,@drawable/ic_flag_br,@drawable/ic_flag_ru,@drawable/ic_flag_sa,@drawable/ic_flag_in" />
