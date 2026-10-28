@@ -42,9 +42,10 @@ impl<'a> RunGuard<'a> {
 
     /// Schließt den Lauf passend zum Ergebnis ab: `Completed` oder `Failed` mit Fehlercode,
     /// jeweils mit Ergebnis. Scheitert das Schreiben nach einem Fehler, bleibt der ursprüngliche
-    /// Fehler maßgeblich.
+    /// Fehler maßgeblich. Der Guard gilt erst nach erfolgreichem Schreiben als abgeschlossen: sonst
+    /// versucht `drop` es als Abbruch noch einmal, und bleibt auch das erfolglos, setzt
+    /// `reset_orphaned_runs` den Lauf beim nächsten Start zurück.
     pub fn finish(mut self, outcome: RunOutcome) -> CoreResult<SyncSummary> {
-        self.finished = true;
         let RunOutcome { summary, error } = outcome;
         match error {
             None => {
@@ -52,6 +53,7 @@ impl<'a> RunGuard<'a> {
                 Ok(summary)
             }
             Some(error) => {
+                // Der Schreibfehler ist hier zweitrangig; der Lauf ist ohnehin gescheitert
                 let _ = self.write(SyncRunState::Failed, Some(error.code()), &summary);
                 Err(error)
             }
@@ -59,14 +61,16 @@ impl<'a> RunGuard<'a> {
     }
 
     fn write(
-        &self,
+        &mut self,
         state: SyncRunState,
         error: Option<ErrorCode>,
         summary: &SyncSummary,
     ) -> CoreResult<()> {
         let kind = self.kind;
         self.db
-            .with_conn(|conn| mark_finished(conn, kind, state, error, Some(summary), now_unix()))
+            .with_conn(|conn| mark_finished(conn, kind, state, error, Some(summary), now_unix()))?;
+        self.finished = true;
+        Ok(())
     }
 }
 

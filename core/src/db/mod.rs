@@ -6,12 +6,12 @@ pub mod sync_state;
 #[cfg(test)]
 pub(crate) mod test_support;
 
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use rusqlite::functions::FunctionFlags;
 use rusqlite::{Connection, Transaction};
 
-use crate::error::{CoreError, CoreResult};
+use crate::error::CoreResult;
 
 /// Name, unter dem die Nutzer-Datenbank an die Katalog-Verbindung angehängt ist (`userdata.marks`).
 pub const USER_SCHEMA: &str = "userdata";
@@ -51,13 +51,20 @@ impl Database {
         })
     }
 
+    // Eine Panic in einem Aufrufer vergiftet den Mutex, lässt die Verbindung aber konsistent zurück:
+    // eine offene Transaktion rollt beim Unwinding über ihr Drop zurück. Würde die Vergiftung zum
+    // Dauerfehler, bliebe die App bis zum Prozessneustart ohne Datenzugriff.
+    fn lock(&self) -> MutexGuard<'_, Connection> {
+        self.conn.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
     pub fn with_conn<T>(&self, f: impl FnOnce(&Connection) -> CoreResult<T>) -> CoreResult<T> {
-        let guard = self.conn.lock().map_err(|_| poisoned())?;
+        let guard = self.lock();
         f(&guard)
     }
 
     pub fn with_tx<T>(&self, f: impl FnOnce(&Transaction) -> CoreResult<T>) -> CoreResult<T> {
-        let mut guard = self.conn.lock().map_err(|_| poisoned())?;
+        let mut guard = self.lock();
         let tx = guard.transaction()?;
         let value = f(&tx)?;
         tx.commit()?;
@@ -68,12 +75,6 @@ impl Database {
 fn attach_user_db(conn: &Connection, path: &str) -> CoreResult<()> {
     conn.execute(&format!("ATTACH DATABASE ?1 AS {USER_SCHEMA}"), [path])?;
     Ok(())
-}
-
-fn poisoned() -> CoreError {
-    CoreError::Database {
-        detail: "Datenbankverbindung ist nicht mehr nutzbar".to_string(),
-    }
 }
 
 // SQLite lowercased nur ASCII; fold sorgt für Umlaute bei der Suche.
@@ -88,4 +89,42 @@ fn register_fold(conn: &Connection) -> CoreResult<()> {
         },
     )?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+
+    use super::*;
+
+    #[test]
+    fn panic_in_with_conn_does_not_break_later_calls() {
+        let db = Database::open_in_memory().unwrap();
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            let _ = db.with_conn(|_| -> CoreResult<()> { panic!("absichtlich") });
+        }));
+        assert!(result.is_err());
+
+        let value: i64 = db
+            .with_conn(|c| Ok(c.query_row("SELECT 41 + 1", [], |r| r.get(0))?))
+            .unwrap();
+        assert_eq!(value, 42);
+    }
+
+    #[test]
+    fn panic_in_with_tx_rolls_back_and_later_calls_work() {
+        let db = Database::open_in_memory().unwrap();
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            let _ = db.with_tx(|tx| -> CoreResult<()> {
+                tx.execute("INSERT INTO anime (id, title) VALUES ('a', 'A')", [])?;
+                panic!("absichtlich");
+            });
+        }));
+        assert!(result.is_err());
+
+        let rows: i64 = db
+            .with_conn(|c| Ok(c.query_row("SELECT COUNT(*) FROM anime", [], |r| r.get(0))?))
+            .unwrap();
+        assert_eq!(rows, 0, "die halbe Transaktion darf nicht stehen bleiben");
+    }
 }
