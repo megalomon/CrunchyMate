@@ -65,7 +65,7 @@ pub fn upsert_catalog_page(tx: &Transaction, items: &[CatalogItem]) -> CoreResul
 }
 
 pub fn apply_metadata(tx: &Transaction, anime_id: &str, item: &MetadataItem) -> CoreResult<()> {
-    tx.prepare_cached(UPDATE_ANILIST)?.execute(params![
+    let updated = tx.prepare_cached(UPDATE_ANILIST)?.execute(params![
         anime_id,
         item.anilist_id,
         item.title_romaji,
@@ -76,6 +76,10 @@ pub fn apply_metadata(tx: &Transaction, anime_id: &str, item: &MetadataItem) -> 
         item.banner_image,
         item.site_url,
     ])?;
+    // Unbekannte ID ist wie bei set_watched/set_meh kein Fehler.
+    if updated == 0 {
+        return Ok(());
+    }
     link_genres(tx, anime_id, &item.genres)?;
     let mut insert_tag = tx.prepare_cached("INSERT OR IGNORE INTO tags (name) VALUES (?1)")?;
     let mut link_tag = tx.prepare_cached(
@@ -269,7 +273,7 @@ pub fn count_enriched(conn: &Connection) -> CoreResult<u64> {
         [],
         |row| row.get(0),
     )?;
-    Ok(count.unsigned_abs())
+    Ok(u64::try_from(count).unwrap_or(0))
 }
 
 #[cfg(test)]
@@ -490,5 +494,20 @@ mod tests {
         let tags = db.with_conn(list_tags).unwrap();
         let names: Vec<(&str, i64)> = tags.iter().map(|t| (t.name.as_str(), t.count)).collect();
         assert_eq!(names, vec![("Zebra", 3), ("Apfel", 1), ("Birne", 1)]);
+    }
+
+    #[test]
+    fn apply_metadata_unknown_id_is_noop() {
+        let db = Database::open_in_memory().unwrap();
+        db.with_tx(|tx| apply_metadata(tx, "unbekannt", &metadata(9, &[("Magie", 60)])))
+            .unwrap();
+        for table in ["genres", "tags", "anime_tags", "anime_genres"] {
+            let rows: i64 = db
+                .with_conn(|c| {
+                    Ok(c.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get(0))?)
+                })
+                .unwrap();
+            assert_eq!(rows, 0, "{table} sollte leer bleiben");
+        }
     }
 }
