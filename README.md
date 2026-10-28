@@ -15,7 +15,7 @@ CrunchyMate ist eine Android-App zum Durchsuchen, Filtern und Verfolgen des Knus
 - Anime als gesehen oder als Meh markieren; Meh-Einträge verschwinden aus der Suche.
 - KnusperBrötchen-Sync und AniList-Anreicherung mit Fortschritt, Abbruch und Hintergrundausführung über WorkManager.
 - Wählbare Inhaltssprache für Titel und Beschreibungen.
-- Oberfläche auf Deutsch und Englisch; die App-Sprache folgt der Systemeinstellung.
+- App-Sprachen Deutsch, Englisch und Boykisser (englisch, im Stil von Discord-Femboys); Auswahl in den Einstellungen, Standard ist die Systemsprache.
 - Offline-first: Poster und Banner werden beim Sync als WebP lokal abgelegt, die App lädt keine Bilder aus dem Netz.
 
 Der Katalog hängt am Land, das im anonymen KnusperBrötchen-Token festgelegt ist; die Inhaltssprache ändert nur die Texte.

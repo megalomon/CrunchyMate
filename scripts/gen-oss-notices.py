@@ -33,6 +33,9 @@ ICONS_LICENSE_ID = "Apache-2.0"
 FLAGS_NAME = "flag-icons"
 FLAGS_LICENSE_ID = "MIT (flag-icons)"
 FLAGS_SOURCE = "https://github.com/lipis/flag-icons"
+FEMBOY_FLAG_NAME = "Femboy flag (Wikimedia Commons)"
+FEMBOY_FLAG_SOURCE = "https://commons.wikimedia.org/wiki/File:Femboy_flag.svg"
+FEMBOY_FLAG_LICENSE_ID = "CC0-1.0"
 APP_NAME = "CrunchyMate"
 APP_SOURCE = "https://github.com/megalomon/CrunchyMate"
 APP_LICENSE_ID = "Apache-2.0"
@@ -221,7 +224,12 @@ def hand_written_components(text):
         {"group": "flags", "name": FLAGS_NAME,
          "version": require(r"flag-icons \(Version ([\d.]+)", flags, "Flaggen-Version").group(1),
          "license": "MIT", "source": FLAGS_SOURCE,
-         "holder": require(r"Copyright \(c\) [^.]+?(?=\. )", flags, "Flaggen-Copyright").group(0)},
+         "holder": require(r"Copyright \(c\) [^.]+?(?=\. )", flags, "Flaggen-Copyright").group(0),
+         "licenseIds": [FLAGS_LICENSE_ID]},  # eigener MIT-Text mit Copyright von flag-icons
+        {"group": "flags", "name": FEMBOY_FLAG_NAME, "version": "", "license": FEMBOY_FLAG_LICENSE_ID,
+         "source": require(re.escape(FEMBOY_FLAG_SOURCE), flags, "Femboy-Flaggenquelle").group(0),
+         "holder": require(r"Urheber (\w+)", flags, "Femboy-Flaggenurheber").group(1),
+         "licenseIds": [FEMBOY_FLAG_LICENSE_ID]},
     ]
 
 
@@ -246,8 +254,7 @@ def write_asset(components, text):
     known = {t["id"] for t in texts}
     all_components = [app_component()] + components + hand_written_components(text)
     for c in all_components:
-        # Flaggen stehen unter dem eigenen MIT-Text mit Copyright von flag-icons
-        c["licenseIds"] = [FLAGS_LICENSE_ID] if c["group"] == "flags" else license_ids(c["license"], known)
+        c.setdefault("licenseIds", license_ids(c["license"], known))
     ASSET.parent.mkdir(parents=True, exist_ok=True)
     ASSET.write_text(json.dumps({"components": all_components, "licenses": texts},
                                 ensure_ascii=False, indent=1) + "\n")
