@@ -22,6 +22,10 @@ val appVersionName =
         .gradleProperty("crunchymate.versionName")
         .getOrElse("$baseVersion-dev")
 
+// Ausgabeorte des Rust-Builds; einmal benannt, weil Source-Sets und Tasks denselben Pfad brauchen
+val rustJniLibsDir = layout.buildDirectory.dir("rustJniLibs")
+val uniffiOutDir = layout.buildDirectory.dir("generated/uniffi")
+
 android {
     namespace = "de.crunchymate"
     compileSdk {
@@ -77,8 +81,8 @@ android {
 
     sourceSets {
         getByName("main") {
-            kotlin.srcDir("build/generated/uniffi")
-            jniLibs.srcDir("build/rustJniLibs")
+            kotlin.srcDir(uniffiOutDir.get().asFile)
+            jniLibs.srcDir(rustJniLibsDir.get().asFile)
         }
     }
 
@@ -145,8 +149,6 @@ dependencies {
 val repoRoot: File = rootProject.projectDir
 val rustTarget = "aarch64-linux-android"
 val coreLibrary = repoRoot.resolve("target/$rustTarget/release/libcrunchymate_core.so")
-val rustJniLibsDir = layout.buildDirectory.dir("rustJniLibs")
-val uniffiOutDir = layout.buildDirectory.dir("generated/uniffi")
 
 // Reihenfolge: CARGO (CI, Overrides), rustup-Installation im Home, sonst cargo aus dem PATH.
 // Das Distributions-cargo im PATH ignoriert rust-toolchain.toml und ist zu alt.
@@ -168,10 +170,44 @@ val rustInputs =
 
 val ndkDirectory = androidComponents.sdkComponents.ndkDirectory
 
+// Bricht früh mit einer verständlichen Meldung ab, statt mit einem kryptischen Exec-Fehler mitten im Build
+val checkRustToolchain by tasks.registering {
+    group = "rust"
+    description = "Prüft, ob cargo, cargo-ndk und das NDK verfügbar sind."
+    val cargo = cargoExecutable
+    val ndkPath = ndkDirectory.map { it.asFile }
+    doLast {
+        fun succeeds(vararg command: String): Boolean =
+            runCatching {
+                ProcessBuilder(*command)
+                    .redirectErrorStream(true)
+                    .start()
+                    .also { it.inputStream.readBytes() }
+                    .waitFor() == 0
+            }.getOrDefault(false)
+        if (!succeeds(cargo, "--version")) {
+            throw GradleException(
+                "cargo wurde nicht gefunden ($cargo). Rust über rustup installieren (https://rustup.rs) " +
+                    "oder die Umgebungsvariable CARGO auf die cargo-Datei setzen.",
+            )
+        }
+        if (!succeeds(cargo, "ndk", "--version")) {
+            throw GradleException("cargo-ndk fehlt. Installieren mit: cargo install cargo-ndk --locked")
+        }
+        if (!ndkPath.get().isDirectory) {
+            throw GradleException(
+                "Das Android-NDK fehlt (erwartet in ${ndkPath.get()}). " +
+                    "Installieren mit: sdkmanager --install \"ndk;30.0.16248370\"",
+            )
+        }
+    }
+}
+
 val cargoBuildArm64 =
     tasks.register<Exec>("cargoBuildArm64") {
         group = "rust"
         description = "Baut libcrunchymate_core.so für arm64-v8a mit cargo-ndk."
+        dependsOn(checkRustToolchain)
         inputs.files(rustInputs).withPathSensitivity(PathSensitivity.RELATIVE)
         outputs.file(coreLibrary)
         outputs.dir(rustJniLibsDir)
@@ -182,7 +218,7 @@ val cargoBuildArm64 =
             "-t",
             "arm64-v8a",
             "-o",
-            "app/build/rustJniLibs",
+            rustJniLibsDir.get().asFile.path,
             "build",
             "--release",
             "-p",
@@ -274,6 +310,7 @@ tasks.withType<org.jlleitschuh.gradle.ktlint.tasks.BaseKtLintCheckTask>().config
 
 // Fixture-Datenbank für die Geräte-Tests: kommt als Asset in die Test-APK
 
+@CacheableTask
 abstract class GenerateFixtureDb
     @Inject
     constructor(
@@ -283,8 +320,13 @@ abstract class GenerateFixtureDb
         @get:PathSensitive(PathSensitivity.RELATIVE)
         abstract val rustSources: ConfigurableFileCollection
 
-        @get:Input
+        // Der cargo-Pfad ist je Rechner verschieden und darf den Cache-Schlüssel nicht bestimmen
+        @get:Internal
         abstract val cargo: Property<String>
+
+        // "stable" in rust-toolchain.toml ist beweglich; die Datei selbst gehört trotzdem zum Schlüssel
+        @get:Input
+        abstract val toolchainSpec: Property<String>
 
         @get:Internal
         abstract val workDir: DirectoryProperty
@@ -308,7 +350,9 @@ val generateFixtureDb =
         group = "rust"
         description = "Erzeugt die Fixture-Datenbank für die Geräte-Tests."
         rustSources.from(rustInputs, repoRoot.resolve("core/examples/make_fixture_db.rs"))
+        dependsOn(checkRustToolchain)
         cargo.set(cargoExecutable)
+        toolchainSpec.set(providers.fileContents(rootProject.layout.projectDirectory.file("rust-toolchain.toml")).asText)
         workDir.set(rootProject.layout.projectDirectory)
         outputDir.set(layout.buildDirectory.dir("fixture"))
     }

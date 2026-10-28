@@ -1,11 +1,17 @@
 name: CI
 
+# Push nur auf main, alles Übrige über pull_request: so wird jeder Commit einmal geprüft
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   checks:
