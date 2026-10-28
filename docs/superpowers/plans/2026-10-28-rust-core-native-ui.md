@@ -25,7 +25,8 @@
 - Keine Magic Numbers: Werte als benannte Konstanten oder in `SyncConfig`/`RetryConfig`.
 - Kein Umgehen von Geo- oder Cloudflare-Sperren; keine Tests gegen echte APIs in der CI.
 - Kein toter oder auskommentierter Code; keine `TODO`s ohne Issue.
-- Commits enden mit `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Gearbeitet wird auf Branch `modernize/rust-core-native-ui`.
+- Commits enden mit `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Gearbeitet wird auf Branch `modernize/rust-core-native-ui`; Pushen auf diesen Branch ist jederzeit erlaubt (nach jeder Task empfohlen, damit die CI läuft), auf `main` nicht.
+- Ausführung subagent-gesteuert mit höchstens drei gleichzeitigen Subagents. Parallel laufen dürfen nur Task 6 und Task 7 (beide nach Task 5), jeweils in einem eigenen Git-Worktree; die Ergebnisse werden nacheinander in den Branch übernommen, Konflikte in `Cargo.toml`, `Cargo.lock` und `core/src/lib.rs` löst der Orchestrator. Task 8 folgt nach Task 7, weil es `core/src/remote/mod.rs` erweitert. Alle übrigen Tasks laufen nacheinander.
 - Bisherige Implementierung als Referenz: `git show 1d5ca54:<pfad>` (z. B. `android/app/src/main/java/de/crunchymate/db/AnimeRepository.kt`, `web/static/app.js`, `web/static/index.html`). UI-Texte daraus übernehmen, ohne Emojis.
 - `adb` ist das Windows-Programm `adb.exe` im `PATH`; Dateipfade werden mit `wslpath -w` übergeben.
 
@@ -81,46 +82,32 @@ git add docs/superpowers/notes/2026-10-28-vorpruefung.md
 git commit -m "docs: Vorprüfung Toolchain, SDK 37.2 und crunchyroll-rs"
 ```
 
-### Task 2: Altbestand entfernen, Rust-Workspace und Emoji-Prüfung
+### Task 2: Altbestand entfernen, Rust-Workspace und Projektregeln in CLAUDE.md
 
 **Files:**
 - Delete: `cmd/`, `internal/`, `web/`, `go.mod`, `go.sum`
 - Create: `Cargo.toml` (Workspace, `members = ["core"]`, `resolver = "2"`), `rust-toolchain.toml` (channel stable, target `aarch64-linux-android`), `core/Cargo.toml`, `core/src/lib.rs`, `core/uniffi.toml`, `core/src/bin/uniffi-bindgen.rs`
-- Create: `scripts/check-no-emoji.py`, `scripts/test_check_no_emoji.sh`
+- Create/Replace: `CLAUDE.md` (die bisher nicht eingecheckte Fassung beschreibt den alten Stand und wird ersetzt)
 - Modify: `.gitignore` (Go-Einträge raus; `target/`, `*.jks`, `*.keystore`, `/build/`, `app/build/` rein)
 
 **Interfaces:**
 - Produces: Crate `crunchymate-core` (`crate-type = ["cdylib", "lib"]`, `lib.name = "crunchymate_core"`); `uniffi::setup_scaffolding!()` in `lib.rs`; `core/uniffi.toml` mit `[bindings.kotlin] package_name = "de.crunchymate.core.ffi"`; Binary `uniffi-bindgen` (ruft `uniffi::uniffi_bindgen_main()`, Feature `cli`).
-- Produces: `python3 scripts/check-no-emoji.py [pfade...]` – ohne Argumente prüft es alle Dateien aus `git ls-files` außer Binärdateien; Exit 1 und Ausgabe `pfad:zeile:spalte U+XXXX` je Treffer. Geprüfte Bereiche: U+1F000–U+1FAFF, U+2600–U+27BF, U+2B00–U+2BFF, U+FE0F.
+- Produces: `CLAUDE.md` mit dem Präfix laut `/init` und den verbindlichen Projektregeln, damit alle folgenden Tasks sie automatisch sehen: keine Emojis in Code, Kommentaren, Ressourcen, Markdown und Commit-Nachrichten; Icons als VectorDrawable aus SVG, die der Auftraggeber liefert (keine eigene Icon-Auswahl), Raster nur als WebP; Strings nur in `strings.xml`; Einzel-APK ohne Splits; Clean-Code-Leitlinien aus Spec 9.5; Verweis auf Spec und Plan als maßgebliche Dokumente; Hinweis, dass Go, Web und `android/` Altbestand sind. Befehle und Architektur ergänzt Task 18.
 
-Das Verzeichnis `android/` bleibt bis Task 9 als Referenz bestehen.
+Das Verzeichnis `android/` bleibt bis Task 11 als Referenz bestehen.
 
-- [ ] **Step 1: Test für die Emoji-Prüfung schreiben**
+- [ ] **Step 1: Go/Web löschen, Workspace anlegen, CLAUDE.md schreiben**
 
-`scripts/test_check_no_emoji.sh`: legt im temporären Verzeichnis `ok.md` („Gesehen markieren“) und `bad.md` (enthält U+2713 und U+1F612) an; erwartet Exit 0 für `ok.md`, Exit 1 für `bad.md` und zwei Trefferzeilen mit `U+2713` und `U+1F612`.
-
-- [ ] **Step 2: Test ausführen**
-
-Run: `bash scripts/test_check_no_emoji.sh`
-Expected: FAIL (Skript fehlt)
-
-- [ ] **Step 3: `scripts/check-no-emoji.py` implementieren**
-
-- [ ] **Step 4: Test ausführen**
-
-Run: `bash scripts/test_check_no_emoji.sh`
-Expected: PASS
-
-- [ ] **Step 5: Go/Web löschen, Workspace anlegen**
+- [ ] **Step 2: Build prüfen**
 
 Run: `cargo build -p crunchymate-core && cargo test`
 Expected: Build erfolgreich, 0 Tests, keine Fehler.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add -A
-git commit -m "chore: Go-Server und Web-Frontend entfernen, Rust-Workspace und Emoji-Prüfung anlegen"
+git commit -m "chore: Go-Server und Web-Frontend entfernen, Rust-Workspace und Projektregeln anlegen"
 ```
 
 ## Phase 1: Rust-Kern
@@ -475,6 +462,7 @@ git commit -m "feat(core): AniList-Metadatenquelle mit Batch-Suche und Backoff"
 
 **Files:**
 - Create: `core/src/remote/catalog_source.rs`, `core/src/remote/crunchyroll.rs`, `core/src/remote/catalog_mapping.rs`
+- Modify: `core/src/remote/mod.rs` (aus Task 7)
 - Test: `core/src/remote/catalog_mapping.rs`, `core/tests/crunchyroll.rs` (nur bei eigener reqwest-Implementierung, wiremock)
 
 **Interfaces:**
@@ -807,9 +795,9 @@ Expected: FAIL
 
 - [ ] **Step 3: Implementieren**
 
-- [ ] **Step 4: Tests, Lint, Emoji-Prüfung**
+- [ ] **Step 4: Tests und Lint**
 
-Run: `./gradlew testDebugUnitTest lint ktlintCheck && python3 scripts/check-no-emoji.py`
+Run: `./gradlew testDebugUnitTest lint ktlintCheck`
 Expected: PASS, keine Lint-Fehler (Platzhalter-Icons werden alle referenziert oder sind in `docs/icons.md` aufgeführt und über `tools:keep` in `res/raw/keep.xml` geschützt).
 
 - [ ] **Step 5: Commit**
@@ -1013,7 +1001,7 @@ git commit -m "test: Smoke-Tests auf dem Gerät mit Fixture-Datenbank"
 - Produces: Umgebungsvariablen für Gradle `SIGNING_KEYSTORE_PATH`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_PASSWORD`, `SIGNING_KEY_ALIAS`; Signing-Config `release` wird nur angelegt, wenn `SIGNING_KEYSTORE_PATH` gesetzt ist.
 
 Inhalte:
-- `checks.yml` (`on: workflow_call`), Jobs: `emoji` (`python3 scripts/check-no-emoji.py`), `rust` (`dtolnay/rust-toolchain` stable mit `rustfmt, clippy`, `Swatinem/rust-cache`, fmt/clippy/test), `android` (JDK 17 per `actions/setup-java`, `android-actions/setup-android`, NDK-Version aus Task 1 per `sdkmanager`, Rust-Target, `cargo install cargo-ndk --locked`, `gradle/actions/setup-gradle`, `./gradlew lint ktlintCheck testDebugUnitTest assembleDebug`, APK als Artefakt).
+- `checks.yml` (`on: workflow_call`), Jobs: `rust` (`dtolnay/rust-toolchain` stable mit `rustfmt, clippy`, `Swatinem/rust-cache`, fmt/clippy/test), `android` (JDK 17 per `actions/setup-java`, `android-actions/setup-android`, NDK-Version aus Task 1 per `sdkmanager`, Rust-Target, `cargo install cargo-ndk --locked`, `gradle/actions/setup-gradle`, `./gradlew lint ktlintCheck testDebugUnitTest assembleDebug`, APK als Artefakt).
 - `ci.yml`: `on: push` (alle Branches) und `pull_request`; `uses: ./.github/workflows/checks.yml`.
 - `nightly.yml`: `on: schedule: cron "0 3 * * *"` und `workflow_dispatch`; `permissions: contents: write`; Job `decide` (Checkout mit `fetch-depth: 0`; `should_build=true` bei `workflow_dispatch`, sonst nur wenn `git rev-parse HEAD` von `git rev-list -n1 nightly` abweicht oder der Tag fehlt); Job `checks` (`needs: decide`, `if: should_build`, `uses: checks.yml`); Job `release` (`needs: [decide, checks]`): Keystore nach `$RUNNER_TEMP/release.jks` dekodieren, `./gradlew assembleRelease -Pcrunchymate.versionCode=${{ github.run_number }} -Pcrunchymate.versionName=<baseVersion>-nightly.<JJJJMMTT>+<Kurz-SHA>`, Release-Notes aus `git log --oneline <alter nightly-Tag>..HEAD` (ohne Tag: letzte 20 Commits), `gh release delete nightly --cleanup-tag --yes` (Fehler ignorieren), `gh release create nightly --prerelease --target $GITHUB_SHA --title "Nightly <JJJJ-MM-TT>" --notes-file notes.md app/build/outputs/apk/release/app-release.apk`, Keystore-Datei im `always()`-Schritt löschen.
 - Alle Actions mit fester Version (Major-Tag laut Task-1-Notiz oder Commit-SHA).
@@ -1029,7 +1017,7 @@ Expected: keine Meldungen.
 
 - [ ] **Step 3: Release-Build lokal ohne Secrets**
 
-Run: `./gradlew assembleRelease && python3 scripts/check-no-emoji.py && ls app/build/outputs/apk/release/`
+Run: `./gradlew assembleRelease && ls app/build/outputs/apk/release/`
 Expected: BUILD SUCCESSFUL; genau eine APK (`app-release-unsigned.apk`), keine ABI-/Dichte-/Sprach-Splits; Installation dieser APK ist nicht nötig.
 
 - [ ] **Step 4: Release-Build lokal mit Test-Keystore auf dem Gerät**
@@ -1044,27 +1032,26 @@ git add .github app/build.gradle.kts app/proguard-rules.pro docs/release-signing
 git commit -m "ci: Prüf-, CI- und Nightly-Workflows mit Signierung aus Secrets"
 ```
 
-- [ ] **Step 6: CI auf GitHub prüfen** (erst nach Freigabe des Pushs durch den Auftraggeber)
+- [ ] **Step 6: CI auf GitHub prüfen**
 
 Run: `git push -u origin modernize/rust-core-native-ui && gh run watch`
-Expected: `ci.yml` grün. Nightly wird nach dem Merge auf `main` per `gh workflow run nightly.yml` manuell ausgelöst; Expected: Pre-Release `nightly` mit APK.
+Expected: `ci.yml` grün. Den Nightly lösen wir nach dem Merge auf `main` mit dem Auftraggeber per `gh workflow run nightly.yml` manuell aus; Expected: Pre-Release `nightly` mit APK.
 
 ### Task 18: README, CLAUDE.md und Abschlussprüfung
 
 **Files:**
-- Modify: `README.md` (neu schreiben), `CLAUDE.md` (neu schreiben, bisher nicht eingecheckt)
-- Modify: `docs/superpowers/specs/2026-10-27-android-standalone-app-design.md`, `docs/superpowers/plans/*` und ältere Specs nur, falls die Emoji-Prüfung dort Treffer meldet (Treffer entfernen, sonst unverändert)
+- Modify: `README.md` (neu schreiben), `CLAUDE.md` (aus Task 2 um Befehle und Architektur ergänzen)
 
 **Interfaces:**
 - Consumes: alle Tasks.
 
-Inhalt README (Deutsch, ohne Emojis): Zweck, Funktionsumfang (Spec 3), Installation über das Nightly-Release, lokaler Build (rustup, Target, cargo-ndk, Android-SDK/NDK, `./gradlew assembleDebug`), Tests (`cargo test`, `./gradlew testDebugUnitTest`, `scripts/run-device-tests.sh`), Hinweis auf `docs/release-signing.md` und `docs/icons.md`. Inhalt CLAUDE.md: Präfix laut `/init`, Befehle inklusive Einzeltest (`cargo test -p crunchymate-core <name>`, `./gradlew testDebugUnitTest --tests '<Klasse>'`), Architektur (Rust-Kern hinter UniFFI, `CoreGateway` als einzige Kotlin-Schnittstelle, Änderungssignal, Sync über WorkManager), Regeln (keine Emojis, Icons liefert der Auftraggeber, WebP statt PNG, Strings nur in `strings.xml`, neue Kernfunktion = Rust-Export plus Gateway-Methode plus Fake in `FakeCore`), Clean-Code-Leitlinien aus Spec 9.5, `adb.exe` mit `wslpath -w`.
+Inhalt README (Deutsch, ohne Emojis): Zweck, Funktionsumfang (Spec 3), Installation über das Nightly-Release, lokaler Build (rustup, Target, cargo-ndk, Android-SDK/NDK, `./gradlew assembleDebug`), Tests (`cargo test`, `./gradlew testDebugUnitTest`, `scripts/run-device-tests.sh`), Hinweis auf `docs/release-signing.md` und `docs/icons.md`. Ergänzungen in CLAUDE.md: Befehle inklusive Einzeltest (`cargo test -p crunchymate-core <name>`, `./gradlew testDebugUnitTest --tests '<Klasse>'`), Architektur (Rust-Kern hinter UniFFI, `CoreGateway` als einzige Kotlin-Schnittstelle, Änderungssignal, Sync über WorkManager), Regeln (keine Emojis, Icons liefert der Auftraggeber, WebP statt PNG, Strings nur in `strings.xml`, neue Kernfunktion = Rust-Export plus Gateway-Methode plus Fake in `FakeCore`), Clean-Code-Leitlinien aus Spec 9.5, `adb.exe` mit `wslpath -w`.
 
 - [ ] **Step 1: Dokumente schreiben**
 
 - [ ] **Step 2: Gesamtprüfung**
 
-Run: `python3 scripts/check-no-emoji.py && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test && ./gradlew lint ktlintCheck testDebugUnitTest assembleDebug && bash scripts/run-device-tests.sh && git ls-files | grep -E '^(cmd|internal|web|android)/|go\.mod|\.keystore$|\.jks$' ; test $? -eq 1`
+Run: `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test && ./gradlew lint ktlintCheck testDebugUnitTest assembleDebug && bash scripts/run-device-tests.sh && git ls-files | grep -E '^(cmd|internal|web|android)/|go\.mod|\.keystore$|\.jks$' ; test $? -eq 1`
 Expected: alles grün; die letzte Prüfung findet keine Go-, Web-, Alt-Android- oder Keystore-Dateien.
 
 - [ ] **Step 3: Commit**

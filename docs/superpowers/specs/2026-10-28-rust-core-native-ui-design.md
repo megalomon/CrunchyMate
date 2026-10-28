@@ -106,7 +106,6 @@ gradle/libs.versions.toml
 settings.gradle.kts, build.gradle.kts, gradlew
 .github/workflows/        ci.yml, nightly.yml, checks.yml (wiederverwendbar)
 docs/release-signing.md
-scripts/check-no-emoji.*  Emoji-Prüfung
 ```
 
 Entfernt werden: `cmd/`, `internal/`, `web/`, `go.mod`, `go.sum`, `android/` (Inhalt geht in das neue Layout über bzw. entfällt), insbesondere `assets/web/`, `bridge/`, `db/`, `sync/` (Kotlin), `MainActivity` mit WebView, `activity_main.xml`, `release.keystore`, die Abhängigkeiten `androidx.webkit` und `org.json` sowie der Termux-Override in `gradle.properties`.
@@ -263,7 +262,7 @@ Benötigte Symbole (Auswahl durch den Auftraggeber):
 
 ### 8.1. Workflows
 
-- `checks.yml` (wiederverwendbar): Rust (`cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`), Emoji-Prüfung, Android (JDK 17, SDK/NDK, Rust-Target `aarch64-linux-android`, `cargo-ndk`, `./gradlew lint ktlintCheck testDebugUnitTest assembleDebug`). Caching über `Swatinem/rust-cache` und `gradle/actions/setup-gradle`; alle Actions auf feste Versionen gepinnt.
+- `checks.yml` (wiederverwendbar): Rust (`cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`), Android (JDK 17, SDK/NDK, Rust-Target `aarch64-linux-android`, `cargo-ndk`, `./gradlew lint ktlintCheck testDebugUnitTest assembleDebug`). Caching über `Swatinem/rust-cache` und `gradle/actions/setup-gradle`; alle Actions auf feste Versionen gepinnt.
 - `ci.yml`: bei Push und Pull Request, ruft `checks.yml` auf.
 - `nightly.yml`: Cron täglich 03:00 UTC und `workflow_dispatch`. Der Cron-Lauf überspringt den Build, wenn es seit dem letzten Nightly keinen neuen Commit auf `main` gibt; ein manueller Lauf baut immer. Ruft `checks.yml` auf, dann `assembleRelease` signiert, und ersetzt das GitHub-Pre-Release mit festem Tag `nightly` (APK als Asset, Commit-Log seit dem vorigen Nightly als Beschreibung).
 - Versionierung: `versionCode` = `github.run_number`; `versionName` = `<Basisversion>-nightly.<JJJJMMTT>+<Kurz-SHA>`.
@@ -303,7 +302,7 @@ Die lokale Toolchain in WSL2 (rustup statt Distributions-cargo, Android-Target, 
 
 ### 9.4. Statische Prüfungen
 
-`rustfmt`, `clippy -D warnings`, `ktlint`, Android Lint mit `warningsAsErrors` für `HardcodedText`, `MissingTranslation`, `UnusedResources`; Skript `scripts/check-no-emoji` prüft Code, Ressourcen und Markdown.
+`rustfmt`, `clippy -D warnings`, `ktlint`, Android Lint mit `warningsAsErrors` für `HardcodedText`, `MissingTranslation`, `UnusedResources`. Das Emoji-Verbot ist als Projektregel in `CLAUDE.md` verankert; eine automatische Prüfung gibt es nicht.
 
 ### 9.5. Leitlinien (Clean Code, Modularität)
 
