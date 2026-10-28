@@ -1,8 +1,5 @@
 //! Fixture-Builder für Tests: baut Datensätze über die echten Schreibfunktionen auf.
 
-// Die Suchtests (query.rs) nutzen die übrigen Builder-Methoden; bis dahin sind sie ungenutzt.
-#![allow(dead_code)]
-
 use crate::db::{anime, Database};
 use crate::error::CoreResult;
 use crate::model::{CatalogItem, MetadataItem, TagRank};
@@ -55,11 +52,6 @@ impl AnimeFixture {
             banner: None,
             tags: Vec::new(),
         }
-    }
-
-    pub fn description(mut self, text: &str) -> Self {
-        self.description = text.to_string();
-        self
     }
 
     pub fn no_poster_tall(mut self) -> Self {
