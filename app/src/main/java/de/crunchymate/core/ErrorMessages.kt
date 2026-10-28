@@ -17,14 +17,20 @@ fun ErrorCode.messageRes(): Int =
         ErrorCode.CANCELLED -> R.string.error_cancelled
     }
 
+val CoreException.code: ErrorCode
+    get() =
+        when (this) {
+            is CoreException.Network -> ErrorCode.NETWORK
+            is CoreException.RateLimited -> ErrorCode.RATE_LIMITED
+            is CoreException.Auth -> ErrorCode.AUTH
+            is CoreException.Parse -> ErrorCode.PARSE
+            is CoreException.Database -> ErrorCode.DATABASE
+            is CoreException.Cancelled -> ErrorCode.CANCELLED
+        }
+
 @StringRes
 fun Throwable.messageRes(): Int =
     when (this) {
-        is CoreException.Network -> ErrorCode.NETWORK.messageRes()
-        is CoreException.RateLimited -> ErrorCode.RATE_LIMITED.messageRes()
-        is CoreException.Auth -> ErrorCode.AUTH.messageRes()
-        is CoreException.Parse -> ErrorCode.PARSE.messageRes()
-        is CoreException.Database -> ErrorCode.DATABASE.messageRes()
-        is CoreException.Cancelled -> ErrorCode.CANCELLED.messageRes()
+        is CoreException -> code.messageRes()
         else -> R.string.error_unknown
     }

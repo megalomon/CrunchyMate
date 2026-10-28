@@ -38,6 +38,13 @@ class FakeCore(
     var currentStats: Stats? = null
     var facetCalls = 0
 
+    @Volatile
+    var syncStatuses: Map<SyncKind, SyncStatus> = emptyMap()
+
+    /** Ersatz für den Rust-Sync; Standard: sofort fertig ohne Fortschritt. */
+    @Volatile
+    var syncBehavior: suspend (SyncKind, SyncObserver) -> SyncSummary = { _, _ -> SyncSummary(0L, 0) }
+
     override fun queryAnime(
         filter: AnimeFilter,
         offset: Int,
@@ -85,13 +92,19 @@ class FakeCore(
         storedSettings = settings
     }
 
-    override fun supportedContentLocales(): List<String> = listOf("de-DE", "en-US")
+    var localeCalls = 0
 
-    override fun syncStatus(kind: SyncKind): SyncStatus = SyncStatus(kind, SyncRunState.IDLE, 0L, 0L, null, null, null)
+    override fun supportedContentLocales(): List<String> {
+        localeCalls++
+        return listOf("de-DE", "en-US")
+    }
 
-    override suspend fun syncCatalog(observer: SyncObserver): SyncSummary = throw UnsupportedOperationException()
+    override fun syncStatus(kind: SyncKind): SyncStatus =
+        syncStatuses[kind] ?: SyncStatus(kind, SyncRunState.IDLE, 0L, 0L, null, null, null)
 
-    override suspend fun enrichMetadata(observer: SyncObserver): SyncSummary = throw UnsupportedOperationException()
+    override suspend fun syncCatalog(observer: SyncObserver): SyncSummary = syncBehavior(SyncKind.CATALOG, observer)
+
+    override suspend fun enrichMetadata(observer: SyncObserver): SyncSummary = syncBehavior(SyncKind.METADATA, observer)
 }
 
 fun sampleSettings(locale: String = "de-DE") =

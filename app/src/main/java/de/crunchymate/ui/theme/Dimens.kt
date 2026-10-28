@@ -13,4 +13,6 @@ object Dimens {
     val GridCellMinWidth = 160.dp
     val DetailPosterWidth = 120.dp
     val DetailBannerHeight = 180.dp
+    val StatTileMinWidth = 150.dp
+    val StatTileIcon = 24.dp
 }

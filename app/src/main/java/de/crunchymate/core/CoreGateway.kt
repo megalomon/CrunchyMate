@@ -68,7 +68,7 @@ class CoreGateway(
         withContext(io) { core.saveSettings(settings) }
     }
 
-    fun supportedContentLocales(): List<String> = core.supportedContentLocales()
+    suspend fun supportedContentLocales(): List<String> = withContext(io) { core.supportedContentLocales() }
 
     fun notifyChanged() {
         _changes.tryEmit(Unit)

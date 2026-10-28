@@ -147,4 +147,13 @@ class ComponentsTest {
             rule.onNodeWithText(rule.activity.getString(R.string.sync_last_error, string(R.string.error_network))).fetchSemanticsNode(),
         )
     }
+
+    @Test
+    fun syncCard_cancelledShowsStatusWithoutErrorLine() {
+        val state = SyncUiState(false, 3, 10, TIMESTAMP_SECONDS, null, cancelled = true)
+        rule.setContent { CrunchyMateTheme { SyncCard("Katalog", state, {}, {}) } }
+        rule.onNodeWithText(string(R.string.sync_status_cancelled)).assertIsDisplayed()
+        rule.onNodeWithText(string(R.string.sync_status_idle)).assertDoesNotExist()
+        rule.onNodeWithText(rule.activity.getString(R.string.sync_last_error, string(R.string.error_cancelled))).assertDoesNotExist()
+    }
 }

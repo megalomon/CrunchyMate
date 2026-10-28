@@ -41,6 +41,8 @@ import de.crunchymate.ui.detail.DetailViewModel
 import de.crunchymate.ui.search.AnimeGridDestination
 import de.crunchymate.ui.search.GridMode
 import de.crunchymate.ui.search.SearchViewModel
+import de.crunchymate.ui.settings.SettingsDestination
+import de.crunchymate.ui.settings.SettingsViewModel
 import kotlin.reflect.KClass
 
 private enum class TopLevel(
@@ -64,8 +66,8 @@ fun CrunchyMateApp(container: AppContainer) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         return
     }
-    // syncRunning wird mit Task 15 aus dem SyncScheduler gespeist
-    AppShell(container, badges, syncRunning = false)
+    val syncRunning by container.syncScheduler.anyRunning.collectAsStateWithLifecycle(initialValue = false)
+    AppShell(container, badges, syncRunning)
 }
 
 @Composable
@@ -144,7 +146,11 @@ private fun AppNavHost(
         composable<SearchRoute> { GridTab(container, GridMode.Search, openDetail) }
         composable<WatchedRoute> { GridTab(container, GridMode.Watched, openDetail) }
         composable<MehRoute> { GridTab(container, GridMode.Meh, openDetail) }
-        composable<SettingsRoute> { SettingsPlaceholder() }
+        composable<SettingsRoute> {
+            SettingsDestination(
+                viewModel { SettingsViewModel(container.gateway, container.settingsStore, container.syncScheduler) },
+            )
+        }
         composable<DetailRoute> { entry ->
             val id = entry.toRoute<DetailRoute>().id
             DetailDestination(
@@ -169,12 +175,4 @@ private fun GridTab(
         viewModel = viewModel { SearchViewModel(mode, container.gateway, container.settingsStore) },
         onOpen = { id -> if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) onOpen(id) },
     )
-}
-
-/** Platzhalter bis zur Einstellungsseite aus Task 15. */
-@Composable
-private fun SettingsPlaceholder() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(stringResource(R.string.settings_placeholder))
-    }
 }
