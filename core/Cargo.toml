@@ -1,0 +1,20 @@
+[package]
+name = "crunchymate-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "crunchymate_core"
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["cli"]
+
+[features]
+# Nur für das Host-Bindgen-Binary, damit die Android-Bibliothek ohne CLI-Code baut
+cli = ["uniffi/cli"]
+
+[dependencies]
+uniffi = { version = "0.32.2" }

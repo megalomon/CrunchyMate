@@ -1,9 +1,18 @@
-crunchyMate
+# Rust
+target/
+
+# App-Datenbank und Logs dürfen nicht eingecheckt werden
 *.db
 *.db-journal
 *.log
 
-# Android build outputs and caches
+# Signierschlüssel
+*.jks
+*.keystore
+
+# Build-Ausgaben und Caches
+/build/
+app/build/
 .gradle/
 android/.gradle/
 android/build/
