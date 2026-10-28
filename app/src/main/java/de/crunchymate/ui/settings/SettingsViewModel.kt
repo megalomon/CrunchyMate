@@ -91,6 +91,14 @@ class SettingsViewModel(
         settingsStore.update { it.copy(oledMode = enabled) }
     }
 
+    fun onShowAdultChange(enabled: Boolean) {
+        settingsStore.update { it.copy(showAdult = enabled) }
+    }
+
+    fun onShowAgeRatingChange(enabled: Boolean) {
+        settingsStore.update { it.copy(showAgeRating = enabled) }
+    }
+
     fun onContentLocaleChange(locale: String) {
         settingsStore.update { it.copy(contentLocale = locale) }
     }
@@ -112,6 +120,8 @@ class SettingsViewModel(
         availableLocales = locales,
         hideWatched = settings.search.watched == WatchedFilter.UNWATCHED,
         oledMode = settings.oledMode,
+        showAdult = settings.showAdult,
+        showAgeRating = settings.showAgeRating,
         contentLocaleChangePending = contentLocaleSyncPending(syncedLocale, settings.contentLocale),
     )
 

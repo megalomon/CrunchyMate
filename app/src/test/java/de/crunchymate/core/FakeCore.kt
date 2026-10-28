@@ -121,11 +121,15 @@ fun sampleSettings(
     locale: String = "de-DE",
     introSeen: Boolean = false,
     oledMode: Boolean = false,
+    showAdult: Boolean = true,
+    showAgeRating: Boolean = true,
 ) = Settings(
     locale,
     SearchState("", null, LanguageFilter.ALL, WatchedFilter.ALL, SortOrder.TITLE, emptyList()),
     introSeen,
     oledMode,
+    showAdult,
+    showAgeRating,
 )
 
 fun sampleFilter() =
@@ -139,13 +143,19 @@ fun sampleFilter() =
         emptyList(),
         emptyList(),
         emptyList(),
+        false,
     )
 
-fun sampleSummary(id: String) = AnimeSummary(id, "Titel $id", "", 0, false, false, false, false, 0)
+fun sampleSummary(
+    id: String,
+    ageRating: Int? = null,
+) = AnimeSummary(id, "Titel $id", "", 0, false, false, false, false, 0, ageRating)
 
 fun sampleDetail(
     id: String,
     tags: List<TagRank> = emptyList(),
+    ageRating: Int? = null,
+    contentDescriptors: List<String> = emptyList(),
 ) = AnimeDetail(
     id = id,
     title = "Titel $id",
@@ -163,4 +173,6 @@ fun sampleDetail(
     genres = listOf("Action"),
     tags = tags,
     anilist = null,
+    ageRating = ageRating,
+    contentDescriptors = contentDescriptors,
 )

@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -57,6 +58,8 @@ import de.crunchymate.ui.components.flagState
 import de.crunchymate.ui.tags.stateOf
 import de.crunchymate.ui.theme.Dimens
 import de.crunchymate.ui.theme.scoreColor
+
+const val DETAIL_AGE_TAG = "detail_age"
 
 @Composable
 fun DetailDestination(
@@ -138,6 +141,9 @@ private fun DetailContent(
             state.error?.let {
                 Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
+            if (anime.ageRating != null || anime.contentDescriptors.isNotEmpty()) {
+                AgeAndDescriptors(anime)
+            }
             if (anime.genres.isNotEmpty()) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
                     anime.genres.forEach { InfoLabel(it) }
@@ -206,6 +212,23 @@ private fun Header(
                 )
             }
         }
+    }
+}
+
+/** Altersstufe vor den Inhaltshinweisen; unabhängig von der Einstellung für die Kacheln. */
+@Composable
+private fun AgeAndDescriptors(anime: AnimeDetail) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm),
+        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
+    ) {
+        anime.ageRating?.let { age ->
+            val description = stringResource(R.string.badge_age_rating_description, age)
+            Box(Modifier.testTag(DETAIL_AGE_TAG).semantics(mergeDescendants = true) { contentDescription = description }) {
+                InfoLabel(stringResource(R.string.detail_age_rating, age))
+            }
+        }
+        anime.contentDescriptors.forEach { InfoLabel(it) }
     }
 }
 

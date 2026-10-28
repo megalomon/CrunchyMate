@@ -153,6 +153,42 @@ class SearchViewModelTest {
         }
 
     @Test
+    fun showAdultOff_filtersAdultInAllModesAndReloadsOnToggle() =
+        runTest(dispatcher) {
+            for (mode in GridMode.entries) {
+                val f = fixture(mode = mode)
+                backgroundScope.launch { f.viewModel.items.collect {} }
+                runCurrent()
+                assertFalse(f.pagingFilters.last().hideAdult)
+
+                f.store.update { it.copy(showAdult = false) }
+                runCurrent()
+                assertTrue(f.pagingFilters.last().hideAdult)
+                assertTrue(
+                    f.core.queryCalls
+                        .last()
+                        .first.hideAdult,
+                )
+
+                f.store.update { it.copy(showAdult = true) }
+                runCurrent()
+                assertFalse(f.pagingFilters.last().hideAdult)
+            }
+        }
+
+    @Test
+    fun showAgeRating_followsSettings() =
+        runTest(dispatcher) {
+            val f = fixture()
+            assertTrue(f.viewModel.showAgeRating.value)
+
+            f.store.update { it.copy(showAgeRating = false) }
+            runCurrent()
+
+            assertFalse(f.viewModel.showAgeRating.value)
+        }
+
+    @Test
     fun staleTagInSearchState_staysInActiveTags() =
         runTest(dispatcher) {
             val stored = sampleSettings().let { it.copy(search = it.search.copy(tags = listOf(TagSelection("Alt", TagState.PREFER)))) }
@@ -249,7 +285,7 @@ class SearchViewModelTest {
 
                 val expected =
                     f.store.settings.value.search
-                        .toFilter(mode)
+                        .toFilter(mode, hideAdult = false)
                 assertEquals(expected, f.pagingFilters.single())
                 assertEquals(
                     expected,

@@ -65,6 +65,7 @@ class ComponentsTest {
     private fun anime(
         score: Int = 80,
         posterPath: String = "",
+        ageRating: Int? = null,
     ) = AnimeSummary(
         id = "a1",
         title = "Testtitel",
@@ -75,6 +76,7 @@ class ComponentsTest {
         watched = false,
         isMeh = false,
         episodeCount = 128,
+        ageRating = ageRating,
     )
 
     @Test
@@ -253,6 +255,54 @@ class ComponentsTest {
         assertEquals(watched.bottom - watched.top, score.bottom - score.top)
         assertEquals(Dimens.OverlayGap, meh.top - watched.bottom)
         rule.onNodeWithContentDescription(string(R.string.action_toggle_watched)).assertTouchWidthIsEqualTo(Dimens.MinTouchTarget)
+    }
+
+    @Test
+    fun animeCard_ageBadgeSitsBottomRightInsidePosterWithDescription() {
+        rule.setContent {
+            CrunchyMateTheme { Box(Modifier.width(CARD_WIDTH)) { AnimeCard(anime(ageRating = 16), "de-DE", {}, {}, {}) } }
+        }
+
+        fun bounds(tag: String) = rule.onNodeWithTag(tag, useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val poster = bounds(IMAGE_PLACEHOLDER_TAG)
+        val age = bounds(AGE_BADGE_TAG)
+        val meh = bounds(MEH_CIRCLE_TAG)
+        assertEquals(Dimens.OverlayInset, poster.right - age.right)
+        assertEquals(Dimens.OverlayInset, poster.bottom - age.bottom)
+        assertTrue("Kästchen überdeckt den Meh-Schalter", age.top >= meh.bottom)
+        rule.onNodeWithText("16", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithContentDescription(string(R.string.badge_age_rating_description, 16)).assertIsDisplayed()
+    }
+
+    @Test
+    fun animeCard_withoutAgeRatingShowsNoAgeBadge() {
+        rule.setContent {
+            CrunchyMateTheme { Box(Modifier.width(CARD_WIDTH)) { AnimeCard(anime(ageRating = null), "de-DE", {}, {}, {}) } }
+        }
+        rule.onNodeWithTag(AGE_BADGE_TAG, useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun animeCard_withSettingOffShowsNoAgeBadge() {
+        rule.setContent {
+            CrunchyMateTheme {
+                Box(Modifier.width(CARD_WIDTH)) { AnimeCard(anime(ageRating = 16), "de-DE", {}, {}, {}, showAgeRating = false) }
+            }
+        }
+        rule.onNodeWithTag(AGE_BADGE_TAG, useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun animeCard_ageBadgeDoesNotShrinkTouchAreasOfToggles() {
+        var meh = 0
+        rule.setContent {
+            CrunchyMateTheme {
+                Box(Modifier.width(CARD_WIDTH)) { AnimeCard(anime(ageRating = 18), "de-DE", {}, {}, { meh++ }) }
+            }
+        }
+        rule.onNodeWithContentDescription(string(R.string.action_toggle_meh)).assertTouchWidthIsEqualTo(Dimens.MinTouchTarget)
+        rule.onNodeWithContentDescription(string(R.string.action_toggle_meh)).performClick()
+        assertEquals(1, meh)
     }
 
     @Test

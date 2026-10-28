@@ -65,6 +65,8 @@ fun SettingsDestination(
         onHideWatchedChange = viewModel::onHideWatchedChange,
         onContentLocaleChange = viewModel::onContentLocaleChange,
         onOledModeChange = viewModel::onOledModeChange,
+        onShowAdultChange = viewModel::onShowAdultChange,
+        onShowAgeRatingChange = viewModel::onShowAgeRatingChange,
         onOpenLicenses = onOpenLicenses,
     )
 }
@@ -77,6 +79,8 @@ fun SettingsScreen(
     onHideWatchedChange: (Boolean) -> Unit,
     onContentLocaleChange: (String) -> Unit,
     onOledModeChange: (Boolean) -> Unit,
+    onShowAdultChange: (Boolean) -> Unit,
+    onShowAgeRatingChange: (Boolean) -> Unit,
     onOpenLicenses: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -109,7 +113,10 @@ fun SettingsScreen(
             onStart = { startWithPermission(SyncKind.METADATA) },
             onCancel = { onCancelSync(SyncKind.METADATA) },
         )
-        DisplaySettings(state, onHideWatchedChange, onContentLocaleChange, onOledModeChange)
+        DisplaySettings(
+            state,
+            DisplayActions(onHideWatchedChange, onContentLocaleChange, onOledModeChange, onShowAdultChange, onShowAgeRatingChange),
+        )
         state.stats?.let { StatsSection(it) }
         Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
             OutlinedButton(onClick = onOpenLicenses, modifier = Modifier.weight(1f)) {
@@ -144,12 +151,30 @@ private fun rememberNotificationPermissionStart(onStartSync: (SyncKind) -> Unit)
     }
 }
 
+private class DisplayActions(
+    val onHideWatchedChange: (Boolean) -> Unit,
+    val onContentLocaleChange: (String) -> Unit,
+    val onOledModeChange: (Boolean) -> Unit,
+    val onShowAdultChange: (Boolean) -> Unit,
+    val onShowAgeRatingChange: (Boolean) -> Unit,
+)
+
+@Composable
+private fun SwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
 @Composable
 private fun DisplaySettings(
     state: SettingsUiState,
-    onHideWatchedChange: (Boolean) -> Unit,
-    onContentLocaleChange: (String) -> Unit,
-    onOledModeChange: (Boolean) -> Unit,
+    actions: DisplayActions,
 ) {
     val context = LocalContext.current
     var selectedLanguage by remember { mutableStateOf(context.currentAppLanguage()) }
@@ -161,7 +186,7 @@ private fun DisplaySettings(
                 options = state.availableLocales,
                 selected = state.contentLocale,
                 optionLabel = { localeName(it) },
-                onSelect = onContentLocaleChange,
+                onSelect = actions.onContentLocaleChange,
             )
             if (state.contentLocaleChangePending) {
                 Text(
@@ -170,22 +195,10 @@ private fun DisplaySettings(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.settings_hide_watched),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.weight(1f),
-                )
-                Switch(checked = state.hideWatched, onCheckedChange = onHideWatchedChange)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.settings_oled_mode),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.weight(1f),
-                )
-                Switch(checked = state.oledMode, onCheckedChange = onOledModeChange)
-            }
+            SwitchRow(stringResource(R.string.settings_hide_watched), state.hideWatched, actions.onHideWatchedChange)
+            SwitchRow(stringResource(R.string.settings_oled_mode), state.oledMode, actions.onOledModeChange)
+            SwitchRow(stringResource(R.string.settings_show_adult), state.showAdult, actions.onShowAdultChange)
+            SwitchRow(stringResource(R.string.settings_show_age_rating), state.showAgeRating, actions.onShowAgeRatingChange)
             FilterDropdown(
                 label = stringResource(R.string.settings_app_language),
                 options = AppLanguage.entries,

@@ -71,12 +71,14 @@ fun AnimeGridDestination(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val items = viewModel.items.collectAsLazyPagingItems()
     val contentLocale by viewModel.contentLocale.collectAsStateWithLifecycle()
+    val showAgeRating by viewModel.showAgeRating.collectAsStateWithLifecycle()
     AnimeGridScreen(
         mode = mode,
         state = state,
         query = viewModel.query,
         items = items,
         contentLocale = contentLocale,
+        showAgeRating = showAgeRating,
         actions =
             SearchActions(
                 onQueryChange = viewModel::onQueryChange,
@@ -101,6 +103,7 @@ fun AnimeGridScreen(
     query: String,
     items: LazyPagingItems<AnimeSummary>,
     contentLocale: String,
+    showAgeRating: Boolean,
     actions: SearchActions,
     onOpen: (String) -> Unit,
     onToggleWatched: (AnimeSummary) -> Unit,
@@ -154,6 +157,7 @@ fun AnimeGridScreen(
                 AnimeCard(
                     anime = anime,
                     contentLocale = contentLocale,
+                    showAgeRating = showAgeRating,
                     onOpen = { onOpen(anime.id) },
                     onToggleWatched = { onToggleWatched(anime) },
                     onToggleMeh = { onToggleMeh(anime) },

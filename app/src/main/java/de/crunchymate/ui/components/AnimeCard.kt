@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -51,6 +52,43 @@ private const val TITLE_MAX_LINES = 2
 const val SCORE_BADGE_TAG = "score_badge"
 const val WATCHED_CIRCLE_TAG = "watched_circle"
 const val MEH_CIRCLE_TAG = "meh_circle"
+const val AGE_BADGE_TAG = "age_badge"
+
+/** Gemeinsamer Rahmen der Overlay-Kästchen auf dem Poster. */
+@Composable
+private fun OverlayBadgeFrame(
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit,
+) {
+    // Gleiche Höhe wie der sichtbare Kreis der Schalter, damit beide Kanten fluchten
+    Row(
+        modifier =
+            modifier
+                .height(Dimens.OverlayButton)
+                .clip(RoundedCornerShape(Dimens.SpaceXs))
+                .background(PosterOverlayBackground)
+                .padding(horizontal = Dimens.SpaceXs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
+        content = content,
+    )
+}
+
+/** Altersstufe als reine Zahl; die Beschreibung steht für TalkBack in den Semantics. */
+@Composable
+private fun AgeRatingBadge(
+    age: Int,
+    modifier: Modifier = Modifier,
+) {
+    val description = stringResource(R.string.badge_age_rating_description, age)
+    OverlayBadgeFrame(modifier.testTag(AGE_BADGE_TAG).semantics { contentDescription = description }) {
+        Text(
+            stringResource(R.string.badge_age_rating, age),
+            style = MaterialTheme.typography.labelSmall,
+            color = PosterOverlayContent,
+        )
+    }
+}
 
 @Composable
 internal fun OverlayBadge(
@@ -60,17 +98,7 @@ internal fun OverlayBadge(
     tag: String? = null,
     iconTint: Color = PosterOverlayContent,
 ) {
-    // Gleiche Höhe wie der sichtbare Kreis der Schalter, damit beide Kanten fluchten
-    Row(
-        modifier =
-            (if (tag != null) Modifier.testTag(tag) else Modifier)
-                .height(Dimens.OverlayButton)
-                .clip(RoundedCornerShape(Dimens.SpaceXs))
-                .background(PosterOverlayBackground)
-                .padding(horizontal = Dimens.SpaceXs),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
-    ) {
+    OverlayBadgeFrame(if (tag != null) Modifier.testTag(tag) else Modifier) {
         Icon(
             painterResource(icon),
             contentDescription = description,
@@ -89,6 +117,7 @@ fun AnimeCard(
     onToggleWatched: () -> Unit,
     onToggleMeh: () -> Unit,
     modifier: Modifier = Modifier,
+    showAgeRating: Boolean = true,
 ) {
     val episodes =
         if (anime.episodeCount > 0) {
@@ -113,6 +142,10 @@ fun AnimeCard(
                         scoreColor(anime.anilistScore),
                     )
                 }
+            }
+            anime.ageRating?.takeIf { showAgeRating }?.let { age ->
+                // Unten rechts, damit die Tippflächen der Schalter oben rechts frei bleiben
+                AgeRatingBadge(age, Modifier.align(Alignment.BottomEnd).padding(Dimens.OverlayInset))
             }
             OverlayToggle(
                 icon = if (anime.watched) R.drawable.ic_watched_on else R.drawable.ic_watched_off,

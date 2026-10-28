@@ -61,6 +61,14 @@ class SearchViewModel internal constructor(
         this(mode, gateway, settingsStore, { filter -> AnimePagingSource(gateway, filter) })
 
     private val search = settingsStore.settings.map { it.search }.distinctUntilChanged()
+    private val hideAdult = settingsStore.settings.map { !it.showAdult }.distinctUntilChanged()
+
+    /** Ob die Kacheln die Altersstufe zeigen. */
+    val showAgeRating: StateFlow<Boolean> =
+        settingsStore.settings
+            .map { it.showAgeRating }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.Eagerly, settingsStore.settings.value.showAgeRating)
 
     /**
      * Text im Suchfeld als synchroner Compose-Zustand: Ein an einen asynchronen Flow gebundenes
@@ -73,7 +81,7 @@ class SearchViewModel internal constructor(
     private var queryJob: Job? = null
 
     private val filter: Flow<AnimeFilter> =
-        combine(search, loadedQuery) { state, query -> state.copy(query = query).toFilter(mode) }
+        combine(search, loadedQuery, hideAdult) { state, query, hide -> state.copy(query = query).toFilter(mode, hide) }
             .distinctUntilChanged()
 
     private val genres = MutableStateFlow(emptyList<NameCount>())

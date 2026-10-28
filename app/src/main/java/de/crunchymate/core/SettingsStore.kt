@@ -108,6 +108,8 @@ class SettingsStore(
                     ),
                 introSeen = false,
                 oledMode = false,
+                showAdult = true,
+                showAgeRating = true,
             )
     }
 }

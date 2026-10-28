@@ -18,6 +18,9 @@
     <string name="tag_state_exclude">Excwuded</string>
     <string name="tag_label_with_count">%1$s (%2$d)</string>
     <string name="badge_score">%1$d %%</string>
+    <string name="badge_age_rating">%1$d</string>
+    <string name="badge_age_rating_description">Age wating %1$d</string>
+    <string name="detail_age_rating">%1$d+</string>
     <string name="badge_score_description">AniList scowe</string>
     <string name="card_episodes">%1$d ep.</string>
     <string name="card_series">Sewies</string>
@@ -74,6 +77,8 @@
     <string name="settings_content_locale_label">Content wanguage</string>
     <string name="settings_content_locale_hint">Takes effect with the next sync, nya.</string>
     <string name="settings_hide_watched">Hide watched</string>
+    <string name="settings_show_adult">Show 18+ content nya~</string>
+    <string name="settings_show_age_rating">Show age wating nya~</string>
     <string name="settings_oled_mode">OLED mode nya~</string>
     <string name="settings_app_language">App wanguage</string>
     <string name="settings_language_system">System wanguage</string>

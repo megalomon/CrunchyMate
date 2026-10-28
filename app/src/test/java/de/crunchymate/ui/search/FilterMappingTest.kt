@@ -8,6 +8,7 @@ import de.crunchymate.core.ffi.TagSelection
 import de.crunchymate.core.ffi.TagState
 import de.crunchymate.core.ffi.WatchedFilter
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -31,7 +32,7 @@ class FilterMappingTest {
 
     @Test
     fun toFilter_search_mapsTagsAndHidesMeh() {
-        val filter = search.toFilter(GridMode.Search)
+        val filter = search.toFilter(GridMode.Search, hideAdult = false)
 
         assertEquals("Frieren", filter.query)
         assertEquals("Fantasy", filter.genre)
@@ -46,7 +47,7 @@ class FilterMappingTest {
 
     @Test
     fun toFilter_watched_ignoresSearchControlsAndIncludesMeh() {
-        val filter = search.toFilter(GridMode.Watched)
+        val filter = search.toFilter(GridMode.Watched, hideAdult = false)
 
         assertEquals("", filter.query)
         assertNull(filter.genre)
@@ -59,7 +60,7 @@ class FilterMappingTest {
 
     @Test
     fun toFilter_meh_onlyMeh() {
-        val filter = search.toFilter(GridMode.Meh)
+        val filter = search.toFilter(GridMode.Meh, hideAdult = false)
 
         assertEquals("", filter.query)
         assertNull(filter.genre)
@@ -68,5 +69,13 @@ class FilterMappingTest {
         assertEquals(MehFilter.ONLY, filter.meh)
         assertEquals(SortOrder.SCORE, filter.sort)
         assertTrue(filter.preferTags.isEmpty() && filter.mustTags.isEmpty() && filter.excludeTags.isEmpty())
+    }
+
+    @Test
+    fun toFilter_hideAdult_appliesToEveryMode() {
+        for (mode in GridMode.entries) {
+            assertTrue(search.toFilter(mode, hideAdult = true).hideAdult)
+            assertFalse(search.toFilter(mode, hideAdult = false).hideAdult)
+        }
     }
 }

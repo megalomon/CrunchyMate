@@ -47,6 +47,8 @@ class SettingsScreenTest {
             availableLocales = listOf("de-DE"),
             hideWatched = false,
             oledMode = false,
+            showAdult = true,
+            showAgeRating = true,
             contentLocaleChangePending = false,
         )
 
@@ -54,7 +56,7 @@ class SettingsScreenTest {
 
     @Test
     fun stats_showImageCountAndImageStorageAsSeparateItems() {
-        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}, {}, {}) } }
         val size = Formatter.formatShortFileSize(rule.activity, IMAGE_BYTES)
         rule.onNodeWithText(rule.activity.getString(R.string.stat_images)).performScrollTo().assertIsDisplayed()
         rule.onNodeWithText(IMAGE_COUNT.toString()).assertIsDisplayed()
@@ -64,7 +66,7 @@ class SettingsScreenTest {
 
     @Test
     fun stats_bothColumnsHaveEqualWidthEvenForTheLoneLastTile() {
-        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}, {}, {}) } }
         val left = tileNode(R.string.stat_total)
         val right = tileNode(R.string.stat_watched)
         val lone = tileNode(R.string.stat_image_storage)
@@ -81,8 +83,26 @@ class SettingsScreenTest {
         actual: Int,
     ) = assertTrue("$expected != $actual", kotlin.math.abs(expected - actual) <= ROUNDING_TOLERANCE_PX)
 
+    @Test
+    fun adultSwitches_showLabelsAndReportChanges() {
+        var adult: Boolean? = null
+        var age: Boolean? = null
+        rule.setContent {
+            CrunchyMateTheme {
+                SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, { adult = it }, { age = it }, {})
+            }
+        }
+        rule.onNodeWithText(rule.activity.getString(R.string.settings_show_adult)).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText(rule.activity.getString(R.string.settings_show_age_rating)).performScrollTo().assertIsDisplayed()
+        // Reihenfolge der Schalter: Gesehene ausblenden, OLED-Modus, 18+, Altersfreigabe
+        rule.onAllNodes(isToggleable())[2].performScrollTo().performClick()
+        rule.onAllNodes(isToggleable())[3].performScrollTo().performClick()
+        assertEquals(false, adult)
+        assertEquals(false, age)
+    }
+
     private fun showInfoDialog() {
-        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}, {}, {}) } }
         rule.onNodeWithText(rule.activity.getString(R.string.settings_info)).performScrollTo().performClick()
     }
 
@@ -115,7 +135,7 @@ class SettingsScreenTest {
 
     @Test
     fun appLanguageDropdown_listsAllLanguagesAndSelectingSetsApplicationLocale() {
-        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}, {}, {}) } }
         rule.onNodeWithText(rule.activity.getString(R.string.settings_app_language)).performScrollTo().performClick()
         rule.onNodeWithText("Deutsch").assertIsDisplayed()
         rule.onNodeWithText("English").assertIsDisplayed()
@@ -129,7 +149,7 @@ class SettingsScreenTest {
     fun oledSwitch_reportsNewValue() {
         var enabled: Boolean? = null
         rule.setContent {
-            CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, { enabled = it }, {}) }
+            CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, { enabled = it }, {}, {}, {}) }
         }
         // Reihenfolge der Schalter: Gesehene ausblenden, OLED-Modus
         rule.onAllNodes(isToggleable())[1].performScrollTo().performClick()

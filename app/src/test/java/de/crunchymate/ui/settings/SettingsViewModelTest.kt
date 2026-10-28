@@ -130,6 +130,27 @@ class SettingsViewModelTest {
         }
 
     @Test
+    fun settings_adultSwitches_defaultOnAndSavedIndependently() =
+        runTest(dispatcher) {
+            val f = fixture()
+            assertTrue(f.viewModel.uiState.value.showAdult)
+            assertTrue(f.viewModel.uiState.value.showAgeRating)
+
+            f.viewModel.onShowAdultChange(false)
+            runCurrent()
+            assertFalse(f.viewModel.uiState.value.showAdult)
+            assertTrue(f.viewModel.uiState.value.showAgeRating)
+
+            f.viewModel.onShowAgeRatingChange(false)
+            advanceTimeBy(SAVE_DEBOUNCE + 1)
+            runCurrent()
+            val saved = f.core.savedSettings.last()
+            assertFalse(saved.showAdult)
+            assertFalse(saved.showAgeRating)
+            assertEquals(f.store.settings.value.contentLocale, saved.contentLocale)
+        }
+
+    @Test
     fun settings_startSync_savesPendingLocaleFirst() =
         runTest(dispatcher) {
             val f = fixture()

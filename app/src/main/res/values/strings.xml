@@ -18,6 +18,9 @@
     <string name="tag_state_exclude">Ausgeschlossen</string>
     <string name="tag_label_with_count">%1$s (%2$d)</string>
     <string name="badge_score">%1$d %%</string>
+    <string name="badge_age_rating">%1$d</string>
+    <string name="badge_age_rating_description">Altersfreigabe %1$d</string>
+    <string name="detail_age_rating">%1$d+</string>
     <string name="badge_score_description">AniList-Wertung</string>
     <string name="card_episodes">%1$d Ep.</string>
     <string name="card_series">Serie</string>
@@ -74,6 +77,8 @@
     <string name="settings_content_locale_label">Inhaltssprache</string>
     <string name="settings_content_locale_hint">Wirkt ab dem nächsten Sync.</string>
     <string name="settings_hide_watched">Gesehene ausblenden</string>
+    <string name="settings_show_adult">18+-Inhalte anzeigen</string>
+    <string name="settings_show_age_rating">Altersfreigabe anzeigen</string>
     <string name="settings_oled_mode">OLED-Modus</string>
     <string name="settings_app_language">App-Sprache</string>
     <string name="settings_language_system">Systemsprache</string>

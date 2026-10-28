@@ -10,7 +10,10 @@ import de.crunchymate.core.ffi.WatchedFilter
 /** Die drei Ansichten über dem Katalog-Grid; nur die Suche nutzt die Steuerelemente. */
 enum class GridMode { Search, Watched, Meh }
 
-fun SearchState.toFilter(mode: GridMode): AnimeFilter =
+fun SearchState.toFilter(
+    mode: GridMode,
+    hideAdult: Boolean,
+): AnimeFilter =
     when (mode) {
         GridMode.Search ->
             AnimeFilter(
@@ -23,9 +26,10 @@ fun SearchState.toFilter(mode: GridMode): AnimeFilter =
                 preferTags = tagsIn(TagState.PREFER),
                 mustTags = tagsIn(TagState.MUST),
                 excludeTags = tagsIn(TagState.EXCLUDE),
+                hideAdult = hideAdult,
             )
-        GridMode.Watched -> fixedFilter(WatchedFilter.WATCHED, MehFilter.INCLUDE)
-        GridMode.Meh -> fixedFilter(WatchedFilter.ALL, MehFilter.ONLY)
+        GridMode.Watched -> fixedFilter(WatchedFilter.WATCHED, MehFilter.INCLUDE, hideAdult)
+        GridMode.Meh -> fixedFilter(WatchedFilter.ALL, MehFilter.ONLY, hideAdult)
     }
 
 private fun SearchState.tagsIn(state: TagState): List<String> = tags.filter { it.state == state }.map { it.name }
@@ -34,6 +38,7 @@ private fun SearchState.tagsIn(state: TagState): List<String> = tags.filter { it
 private fun SearchState.fixedFilter(
     watched: WatchedFilter,
     meh: MehFilter,
+    hideAdult: Boolean,
 ) = AnimeFilter(
     query = "",
     genre = null,
@@ -44,4 +49,5 @@ private fun SearchState.fixedFilter(
     preferTags = emptyList(),
     mustTags = emptyList(),
     excludeTags = emptyList(),
+    hideAdult = hideAdult,
 )
