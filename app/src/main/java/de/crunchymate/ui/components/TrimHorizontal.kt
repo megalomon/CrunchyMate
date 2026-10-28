@@ -12,7 +12,10 @@ import androidx.compose.ui.unit.constrainWidth
 fun Modifier.trimHorizontal(inset: Dp): Modifier =
     layout { measurable, constraints ->
         val insetPx = inset.roundToPx()
-        val placeable = measurable.measure(constraints)
+        // Der Inhalt darf die gekürzten Ränder mitnutzen; sonst kürzt eine knappe Elternbreite den Text mit Auslassung
+        val relaxed =
+            if (constraints.hasBoundedWidth) constraints.copy(maxWidth = constraints.maxWidth + 2 * insetPx) else constraints
+        val placeable = measurable.measure(relaxed)
         val width = constraints.constrainWidth(placeable.width - 2 * insetPx)
         layout(width, placeable.height) { placeable.placeRelative(-insetPx, 0) }
     }
