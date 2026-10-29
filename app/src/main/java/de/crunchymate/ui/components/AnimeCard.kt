@@ -85,7 +85,7 @@ private fun AgeRatingBadge(
     AgeRatingCircle(
         age = age,
         text = stringResource(R.string.badge_age_rating, age),
-        diameter = Dimens.OverlayButton,
+        diameter = Dimens.AgeCircleCard,
         fontSize = AGE_CIRCLE_CARD_FONT_SIZE,
         modifier = modifier.testTag(AGE_BADGE_TAG).semantics { contentDescription = description },
     )

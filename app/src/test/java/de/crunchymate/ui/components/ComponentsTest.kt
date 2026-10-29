@@ -271,7 +271,7 @@ class ComponentsTest {
                         AgeRatingCircle(
                             age,
                             age.toString(),
-                            Dimens.OverlayButton,
+                            Dimens.AgeCircleCard,
                             AGE_CIRCLE_CARD_FONT_SIZE,
                             Modifier.testTag("circle_$age"),
                         )
@@ -281,12 +281,12 @@ class ComponentsTest {
         }
         for (age in ages) {
             val circle = rule.onNodeWithTag("circle_$age", useUnmergedTree = true).getUnclippedBoundsInRoot()
-            assertEquals(Dimens.OverlayButton, circle.right - circle.left)
-            assertEquals(Dimens.OverlayButton, circle.bottom - circle.top)
+            assertEquals(Dimens.AgeCircleCard, circle.right - circle.left)
+            assertEquals(Dimens.AgeCircleCard, circle.bottom - circle.top)
             val text = rule.onNodeWithText(age.toString(), useUnmergedTree = true)
             text.assertIsDisplayed()
             val textBounds = text.getUnclippedBoundsInRoot()
-            assertTrue("Text \"$age\" breiter als Kreis", textBounds.right - textBounds.left <= Dimens.OverlayButton)
+            assertTrue("Text \"$age\" breiter als Kreis", textBounds.right - textBounds.left <= Dimens.AgeCircleCard)
             val layouts = mutableListOf<TextLayoutResult>()
             text
                 .fetchSemanticsNode()
@@ -309,8 +309,8 @@ class ComponentsTest {
         val meh = bounds(MEH_CIRCLE_TAG)
         assertEquals(Dimens.OverlayInset, poster.right - age.right)
         assertEquals(Dimens.OverlayInset, poster.bottom - age.bottom)
-        assertEquals(Dimens.OverlayButton, age.right - age.left)
-        assertEquals(Dimens.OverlayButton, age.bottom - age.top)
+        assertEquals(Dimens.AgeCircleCard, age.right - age.left)
+        assertEquals(Dimens.AgeCircleCard, age.bottom - age.top)
         assertTrue("Kästchen überdeckt den Meh-Schalter", age.top >= meh.bottom)
         rule.onNodeWithText("16", useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithContentDescription(string(R.string.badge_age_rating_description, 16)).assertIsDisplayed()
