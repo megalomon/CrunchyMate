@@ -50,6 +50,8 @@ import de.crunchymate.R
 import de.crunchymate.core.ffi.AniListInfo
 import de.crunchymate.core.ffi.AnimeDetail
 import de.crunchymate.core.ffi.TagSelection
+import de.crunchymate.ui.components.AGE_CIRCLE_DETAIL_FONT_SIZE
+import de.crunchymate.ui.components.AgeRatingCircle
 import de.crunchymate.ui.components.EmptyState
 import de.crunchymate.ui.components.LanguageFlag
 import de.crunchymate.ui.components.LocalImage
@@ -58,7 +60,6 @@ import de.crunchymate.ui.components.TagChip
 import de.crunchymate.ui.components.flagState
 import de.crunchymate.ui.tags.stateOf
 import de.crunchymate.ui.theme.Dimens
-import de.crunchymate.ui.theme.ageRatingColors
 import de.crunchymate.ui.theme.scoreColor
 
 const val DETAIL_AGE_TAG = "detail_age"
@@ -227,8 +228,12 @@ private fun AgeAndDescriptors(anime: AnimeDetail) {
         anime.ageRating?.let { age ->
             val description = stringResource(R.string.badge_age_rating_description, age)
             Box(Modifier.testTag(DETAIL_AGE_TAG).semantics(mergeDescendants = true) { contentDescription = description }) {
-                val colors = ageRatingColors(age)
-                InfoLabel(stringResource(R.string.detail_age_rating, age), colors.background, colors.content)
+                AgeRatingCircle(
+                    age = age,
+                    text = stringResource(R.string.detail_age_rating, age),
+                    diameter = Dimens.AgeCircleDetail,
+                    fontSize = AGE_CIRCLE_DETAIL_FONT_SIZE,
+                )
             }
         }
         anime.contentDescriptors.forEach { InfoLabel(it) }

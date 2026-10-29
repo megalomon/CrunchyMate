@@ -44,7 +44,6 @@ import de.crunchymate.core.ffi.AnimeSummary
 import de.crunchymate.ui.theme.Dimens
 import de.crunchymate.ui.theme.PosterOverlayBackground
 import de.crunchymate.ui.theme.PosterOverlayContent
-import de.crunchymate.ui.theme.ageRatingColors
 import de.crunchymate.ui.theme.scoreColor
 
 private const val TITLE_MAX_LINES = 2
@@ -83,15 +82,13 @@ private fun AgeRatingBadge(
     modifier: Modifier = Modifier,
 ) {
     val description = stringResource(R.string.badge_age_rating_description, age)
-    val colors = ageRatingColors(age)
-    // Deckend, damit die USK-Farbe nicht vom Poster verfälscht wird
-    OverlayBadgeFrame(modifier.testTag(AGE_BADGE_TAG).semantics { contentDescription = description }, colors.background) {
-        Text(
-            stringResource(R.string.badge_age_rating, age),
-            style = MaterialTheme.typography.labelSmall,
-            color = colors.content,
-        )
-    }
+    AgeRatingCircle(
+        age = age,
+        text = stringResource(R.string.badge_age_rating, age),
+        diameter = Dimens.OverlayButton,
+        fontSize = AGE_CIRCLE_CARD_FONT_SIZE,
+        modifier = modifier.testTag(AGE_BADGE_TAG).semantics { contentDescription = description },
+    )
 }
 
 @Composable
