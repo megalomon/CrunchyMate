@@ -17,6 +17,15 @@ androidxTestRunner = "1.7.0"
 androidxTestExtJunit = "1.3.0"
 androidxTestEspresso = "3.7.0"
 ktlintGradle = "14.2.0"
+ktlint = "1.8.0"
+# Mindestversionen gegen bekannte Sicherheitslücken in Build-Werkzeugen (siehe build.gradle.kts)
+secBouncycastle = "1.86"
+secGuava = "33.7.2-jre"
+secJose4j = "0.9.7"
+secJdom2 = "2.0.6.1"
+secLogback = "1.5.34"
+secCommonsLang3 = "3.21.0"
+secHttpclient = "4.5.14"
 
 [libraries]
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
@@ -41,6 +50,17 @@ androidx-test-runner = { module = "androidx.test:runner", version.ref = "android
 androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestExtJunit" }
 androidx-test-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidxTestEspresso" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+
+# Nur Constraints für Build-Werkzeuge (Plugin-Classpath, Lint, ktlint); keine App-Abhängigkeiten
+sec-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "secBouncycastle" }
+sec-bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "secBouncycastle" }
+sec-guava = { module = "com.google.guava:guava", version.ref = "secGuava" }
+sec-jose4j = { module = "org.bitbucket.b_c:jose4j", version.ref = "secJose4j" }
+sec-jdom2 = { module = "org.jdom:jdom2", version.ref = "secJdom2" }
+sec-logback-core = { module = "ch.qos.logback:logback-core", version.ref = "secLogback" }
+sec-logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "secLogback" }
+sec-commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "secCommonsLang3" }
+sec-httpclient = { module = "org.apache.httpcomponents:httpclient", version.ref = "secHttpclient" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

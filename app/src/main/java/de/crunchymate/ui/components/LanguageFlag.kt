@@ -75,8 +75,14 @@ fun LanguageFlag(
     val description = stringResource(state.description)
     Box(modifier.size(width, height).semantics { contentDescription = description }) {
         when (state) {
-            FlagState.DUB -> FlagImage(flag, width = width, height = height)
-            FlagState.NONE -> FlagImage(flag, GreyFilter, width = width, height = height)
+            FlagState.DUB -> {
+                FlagImage(flag, width = width, height = height)
+            }
+
+            FlagState.NONE -> {
+                FlagImage(flag, GreyFilter, width = width, height = height)
+            }
+
             FlagState.SUB_ONLY -> {
                 FlagImage(flag, width = width, height = height)
                 FlagImage(

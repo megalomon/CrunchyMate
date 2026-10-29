@@ -34,10 +34,14 @@ fun syncPhaseLabel(
     phase: SyncPhase,
 ): Int =
     when (phase) {
-        SyncPhase.IMAGES -> R.string.sync_phase_images
-        SyncPhase.ITEMS ->
+        SyncPhase.IMAGES -> {
+            R.string.sync_phase_images
+        }
+
+        SyncPhase.ITEMS -> {
             when (kind) {
                 SyncKind.CATALOG -> R.string.sync_phase_catalog
                 SyncKind.METADATA -> R.string.sync_phase_enrichment
             }
+        }
     }

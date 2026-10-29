@@ -126,7 +126,7 @@ fun AnimeGridScreen(
         }
         fullWidth { ResultCount(state.total, state.totalError) }
         when (val refresh = items.loadState.refresh) {
-            is LoadState.Error ->
+            is LoadState.Error -> {
                 fullWidth {
                     EmptyState(
                         icon = R.drawable.ic_state_error,
@@ -134,11 +134,15 @@ fun AnimeGridScreen(
                         subtitle = stringResource(refresh.error.messageRes()),
                     )
                 }
-            is LoadState.Loading ->
+            }
+
+            is LoadState.Loading -> {
                 if (items.itemCount == 0) {
                     fullWidth { LoadingIndicator() }
                 }
-            is LoadState.NotLoading ->
+            }
+
+            is LoadState.NotLoading -> {
                 if (items.itemCount == 0) {
                     fullWidth {
                         EmptyState(
@@ -147,6 +151,7 @@ fun AnimeGridScreen(
                         )
                     }
                 }
+            }
         }
         // Eindeutige IDs garantiert AnimePagingSource je Ladegeneration
         items(count = items.itemCount, key = items.itemKey { it.id }) { index ->

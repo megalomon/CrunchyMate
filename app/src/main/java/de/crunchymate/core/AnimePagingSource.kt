@@ -36,7 +36,10 @@ class AnimePagingSource(
                     val first = maxOf(0, end - params.loadSize)
                     first to (end - first)
                 }
-                is LoadParams.Refresh, is LoadParams.Append -> (params.key ?: 0) to params.loadSize
+
+                is LoadParams.Refresh, is LoadParams.Append -> {
+                    (params.key ?: 0) to params.loadSize
+                }
             }
         return try {
             var start = requestedStart
