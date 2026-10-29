@@ -17,7 +17,7 @@ use crunchymate_core::remote::metadata_source::MetadataSource;
 use crunchymate_core::sync::config::SyncConfig;
 use crunchymate_core::sync::progress::SyncObserver;
 
-use common::{FakeFetcher, TempDir};
+use common::{FakeFetcher, NoUpdates, TempDir};
 
 // Testkonfiguration ohne Pausen
 fn fast() -> SyncConfig {
@@ -127,6 +127,7 @@ fn core_with(catalog: Arc<FakeCatalog>) -> (Arc<Core>, TempDir) {
         Arc::new(EmptyMetadata),
         dir.store(),
         Arc::new(FakeFetcher::default()),
+        Arc::new(NoUpdates),
         fast(),
     );
     (core, dir)
@@ -163,6 +164,7 @@ impl AppFiles {
             Arc::new(EmptyMetadata),
             ImageStore::new(self.path("images")).unwrap(),
             Arc::new(FakeFetcher::default()),
+            Arc::new(NoUpdates),
             fast(),
         )
     }

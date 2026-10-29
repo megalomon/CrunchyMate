@@ -148,7 +148,7 @@ mod tests {
         serde_json::to_string(value).unwrap()
     }
 
-    const GOLDEN_SETTINGS: &str = r#"{"content_locale":"en-US","search":{"query":"Größe","genre":"Action","language":"Both","watched":"Unwatched","sort":"Episodes","tags":[{"name":"Isekai","state":"Prefer"},{"name":"Magie","state":"Must"},{"name":"Horror","state":"Exclude"}]},"intro_seen":true,"oled_mode":true,"show_adult":false,"show_age_rating":false}"#;
+    const GOLDEN_SETTINGS: &str = r#"{"content_locale":"en-US","search":{"query":"Größe","genre":"Action","language":"Both","watched":"Unwatched","sort":"Episodes","tags":[{"name":"Isekai","state":"Prefer"},{"name":"Magie","state":"Must"},{"name":"Horror","state":"Exclude"}]},"intro_seen":true,"oled_mode":true,"show_adult":false,"show_age_rating":false,"check_updates":true,"last_update_check":1788000000}"#;
 
     fn golden_settings() -> Settings {
         Settings {
@@ -169,6 +169,8 @@ mod tests {
             oled_mode: true,
             show_adult: false,
             show_age_rating: false,
+            check_updates: true,
+            last_update_check: 1_788_000_000,
         }
     }
 
@@ -231,6 +233,29 @@ mod tests {
         store_raw(&db, r#"{"content_locale":"fr-FR","intro_seen":"ja"}"#);
         let s = db.with_conn(load).unwrap();
         assert!(!s.intro_seen);
+        assert_eq!(s.content_locale, "fr-FR");
+    }
+
+    #[test]
+    fn settings_without_update_fields_load_as_off_and_never_checked() {
+        let db = Database::open_in_memory().unwrap();
+        store_raw(&db, r#"{"content_locale":"en-US","oled_mode":true}"#);
+        let s = db.with_conn(load).unwrap();
+        assert!(!s.check_updates);
+        assert_eq!(s.last_update_check, 0);
+        assert!(s.oled_mode);
+    }
+
+    #[test]
+    fn unreadable_update_fields_load_as_defaults() {
+        let db = Database::open_in_memory().unwrap();
+        store_raw(
+            &db,
+            r#"{"content_locale":"fr-FR","check_updates":"ja","last_update_check":"gestern"}"#,
+        );
+        let s = db.with_conn(load).unwrap();
+        assert!(!s.check_updates);
+        assert_eq!(s.last_update_check, 0);
         assert_eq!(s.content_locale, "fr-FR");
     }
 

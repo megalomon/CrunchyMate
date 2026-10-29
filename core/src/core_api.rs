@@ -6,14 +6,16 @@ use crate::images::fetch::{HttpImageFetcher, ImageFetcher};
 use crate::images::store::ImageStore;
 use crate::model::{
     AnimeDetail, AnimeFilter, AnimePage, NameCount, Settings, Stats, SyncKind, SyncStatus,
-    SyncSummary,
+    SyncSummary, UpdateChannel, UpdateInfo,
 };
 use crate::query;
 use crate::remote::anilist::{AniListClient, RetryConfig};
 use crate::remote::catalog_mapping::SUPPORTED_CONTENT_LOCALES;
 use crate::remote::catalog_source::CatalogSource;
 use crate::remote::crispybun::CrispyBunSource;
+use crate::remote::github_releases::GitHubReleases;
 use crate::remote::metadata_source::MetadataSource;
+use crate::remote::update_source::{is_newer, UpdateSource};
 use crate::sync::catalog_sync::run_catalog_sync;
 use crate::sync::config::SyncConfig;
 use crate::sync::enrichment::run_enrichment;
@@ -28,6 +30,7 @@ pub struct Core {
     metadata: Arc<dyn MetadataSource>,
     store: ImageStore,
     fetcher: Arc<dyn ImageFetcher>,
+    updates: Arc<dyn UpdateSource>,
     config: SyncConfig,
 }
 
@@ -50,12 +53,14 @@ impl Core {
         )?);
         let store = ImageStore::new(image_dir)?;
         let fetcher = Arc::new(HttpImageFetcher::new()?);
+        let updates = Arc::new(GitHubReleases::new()?);
         Ok(Self::with_sources(
             db,
             catalog,
             metadata,
             store,
             fetcher,
+            updates,
             SyncConfig::default(),
         ))
     }
@@ -149,6 +154,20 @@ impl Core {
         )
         .await
     }
+
+    /// Liefert den neuesten Stand des Kanals, wenn er neuer ist als `current` (Nightly: Laufnummer
+    /// des installierten Builds, Release: Versionsname); sonst `None`. Es wird nichts geladen oder
+    /// gespeichert.
+    pub async fn check_for_update(
+        &self,
+        channel: UpdateChannel,
+        current: String,
+    ) -> CoreResult<Option<UpdateInfo>> {
+        let Some(latest) = self.updates.latest(channel).await? else {
+            return Ok(None);
+        };
+        Ok(is_newer(&latest, &current)?.then_some(latest))
+    }
 }
 
 impl Core {
@@ -160,6 +179,7 @@ impl Core {
         metadata: Arc<dyn MetadataSource>,
         store: ImageStore,
         fetcher: Arc<dyn ImageFetcher>,
+        updates: Arc<dyn UpdateSource>,
         config: SyncConfig,
     ) -> Arc<Self> {
         Arc::new(Self {
@@ -168,6 +188,7 @@ impl Core {
             metadata,
             store,
             fetcher,
+            updates,
             config,
         })
     }
