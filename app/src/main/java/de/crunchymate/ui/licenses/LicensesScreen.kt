@@ -82,10 +82,17 @@ fun LicensesScreen(
     ) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
             when (state) {
-                LicensesUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                LicensesUiState.Failed ->
+                LicensesUiState.Loading -> {
+                    CircularProgressIndicator(Modifier.align(Alignment.Center))
+                }
+
+                LicensesUiState.Failed -> {
                     EmptyState(icon = R.drawable.ic_state_error, title = stringResource(R.string.licenses_error_title))
-                is LicensesUiState.Loaded -> NoticesList(state.notices)
+                }
+
+                is LicensesUiState.Loaded -> {
+                    NoticesList(state.notices)
+                }
             }
         }
     }

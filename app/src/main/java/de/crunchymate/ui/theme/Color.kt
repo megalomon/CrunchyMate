@@ -46,3 +46,14 @@ val OledSurfaceContainerHighest = Color(0xFF1A1A1E)
 // Halbtransparenter Grund für Beschriftungen und Schalter auf Postern, unabhängig vom Farbschema
 val PosterOverlayBackground = Color(0xB3000000)
 val PosterOverlayContent = Color(0xFFFFFFFF)
+
+// USK-Farben der Altersstufen; 14 ist keine USK-Stufe und liegt als Mitte zwischen Grün (12) und Blau (16)
+val AgeRatingAll = Color(0xFFFFFFFF)
+val AgeRating6 = Color(0xFFFFF200)
+val AgeRating12 = Color(0xFF00A651)
+val AgeRating14 = Color(0xFF00AAA0)
+val AgeRating16 = Color(0xFF00AEEF)
+val AgeRating18 = Color(0xFFED1C24)
+
+// Schwarz erreicht auf allen USK-Farben mindestens 4,5:1; Weiß scheitert auf Grün, Türkis, Blau und Rot
+val AgeRatingContent = Color(0xFF000000)

@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -49,6 +50,8 @@ import de.crunchymate.R
 import de.crunchymate.core.ffi.AniListInfo
 import de.crunchymate.core.ffi.AnimeDetail
 import de.crunchymate.core.ffi.TagSelection
+import de.crunchymate.ui.components.AGE_CIRCLE_DETAIL_FONT_SIZE
+import de.crunchymate.ui.components.AgeRatingCircle
 import de.crunchymate.ui.components.EmptyState
 import de.crunchymate.ui.components.LanguageFlag
 import de.crunchymate.ui.components.LocalImage
@@ -107,14 +110,21 @@ fun DetailScreen(
         val anime = state.anime
         Box(Modifier.padding(padding).fillMaxSize()) {
             when {
-                anime != null -> DetailContent(anime, state, onToggleWatched, onToggleMeh, onTagTapped)
-                state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                else ->
+                anime != null -> {
+                    DetailContent(anime, state, onToggleWatched, onToggleMeh, onTagTapped)
+                }
+
+                state.loading -> {
+                    CircularProgressIndicator(Modifier.align(Alignment.Center))
+                }
+
+                else -> {
                     EmptyState(
                         icon = R.drawable.ic_state_error,
                         title = stringResource(R.string.detail_error_title),
                         subtitle = stringResource(state.error ?: R.string.error_unknown),
                     )
+                }
             }
         }
     }
@@ -225,7 +235,12 @@ private fun AgeAndDescriptors(anime: AnimeDetail) {
         anime.ageRating?.let { age ->
             val description = stringResource(R.string.badge_age_rating_description, age)
             Box(Modifier.testTag(DETAIL_AGE_TAG).semantics(mergeDescendants = true) { contentDescription = description }) {
-                InfoLabel(stringResource(R.string.detail_age_rating, age))
+                AgeRatingCircle(
+                    age = age,
+                    text = stringResource(R.string.detail_age_rating, age),
+                    diameter = Dimens.AgeCircleDetail,
+                    fontSize = AGE_CIRCLE_DETAIL_FONT_SIZE,
+                )
             }
         }
         anime.contentDescriptors.forEach { InfoLabel(it) }
@@ -316,8 +331,12 @@ private fun Section(
 }
 
 @Composable
-private fun InfoLabel(text: String) {
-    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = MaterialTheme.shapes.small) {
+private fun InfoLabel(
+    text: String,
+    background: Color = MaterialTheme.colorScheme.surfaceVariant,
+    content: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+) {
+    Surface(color = background, contentColor = content, shape = MaterialTheme.shapes.small) {
         Text(
             text,
             style = MaterialTheme.typography.labelMedium,

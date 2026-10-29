@@ -103,11 +103,34 @@ kotlin {
 }
 
 ktlint {
+    version.set(libs.versions.ktlint)
     filter {
         // Von UniFFI erzeugter Code folgt nicht dem Projektstil
         exclude { it.file.path.contains("/build/") }
     }
 }
+
+// Lint-Werkzeug und ktlint bringen verwundbare Bibliotheken mit; die gepatchten Mindestversionen
+// stehen im Katalog (Präfix "sec"). Constraints heben nur an, ohne neue Abhängigkeiten zu ziehen.
+val securityConstraints =
+    listOf(
+        libs.sec.bcprov,
+        libs.sec.bcpkix,
+        libs.sec.guava,
+        libs.sec.jose4j,
+        libs.sec.jdom2,
+        libs.sec.logback.core,
+        libs.sec.logback.classic,
+        libs.sec.commons.lang3,
+        libs.sec.httpclient,
+    )
+configurations
+    .matching { it.name == "androidLintTool" || it.name == "ktlint" || it.name.endsWith("LintChecksClasspath") }
+    .configureEach {
+        securityConstraints.forEach { library ->
+            dependencyConstraints.add(project.dependencies.constraints.create(library.get()))
+        }
+    }
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
@@ -130,6 +153,10 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
+    // Robolectric zieht eine verwundbare Guava-Version; der Constraint hebt sie nur auf den Mindeststand
+    constraints {
+        testImplementation(libs.sec.guava)
+    }
     testImplementation(libs.androidx.work.testing)
     testImplementation(libs.androidx.test.espresso.core)
     testImplementation(platform(libs.androidx.compose.bom))

@@ -58,6 +58,7 @@ const val AGE_BADGE_TAG = "age_badge"
 @Composable
 private fun OverlayBadgeFrame(
     modifier: Modifier = Modifier,
+    background: Color = PosterOverlayBackground,
     content: @Composable RowScope.() -> Unit,
 ) {
     // Gleiche Höhe wie der sichtbare Kreis der Schalter, damit beide Kanten fluchten
@@ -66,7 +67,7 @@ private fun OverlayBadgeFrame(
             modifier
                 .height(Dimens.OverlayButton)
                 .clip(RoundedCornerShape(Dimens.SpaceXs))
-                .background(PosterOverlayBackground)
+                .background(background)
                 .padding(horizontal = Dimens.SpaceXs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXs),
@@ -81,13 +82,13 @@ private fun AgeRatingBadge(
     modifier: Modifier = Modifier,
 ) {
     val description = stringResource(R.string.badge_age_rating_description, age)
-    OverlayBadgeFrame(modifier.testTag(AGE_BADGE_TAG).semantics { contentDescription = description }) {
-        Text(
-            stringResource(R.string.badge_age_rating, age),
-            style = MaterialTheme.typography.labelSmall,
-            color = PosterOverlayContent,
-        )
-    }
+    AgeRatingCircle(
+        age = age,
+        text = stringResource(R.string.badge_age_rating, age),
+        diameter = Dimens.AgeCircleCard,
+        fontSize = AGE_CIRCLE_CARD_FONT_SIZE,
+        modifier = modifier.testTag(AGE_BADGE_TAG).semantics { contentDescription = description },
+    )
 }
 
 @Composable

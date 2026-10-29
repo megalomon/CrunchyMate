@@ -5,6 +5,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTouchHeightIsEqualTo
 import androidx.compose.ui.test.assertTouchWidthIsEqualTo
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -51,6 +52,9 @@ class DetailScreenTest {
         showWith(sampleDetail("a1", ageRating = 16, contentDescriptors = listOf("Gewalt", "vulgäre Sprache")))
         rule.onNodeWithText(string(R.string.detail_age_rating).format(16)).assertIsDisplayed()
         rule.onNodeWithContentDescription(string(R.string.badge_age_rating_description).format(16)).assertIsDisplayed()
+        val circle = rule.onNodeWithTag(DETAIL_AGE_TAG).getUnclippedBoundsInRoot()
+        assertEquals(Dimens.AgeCircleDetail, circle.right - circle.left)
+        assertEquals(Dimens.AgeCircleDetail, circle.bottom - circle.top)
         rule.onNodeWithText("Gewalt").assertIsDisplayed()
         rule.onNodeWithText("vulgäre Sprache").assertIsDisplayed()
     }

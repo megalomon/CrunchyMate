@@ -18,6 +18,11 @@ pub struct ImageCandidate {
 /// Ab dieser Altersstufe gilt ein Eintrag als „18+“, auch wenn `is_mature` nicht gesetzt ist.
 pub const ADULT_MIN_AGE: u32 = 18;
 
+/// Altersstufe für die Katalog-Freigabe „PG“ (Parental Guidance).
+pub const AGE_RATING_PG: u32 = 6;
+/// Altersstufe für die Katalog-Freigabe „ALL“ (ohne Beschränkung).
+pub const AGE_RATING_ALL: u32 = 0;
+
 /// Rohwerte der Altersfreigabe, wie die Quelle sie liefert.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RawMaturity {
@@ -98,8 +103,14 @@ pub fn pick_image(candidates: &[ImageCandidate], min_width: u32, max_width: u32)
         .unwrap_or_default()
 }
 
-/// Erste zusammenhängende Ziffernfolge als Zahl („TV-14“ -> 14, „16“ -> 16).
+/// Erste zusammenhängende Ziffernfolge als Zahl („TV-14“ -> 14, „16“ -> 16);
+/// die Wörter „PG“ und „ALL“ (ganze Angabe) stehen für 6 bzw. 0.
 fn age_from_text(text: &str) -> Option<u32> {
+    match text.trim().to_ascii_uppercase().as_str() {
+        "PG" => return Some(AGE_RATING_PG),
+        "ALL" => return Some(AGE_RATING_ALL),
+        _ => {}
+    }
     let digits: String = text
         .chars()
         .skip_while(|c| !c.is_ascii_digit())
@@ -275,6 +286,19 @@ mod tests {
             age_rating(&maturity(Some("16"), &["TV-14"], false)),
             Some(16)
         );
+    }
+
+    #[test]
+    fn age_maps_pg_and_all_words() {
+        assert_eq!(age_rating(&maturity(Some("PG"), &[], false)), Some(6));
+        assert_eq!(age_rating(&maturity(Some("ALL"), &[], false)), Some(0));
+        assert_eq!(age_rating(&maturity(Some(" pg "), &[], false)), Some(6));
+        assert_eq!(
+            age_rating(&maturity(Some("PG"), &["TV-14"], false)),
+            Some(6)
+        );
+        assert_eq!(age_rating(&maturity(Some("12"), &[], false)), Some(12));
+        assert_eq!(age_rating(&maturity(None, &[], false)), None);
     }
 
     #[test]

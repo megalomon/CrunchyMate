@@ -2,6 +2,7 @@ package de.crunchymate.ui.components
 
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -9,6 +10,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTouchHeightIsEqualTo
@@ -21,6 +24,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
 import de.crunchymate.R
 import de.crunchymate.core.ffi.AnimeSummary
@@ -258,6 +262,42 @@ class ComponentsTest {
     }
 
     @Test
+    fun ageRatingCircle_hasSameSquareSizeForOneAndTwoDigitsAndShowsTextCompletely() {
+        val ages = listOf(0, 6, 12, 16, 18)
+        rule.setContent {
+            CrunchyMateTheme {
+                Column {
+                    ages.forEach { age ->
+                        AgeRatingCircle(
+                            age,
+                            age.toString(),
+                            Dimens.AgeCircleCard,
+                            AGE_CIRCLE_CARD_FONT_SIZE,
+                            Modifier.testTag("circle_$age"),
+                        )
+                    }
+                }
+            }
+        }
+        for (age in ages) {
+            val circle = rule.onNodeWithTag("circle_$age", useUnmergedTree = true).getUnclippedBoundsInRoot()
+            assertEquals(Dimens.AgeCircleCard, circle.right - circle.left)
+            assertEquals(Dimens.AgeCircleCard, circle.bottom - circle.top)
+            val text = rule.onNodeWithText(age.toString(), useUnmergedTree = true)
+            text.assertIsDisplayed()
+            val textBounds = text.getUnclippedBoundsInRoot()
+            assertTrue("Text \"$age\" breiter als Kreis", textBounds.right - textBounds.left <= Dimens.AgeCircleCard)
+            val layouts = mutableListOf<TextLayoutResult>()
+            text
+                .fetchSemanticsNode()
+                .config[SemanticsActions.GetTextLayoutResult]
+                .action
+                ?.invoke(layouts)
+            assertEquals("Text \"$age\" umgebrochen", 1, layouts.single().lineCount)
+        }
+    }
+
+    @Test
     fun animeCard_ageBadgeSitsBottomRightInsidePosterWithDescription() {
         rule.setContent {
             CrunchyMateTheme { Box(Modifier.width(CARD_WIDTH)) { AnimeCard(anime(ageRating = 16), "de-DE", {}, {}, {}) } }
@@ -269,6 +309,8 @@ class ComponentsTest {
         val meh = bounds(MEH_CIRCLE_TAG)
         assertEquals(Dimens.OverlayInset, poster.right - age.right)
         assertEquals(Dimens.OverlayInset, poster.bottom - age.bottom)
+        assertEquals(Dimens.AgeCircleCard, age.right - age.left)
+        assertEquals(Dimens.AgeCircleCard, age.bottom - age.top)
         assertTrue("Kästchen überdeckt den Meh-Schalter", age.top >= meh.bottom)
         rule.onNodeWithText("16", useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithContentDescription(string(R.string.badge_age_rating_description, 16)).assertIsDisplayed()

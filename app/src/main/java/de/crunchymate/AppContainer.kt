@@ -2,6 +2,8 @@ package de.crunchymate
 
 import android.content.Context
 import androidx.work.WorkManager
+import de.crunchymate.auth.BiometricDeviceAuthenticator
+import de.crunchymate.auth.DeviceAuthenticator
 import de.crunchymate.core.CoreGateway
 import de.crunchymate.core.SettingsStore
 import de.crunchymate.core.ffi.Core
@@ -57,6 +59,8 @@ class AppContainer(
     val noticesSource: NoticesSource by lazy { AssetNoticesSource(appContext.assets, io) }
 
     val workManager by lazy { WorkManager.getInstance(appContext) }
+
+    val deviceAuthenticator: DeviceAuthenticator by lazy { BiometricDeviceAuthenticator(appContext) }
 
     val syncScheduler by lazy { SyncScheduler(workManager, gateway) }
 

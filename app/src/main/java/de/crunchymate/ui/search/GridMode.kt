@@ -15,7 +15,7 @@ fun SearchState.toFilter(
     hideAdult: Boolean,
 ): AnimeFilter =
     when (mode) {
-        GridMode.Search ->
+        GridMode.Search -> {
             AnimeFilter(
                 query = query,
                 genre = genre,
@@ -28,8 +28,15 @@ fun SearchState.toFilter(
                 excludeTags = tagsIn(TagState.EXCLUDE),
                 hideAdult = hideAdult,
             )
-        GridMode.Watched -> fixedFilter(WatchedFilter.WATCHED, MehFilter.INCLUDE, hideAdult)
-        GridMode.Meh -> fixedFilter(WatchedFilter.ALL, MehFilter.ONLY, hideAdult)
+        }
+
+        GridMode.Watched -> {
+            fixedFilter(WatchedFilter.WATCHED, MehFilter.INCLUDE, hideAdult)
+        }
+
+        GridMode.Meh -> {
+            fixedFilter(WatchedFilter.ALL, MehFilter.ONLY, hideAdult)
+        }
     }
 
 private fun SearchState.tagsIn(state: TagState): List<String> = tags.filter { it.state == state }.map { it.name }

@@ -19,6 +19,10 @@ object Dimens {
     val OverlayGap = 4.dp
     val MinTouchTarget = 48.dp
     val OverlayButton = 28.dp
+
+    // Etwas kleiner als die Schalterkreise, weil die Markierung nur informiert und nicht angetippt wird
+    val AgeCircleCard = 24.dp
+    val AgeCircleDetail = 32.dp
     val OverlayIcon = 18.dp
     val OverlayBadgeIcon = 14.dp
     val FlagWidth = 20.dp
