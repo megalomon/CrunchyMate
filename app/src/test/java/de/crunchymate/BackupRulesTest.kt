@@ -28,9 +28,13 @@ class BackupRulesTest {
         while (parser.next() != XmlPullParser.END_DOCUMENT) {
             if (parser.eventType != XmlPullParser.START_TAG) continue
             when (parser.name) {
-                "cloud-backup", "device-transfer" -> section = parser.name
-                "include", "exclude" ->
+                "cloud-backup", "device-transfer" -> {
+                    section = parser.name
+                }
+
+                "include", "exclude" -> {
                     rules += Rule(section, parser.name, parser.getAttributeValue(null, "domain"), parser.getAttributeValue(null, "path"))
+                }
             }
         }
         return rules

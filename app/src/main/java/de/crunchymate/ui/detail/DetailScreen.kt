@@ -109,14 +109,21 @@ fun DetailScreen(
         val anime = state.anime
         Box(Modifier.padding(padding).fillMaxSize()) {
             when {
-                anime != null -> DetailContent(anime, state, onToggleWatched, onToggleMeh, onTagTapped)
-                state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                else ->
+                anime != null -> {
+                    DetailContent(anime, state, onToggleWatched, onToggleMeh, onTagTapped)
+                }
+
+                state.loading -> {
+                    CircularProgressIndicator(Modifier.align(Alignment.Center))
+                }
+
+                else -> {
                     EmptyState(
                         icon = R.drawable.ic_state_error,
                         title = stringResource(R.string.detail_error_title),
                         subtitle = stringResource(state.error ?: R.string.error_unknown),
                     )
+                }
             }
         }
     }

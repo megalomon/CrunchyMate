@@ -67,13 +67,18 @@ fun CrunchyMateApp(container: AppContainer) {
     val appViewModel = viewModel { AppViewModel(container::initializeCore, { container.settingsStore }) }
     val startup by appViewModel.state.collectAsStateWithLifecycle()
     when (val state = startup) {
-        StartupState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        is StartupState.Failed ->
+        StartupState.Loading -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        }
+
+        is StartupState.Failed -> {
             EmptyState(
                 icon = R.drawable.ic_state_error,
                 title = stringResource(R.string.startup_error_title),
                 subtitle = state.reason?.let { stringResource(it) },
             )
+        }
+
         StartupState.Ready -> {
             val syncRunning by container.syncScheduler.anyRunning.collectAsStateWithLifecycle(initialValue = false)
             AppShell(container, syncRunning)
