@@ -1,6 +1,6 @@
 # Release-Signierung
 
-Die Nightly-Builds und alle Release-APKs werden mit einem eigenen Schlüssel signiert. Android akzeptiert Updates nur, wenn sie mit demselben Schlüssel signiert sind wie die installierte App. Geht der Schlüssel verloren, lässt sich die App nicht mehr aktualisieren.
+Die Nightly-Builds und alle Release-APKs (`nightly.yml`, `release.yml`) werden mit einem eigenen Schlüssel signiert. Android akzeptiert Updates nur, wenn sie mit demselben Schlüssel signiert sind wie die installierte App. Geht der Schlüssel verloren, lässt sich die App nicht mehr aktualisieren.
 
 ## Keystore erzeugen
 
@@ -57,7 +57,7 @@ gh secret set SIGNING_KEY_ALIAS --repo megalomon/CrunchyMate --body crunchymate
 
 Ohne `--body` fragt `gh` den Wert interaktiv ab, sodass Passwörter nicht in der Shell-Historie landen. Unter macOS heißt der Schalter `base64 -b 0` statt `-w0`.
 
-Der Workflow `nightly.yml` dekodiert den Keystore nach `$RUNNER_TEMP/release.jks`, setzt `SIGNING_KEYSTORE_PATH` und löscht die Datei am Ende in jedem Fall wieder. Gradle legt die Signing-Konfiguration `release` nur an, wenn `SIGNING_KEYSTORE_PATH` gesetzt ist; bei lokalen Gradle-Builds ohne diese Variable entsteht daher eine unsignierte APK. Der Workflow `nightly.yml` bricht ohne `SIGNING_KEYSTORE_B64` bewusst ab und baut nie unsigniert.
+Die Workflows `nightly.yml` und `release.yml` dekodieren den Keystore nach `$RUNNER_TEMP/release.jks`, setzen `SIGNING_KEYSTORE_PATH` und löschen die Datei am Ende in jedem Fall wieder. Gradle legt die Signing-Konfiguration `release` nur an, wenn `SIGNING_KEYSTORE_PATH` gesetzt ist; bei lokalen Gradle-Builds ohne diese Variable entsteht daher eine unsignierte APK. Beide Workflows brechen ohne `SIGNING_KEYSTORE_B64` bewusst ab und bauen nie unsigniert.
 
 ## Organisations- oder Repository-Secrets
 

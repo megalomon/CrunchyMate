@@ -49,6 +49,7 @@ class SettingsScreenTest {
             oledMode = false,
             showAdult = true,
             showAgeRating = true,
+            checkUpdates = false,
             contentLocaleChangePending = false,
         )
 
@@ -56,7 +57,7 @@ class SettingsScreenTest {
 
     @Test
     fun stats_showImageCountAndImageStorageAsSeparateItems() {
-        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}, {}, {}, {}) } }
         val size = Formatter.formatShortFileSize(rule.activity, IMAGE_BYTES)
         rule.onNodeWithText(rule.activity.getString(R.string.stat_images)).performScrollTo().assertIsDisplayed()
         rule.onNodeWithText(IMAGE_COUNT.toString()).assertIsDisplayed()
@@ -66,7 +67,7 @@ class SettingsScreenTest {
 
     @Test
     fun stats_bothColumnsHaveEqualWidthEvenForTheLoneLastTile() {
-        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}, {}, {}, {}) } }
         val left = tileNode(R.string.stat_total)
         val right = tileNode(R.string.stat_watched)
         val lone = tileNode(R.string.stat_image_storage)
@@ -89,7 +90,7 @@ class SettingsScreenTest {
         var age: Boolean? = null
         rule.setContent {
             CrunchyMateTheme {
-                SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, { adult = it }, { age = it }, {})
+                SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, { adult = it }, { age = it }, {}, {})
             }
         }
         rule.onNodeWithText(rule.activity.getString(R.string.settings_show_adult)).performScrollTo().assertIsDisplayed()
@@ -102,7 +103,7 @@ class SettingsScreenTest {
     }
 
     private fun showInfoDialog() {
-        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}, {}, {}, {}) } }
         rule.onNodeWithText(rule.activity.getString(R.string.settings_info)).performScrollTo().performClick()
     }
 
@@ -135,7 +136,7 @@ class SettingsScreenTest {
 
     @Test
     fun appLanguageDropdown_listsAllLanguagesAndSelectingSetsApplicationLocale() {
-        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}, {}, {}) } }
+        rule.setContent { CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}, {}, {}, {}) } }
         rule.onNodeWithText(rule.activity.getString(R.string.settings_app_language)).performScrollTo().performClick()
         rule.onNodeWithText("Deutsch").assertIsDisplayed()
         rule.onNodeWithText("English").assertIsDisplayed()
@@ -149,10 +150,21 @@ class SettingsScreenTest {
     fun oledSwitch_reportsNewValue() {
         var enabled: Boolean? = null
         rule.setContent {
-            CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, { enabled = it }, {}, {}, {}) }
+            CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, { enabled = it }, {}, {}, {}, {}) }
         }
         // Reihenfolge der Schalter: Gesehene ausblenden, OLED-Modus
         rule.onAllNodes(isToggleable())[1].performScrollTo().performClick()
+        assertEquals(true, enabled)
+    }
+
+    @Test
+    fun checkUpdatesSwitch_reportsNewValue() {
+        var enabled: Boolean? = null
+        rule.setContent {
+            CrunchyMateTheme { SettingsScreen(stateWithStats(), {}, {}, {}, {}, {}, {}, {}, { enabled = it }, {}) }
+        }
+        // Reihenfolge der Schalter: Gesehene ausblenden, OLED-Modus, 18+, Altersfreigabe, Updates
+        rule.onAllNodes(isToggleable())[4].performScrollTo().performClick()
         assertEquals(true, enabled)
     }
 }

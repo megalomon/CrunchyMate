@@ -109,6 +109,10 @@ class SettingsViewModel(
         settingsStore.update { it.copy(showAgeRating = enabled) }
     }
 
+    fun onCheckUpdatesChange(enabled: Boolean) {
+        settingsStore.update { it.copy(checkUpdates = enabled) }
+    }
+
     fun onContentLocaleChange(locale: String) {
         settingsStore.update { it.copy(contentLocale = locale) }
     }
@@ -132,6 +136,7 @@ class SettingsViewModel(
         oledMode = settings.oledMode,
         showAdult = settings.showAdult,
         showAgeRating = settings.showAgeRating,
+        checkUpdates = settings.checkUpdates,
         contentLocaleChangePending = contentLocaleSyncPending(syncedLocale, settings.contentLocale),
     )
 

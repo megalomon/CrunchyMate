@@ -134,6 +134,25 @@ class SettingsViewModelTest {
         }
 
     @Test
+    fun settings_checkUpdates_defaultsOff_savedViaStore() =
+        runTest(dispatcher) {
+            val f = fixture()
+            assertFalse(f.viewModel.uiState.value.checkUpdates)
+
+            f.viewModel.onCheckUpdatesChange(true)
+            runCurrent()
+            assertTrue(f.viewModel.uiState.value.checkUpdates)
+
+            advanceTimeBy(SAVE_DEBOUNCE + 1)
+            runCurrent()
+            assertTrue(
+                f.core.savedSettings
+                    .last()
+                    .checkUpdates,
+            )
+        }
+
+    @Test
     fun settings_showAdult_secured_success_turnsOn() =
         runTest(dispatcher) {
             val auth = FakeDeviceAuthenticator(secure = true, succeeds = true)

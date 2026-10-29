@@ -32,6 +32,7 @@ bash scripts/run-device-tests.sh
 - Rust-Kern hinter UniFFI. Module kommunizieren über Traits: `db/` (SQLite), `remote/` (KnusperBrötchen, AniList), `sync/`, `images/`, `query.rs`, Fassade `core_api.rs`. TLS über `webpki-roots`. Fehler: `CoreError` in Rust, `CoreException` mit Feld `detail` in Kotlin.
 - Kotlin spricht den Kern ausschließlich über `CoreGateway` (`app/.../core/`); das Änderungssignal des Kerns löst Neuladen aus. Fehlertexte entstehen in `ErrorMessages.kt`, nicht im Kern.
 - Sync läuft über WorkManager (`sync/`). Bilder werden beim Sync lokal als WebP mit SHA-256-Dateinamen abgelegt; die App lädt nur lokale Dateien. Netzwerkclients in Kotlin sind verboten (Gradle-Task `checkNoNetworkClients`).
+- Update-Prüfung: Rust `remote/github_releases` (GitHub-REST-API, Trait `UpdateSource`), Kotlin `update/UpdateChecker` (Schalter, 24 h, Toast). Kanal und Build-Kennung per `-Pcrunchymate.channel` als `BuildConfig`; Nightly-APK heißt `crunchymate-nightly-<n>.apk` und ist Pre-Release, Release-Tags `v<MAJOR>.<MINOR>.<PATCH>` bauen über `release.yml`. `versionCode` beider Kanäle = `git rev-list --count HEAD` (Build-Nummer; Kanalwechsel in beide Richtungen, solange das Ziel nicht älter ist).
 - UI: `ui/` mit ViewModels je Bereich (Suche, Detail, Einstellungen), Grid mit drei festen Spalten, Inhaltssprache als Einstellung.
 - Neue Kernfunktion = Rust-Export plus Gateway-Methode plus Fake in `FakeCore`.
 

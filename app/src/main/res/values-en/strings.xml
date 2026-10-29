@@ -81,6 +81,7 @@
     <string name="auth_adult_title">Unlock to show 18+ content</string>
     <string name="settings_show_age_rating">Show age rating</string>
     <string name="settings_oled_mode">OLED mode</string>
+    <string name="settings_check_updates">Check for updates</string>
     <string name="settings_app_language">App language</string>
     <string name="settings_language_system">System language</string>
     <string name="settings_stats_heading">Statistics</string>
@@ -127,6 +128,8 @@
     <string name="intro_privacy">The app collects no diagnostic or usage data. After the sync it works completely offline.</string>
     <string name="intro_confirm">Got it</string>
     <string name="action_back">Back</string>
+    <string name="update_available_nightly">New nightly available: %1$s (build %2$d)</string>
+    <string name="update_available_release">New version available: %1$s</string>
     <string name="settings_licenses">Licenses</string>
     <string name="settings_info">About</string>
     <string name="licenses_title">Open-source licenses</string>

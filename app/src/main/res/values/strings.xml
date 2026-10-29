@@ -81,6 +81,7 @@
     <string name="auth_adult_title">18+-Inhalte freigeben</string>
     <string name="settings_show_age_rating">Altersfreigabe anzeigen</string>
     <string name="settings_oled_mode">OLED-Modus</string>
+    <string name="settings_check_updates">Nach Updates suchen</string>
     <string name="settings_app_language">App-Sprache</string>
     <string name="settings_language_system">Systemsprache</string>
     <string name="settings_stats_heading">Statistik</string>
@@ -127,6 +128,8 @@
     <string name="intro_privacy">Die App sammelt keine Diagnose- oder Nutzungsdaten. Nach dem Sync läuft sie vollständig offline.</string>
     <string name="intro_confirm">Verstanden</string>
     <string name="action_back">Zurück</string>
+    <string name="update_available_nightly">Neue Nightly verfügbar: %1$s (Build %2$d)</string>
+    <string name="update_available_release">Neue Version verfügbar: %1$s</string>
     <string name="settings_licenses">Lizenzen</string>
     <string name="settings_info">Info</string>
     <string name="licenses_title">Open-Source-Lizenzen</string>

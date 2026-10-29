@@ -16,16 +16,17 @@ CrunchyMate ist eine Android-App zum Durchsuchen, Filtern und Verfolgen des Knus
 - KnusperBrötchen-Sync und AniList-Anreicherung mit Fortschritt, Abbruch und Hintergrundausführung über WorkManager.
 - Wählbare Inhaltssprache für Titel und Beschreibungen.
 - App-Sprachen Deutsch, Englisch und Boykisser (englisch, im Stil von Discord-Femboys); Auswahl in den Einstellungen, Standard ist die Systemsprache.
+- Optionale Update-Prüfung (Standard aus, siehe unten).
 - Offline-first: Poster und Banner werden beim Sync als WebP lokal abgelegt, die App lädt keine Bilder aus dem Netz.
 
 Der Katalog hängt am Land, das im anonymen KnusperBrötchen-Token festgelegt ist; die Inhaltssprache ändert nur die Texte.
 
 ## Installation
 
-Das Nightly-Release auf GitHub enthält die signierte APK (`app-release.apk`). Zum Installieren die Datei auf das Gerät laden und öffnen oder per adb installieren:
+Die Releases auf GitHub enthalten die signierte APK (Nightly: `crunchymate-nightly-<Build-Nummer>.apk`, Release: `crunchymate-<Version>.apk`). Zum Installieren die Datei auf das Gerät laden und öffnen oder per adb installieren:
 
 ```bash
-adb install -r app-release.apk
+adb install -r crunchymate-<Version>.apk
 ```
 
 Voraussetzung ist ein Gerät mit Android 14 (SDK 34) oder neuer und arm64-v8a. Mit `-r` bleiben vorhandene App-Daten erhalten. Updates funktionieren nur, wenn sie mit demselben Schlüssel signiert sind (siehe `docs/release-signing.md`).
@@ -59,7 +60,26 @@ export SIGNING_KEY_ALIAS=crunchymate
 
 Die APK liegt danach unter `app/build/outputs/apk/release/app-release.apk`. Schlüsselerzeugung, Secrets und Prüfung mit `apksigner` stehen in `docs/release-signing.md`.
 
-Der Workflow `nightly.yml` baut täglich um 03:00 UTC (nur bei neuen Commits) eine signierte APK und veröffentlicht sie als Pre-Release `nightly` auf GitHub.
+Der Workflow `nightly.yml` baut täglich um 03:00 UTC (nur bei neuen Commits) eine signierte APK und veröffentlicht sie als Pre-Release `nightly` auf GitHub (siehe Abschnitt Releases).
+
+## Releases
+
+Es gibt zwei Kanäle:
+
+- **Nightly**: Pre-Release mit dem festen Tag `nightly`. `nightly.yml` baut täglich um 03:00 UTC (nur bei neuen Commits) und ersetzt das Release. Die APK heißt `crunchymate-nightly-<Build-Nummer>.apk`, `versionName` ist `<Basisversion>-nightly.<Build-Nummer>+<Kurz-SHA>`.
+- **Release**: stabile Version. Ein Push des Tags `v<MAJOR>.<MINOR>.<PATCH>` (etwa `v1.2.0`) startet `release.yml`; der Workflow läuft auch manuell mit Angabe eines bestehenden Tags. Er führt zuerst die Prüfungen aus, baut dann signiert (`versionName` = Tag ohne „v“) und legt ein normales GitHub-Release mit `crunchymate-<Version>.apk` an.
+
+```bash
+git tag v1.2.0 && git push origin v1.2.0
+```
+
+`versionCode` ist in beiden Kanälen die Build-Nummer: die Anzahl der Commits bis zum gebauten Stand (`git rev-list --count HEAD`, beim Release bis zum Tag-Commit). Neuerer Code hat damit immer die höhere Nummer. Folgen für den Kanalwechsel: Zwischen Nightly und Release lässt sich in beide Richtungen über die Installation hinweg aktualisieren (gleicher Schlüssel), solange der Ziel-Build nicht älter ist als der installierte; nur ein Wechsel auf älteren Code gilt für Android als Downgrade und wird abgelehnt. Der Übergang von der früheren Nightly-Laufnummer ist monoton, da der Zähler bereits deutlich darüber liegt.
+
+## Update-Prüfung
+
+In den Einstellungen gibt es den Schalter „Nach Updates suchen“, Standard ist aus. Ist er an, fragt die App beim Start höchstens einmal täglich (frühestens 24 Stunden nach der letzten erfolgreichen Prüfung) bei der GitHub-API des Repositorys nach dem neuesten Stand des eigenen Kanals und zeigt bei einem neueren Build einen Toast. Es wird nichts heruntergeladen oder installiert. Schlägt die Anfrage fehl (offline, Rate-Limit), bleibt die App still und versucht es beim nächsten Start erneut.
+
+Die Anfrage geht an `api.github.com`; GitHub sieht dabei die IP-Adresse, die App sendet keine weiteren Daten. Kanal und eigene Build-Kennung sind beim Bauen eingebrannt (`-Pcrunchymate.channel=nightly|release`); lokale Builds haben den Kanal `dev` und prüfen nie.
 
 ## Tests und Prüfungen
 

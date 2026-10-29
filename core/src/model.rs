@@ -188,6 +188,12 @@ pub struct Settings {
     /// Altersstufe auf den Kacheln anzeigen; fehlt in älteren Ständen und gilt dann als an.
     #[serde(deserialize_with = "lenient_true")]
     pub show_age_rating: bool,
+    /// Einmal täglich nach einem neueren Build des eigenen Kanals suchen; fehlt in älteren Ständen und gilt dann als aus.
+    #[serde(deserialize_with = "lenient")]
+    pub check_updates: bool,
+    /// Unix-Sekunden der letzten erfolgreichen Update-Prüfung; 0 heißt „noch nie“.
+    #[serde(deserialize_with = "lenient")]
+    pub last_update_check: i64,
 }
 
 /// Unlesbarer Wert ergibt den Standard des Typs.
@@ -245,8 +251,26 @@ impl Default for Settings {
             oled_mode: false,
             show_adult: true,
             show_age_rating: true,
+            check_updates: false,
+            last_update_check: 0,
         }
     }
+}
+
+/// Veröffentlichungskanal der installierten App.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum UpdateChannel {
+    Nightly,
+    Release,
+}
+
+/// Neuester veröffentlichter Stand eines Kanals.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Enum)]
+pub enum UpdateInfo {
+    /// `build` ist der Commit-Zähler des Nightly-Builds, `date` das Veröffentlichungsdatum (JJJJ-MM-TT).
+    Nightly { build: i64, date: String },
+    /// `version` ohne führendes „v“, etwa „1.2.0“.
+    Release { version: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]

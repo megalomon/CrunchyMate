@@ -110,6 +110,8 @@ class SettingsStore(
                 oledMode = false,
                 showAdult = true,
                 showAgeRating = true,
+                checkUpdates = false,
+                lastUpdateCheck = 0L,
             )
     }
 }

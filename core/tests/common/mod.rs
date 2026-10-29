@@ -9,6 +9,8 @@ use std::sync::Mutex;
 use crunchymate_core::error::CoreError;
 use crunchymate_core::images::fetch::{FetchError, ImageFetcher};
 use crunchymate_core::images::store::ImageStore;
+use crunchymate_core::model::{UpdateChannel, UpdateInfo};
+use crunchymate_core::remote::update_source::UpdateSource;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -105,5 +107,15 @@ impl ImageFetcher for FakeFetcher {
             return Err(FetchError::TooLarge);
         }
         Ok(body)
+    }
+}
+
+/// Update-Quelle ohne Veröffentlichung, für Tests ohne Bezug zur Update-Prüfung.
+pub struct NoUpdates;
+
+#[async_trait::async_trait]
+impl UpdateSource for NoUpdates {
+    async fn latest(&self, _channel: UpdateChannel) -> Result<Option<UpdateInfo>, CoreError> {
+        Ok(None)
     }
 }
