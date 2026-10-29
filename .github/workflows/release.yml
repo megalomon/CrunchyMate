@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  # Das Tag muss bereits existieren; der Lauf baut genau diesen Stand
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Bestehendes Tag im Schema v<MAJOR>.<MINOR>.<PATCH>
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  prepare:
+    name: Tag prüfen und Version ableiten
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      ref: ${{ steps.version.outputs.ref }}
+      version: ${{ steps.version.outputs.version }}
+      version_code: ${{ steps.version.outputs.version_code }}
+    steps:
+      - id: version
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Tag \"$TAG\" passt nicht zum Schema v<MAJOR>.<MINOR>.<PATCH>."
+            exit 1
+          fi
+          major="${BASH_REMATCH[1]}"
+          minor="${BASH_REMATCH[2]}"
+          patch="${BASH_REMATCH[3]}"
+          # versionCode = MAJOR*1.000.000 + MINOR*1.000 + PATCH: monoton mit der Version, liegt weit über den
+          # Laufnummern der Nightlys (siehe README) und bleibt mit MAJOR <= 2000 unter dem Android-Limit
+          if [ "$major" -gt 2000 ] || [ "$minor" -gt 999 ] || [ "$patch" -gt 999 ]; then
+            echo "::error::MAJOR darf höchstens 2000 sein, MINOR und PATCH höchstens 999."
+            exit 1
+          fi
+          {
+            echo "tag=$TAG"
+            echo "ref=refs/tags/$TAG"
+            echo "version=${TAG#v}"
+            echo "version_code=$((major * 1000000 + minor * 1000 + patch))"
+          } >> "$GITHUB_OUTPUT"
+
+  checks:
+    needs: prepare
+    uses: ./.github/workflows/checks.yml
+    with:
+      ref: ${{ needs.prepare.outputs.ref }}
+
+  # Eigener Neubau statt Artefakt aus checks: Signierung, versionCode und versionName stecken im
+  # Manifest der APK (gleiche Begründung wie im Nightly)
+  release:
+    name: Signierte APK veröffentlichen
+    needs: [prepare, checks]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+      - uses: ./.github/actions/setup-android-build
+      - name: Keystore dekodieren
+        env:
+          KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Secret SIGNING_KEYSTORE_B64 ist nicht gesetzt oder leer (siehe docs/release-signing.md)."
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+      - name: Release-APK bauen
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
+        run: |
+          set -euo pipefail
+          echo "Version: $VERSION (versionCode $VERSION_CODE)"
+          ./gradlew assembleRelease \
+            "-Pcrunchymate.versionCode=$VERSION_CODE" \
+            "-Pcrunchymate.versionName=$VERSION" \
+            "-Pcrunchymate.channel=release"
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/crunchymate-$VERSION.apk"
+      # Normales Release ohne Pre-Release-Markierung: nur so liefert /releases/latest es der Update-Prüfung
+      - name: GitHub-Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Zu $TAG gibt es bereits ein Release."
+            exit 1
+          fi
+          gh release create "$TAG" \
+            --verify-tag \
+            --latest \
+            --title "CrunchyMate $VERSION" \
+            --generate-notes \
+            "$RUNNER_TEMP/crunchymate-$VERSION.apk"
+      - name: Keystore löschen
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"

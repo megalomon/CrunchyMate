@@ -2,6 +2,12 @@ name: Checks
 
 on:
   workflow_call:
+    inputs:
+      # Leer: Standard-Ref des auslösenden Ereignisses; der Release-Workflow prüft damit das Tag
+      ref:
+        description: Zu prüfender Git-Ref
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -15,6 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -28,6 +36,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
       - uses: ./.github/actions/setup-android-build
       # assembleRelease ohne Signierung fängt R8-Fehler vor dem Nightly ab
       - run: ./gradlew lint ktlintCheck testDebugUnitTest assembleDebug assembleRelease assembleDebugAndroidTest

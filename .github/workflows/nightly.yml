@@ -84,7 +84,8 @@ jobs:
           echo "Version: $version"
           ./gradlew assembleRelease \
             "-Pcrunchymate.versionCode=$RUN_NUMBER" \
-            "-Pcrunchymate.versionName=$version"
+            "-Pcrunchymate.versionName=$version" \
+            "-Pcrunchymate.channel=nightly"
           ls app/build/outputs/apk/release/
       - name: Release-Notizen erzeugen
         run: |
@@ -97,11 +98,17 @@ jobs:
           if [ ! -s notes.md ]; then
             echo "Keine neuen Commits." > notes.md
           fi
+      # Die Update-Prüfung der App liest die Laufnummer aus dem Dateinamen der APK
+      # (crunchymate-nightly-<Laufnummer>.apk) und fragt für Releases /releases/latest ab. Das Nightly
+      # muss deshalb so heißen und als Pre-Release markiert sein, sonst gilt es dort als stabile Version.
       - name: Pre-Release nightly ersetzen
         env:
           GH_TOKEN: ${{ github.token }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
+          apk="$RUNNER_TEMP/crunchymate-nightly-${RUN_NUMBER}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$apk"
           if gh release view nightly >/dev/null 2>&1; then
             gh release delete nightly --cleanup-tag --yes
           fi
@@ -110,7 +117,7 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Nightly $(date -u +%Y-%m-%d)" \
             --notes-file notes.md \
-            app/build/outputs/apk/release/app-release.apk
+            "$apk"
       - name: Keystore löschen
         if: always()
         run: rm -f "$RUNNER_TEMP/release.jks"
