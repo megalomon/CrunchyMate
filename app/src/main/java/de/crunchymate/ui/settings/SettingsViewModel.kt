@@ -3,6 +3,7 @@ package de.crunchymate.ui.settings
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import de.crunchymate.auth.DeviceAuthenticator
 import de.crunchymate.core.CoreGateway
 import de.crunchymate.core.SettingsStore
 import de.crunchymate.core.contentLocaleSyncPending
@@ -30,6 +31,7 @@ class SettingsViewModel(
     private val gateway: CoreGateway,
     private val settingsStore: SettingsStore,
     private val scheduler: SyncScheduler,
+    private val authenticator: DeviceAuthenticator,
 ) : ViewModel() {
     private val availableLocales = MutableStateFlow(emptyList<String>())
     private val stats = MutableStateFlow<Stats?>(null)
@@ -91,8 +93,16 @@ class SettingsViewModel(
         settingsStore.update { it.copy(oledMode = enabled) }
     }
 
+    /** Einschalten verlangt die Geräte-Authentifizierung, sofern eine Displaysperre besteht; Ausschalten nie. */
     fun onShowAdultChange(enabled: Boolean) {
-        settingsStore.update { it.copy(showAdult = enabled) }
+        if (!enabled || !authenticator.isDeviceSecure()) {
+            settingsStore.update { it.copy(showAdult = enabled) }
+            return
+        }
+        viewModelScope.launch {
+            // Bei Abbruch oder Fehlschlag bleibt die Einstellung unverändert und der Schalter aus
+            if (authenticator.authenticate()) settingsStore.update { it.copy(showAdult = true) }
+        }
     }
 
     fun onShowAgeRatingChange(enabled: Boolean) {

@@ -78,6 +78,7 @@
     <string name="settings_content_locale_hint">Takes effect with the next sync.</string>
     <string name="settings_hide_watched">Hide watched</string>
     <string name="settings_show_adult">Show 18+ content</string>
+    <string name="auth_adult_title">Unlock to show 18+ content</string>
     <string name="settings_show_age_rating">Show age rating</string>
     <string name="settings_oled_mode">OLED mode</string>
     <string name="settings_app_language">App language</string>

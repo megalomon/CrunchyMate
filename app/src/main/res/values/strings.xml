@@ -78,6 +78,7 @@
     <string name="settings_content_locale_hint">Wirkt ab dem nächsten Sync.</string>
     <string name="settings_hide_watched">Gesehene ausblenden</string>
     <string name="settings_show_adult">18+-Inhalte anzeigen</string>
+    <string name="auth_adult_title">18+-Inhalte freigeben</string>
     <string name="settings_show_age_rating">Altersfreigabe anzeigen</string>
     <string name="settings_oled_mode">OLED-Modus</string>
     <string name="settings_app_language">App-Sprache</string>

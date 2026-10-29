@@ -2,6 +2,7 @@ package de.crunchymate.ui.settings
 
 import androidx.test.core.app.ApplicationProvider
 import androidx.work.WorkManager
+import de.crunchymate.auth.FakeDeviceAuthenticator
 import de.crunchymate.core.CoreGateway
 import de.crunchymate.core.FakeCore
 import de.crunchymate.core.SAVE_DEBOUNCE
@@ -61,12 +62,15 @@ class SettingsViewModelTest {
         val viewModel: SettingsViewModel,
     )
 
-    private suspend fun TestScope.fixture(core: FakeCore = FakeCore()): Fixture {
+    private suspend fun TestScope.fixture(
+        core: FakeCore = FakeCore(),
+        authenticator: FakeDeviceAuthenticator = FakeDeviceAuthenticator(),
+    ): Fixture {
         val gateway = CoreGateway(core, dispatcher)
         val store = SettingsStore(gateway, backgroundScope, dispatcher)
         store.load()
         val workManager = initTestWorkManager(ApplicationProvider.getApplicationContext(), gateway)
-        val viewModel = SettingsViewModel(gateway, store, SyncScheduler(workManager, gateway))
+        val viewModel = SettingsViewModel(gateway, store, SyncScheduler(workManager, gateway), authenticator)
         runCurrent()
         return Fixture(core, gateway, store, workManager, viewModel)
     }
@@ -127,6 +131,61 @@ class SettingsViewModelTest {
             val saved = f.core.savedSettings.last()
             assertTrue(saved.oledMode)
             assertEquals(f.store.settings.value.contentLocale, saved.contentLocale)
+        }
+
+    @Test
+    fun settings_showAdult_secured_success_turnsOn() =
+        runTest(dispatcher) {
+            val auth = FakeDeviceAuthenticator(secure = true, succeeds = true)
+            val f = fixture(authenticator = auth)
+            f.viewModel.onShowAdultChange(false)
+            runCurrent()
+            auth.prompts = 0
+
+            f.viewModel.onShowAdultChange(true)
+            runCurrent()
+            assertEquals(1, auth.prompts)
+            assertTrue(f.viewModel.uiState.value.showAdult)
+        }
+
+    @Test
+    fun settings_showAdult_secured_cancel_staysOff() =
+        runTest(dispatcher) {
+            val auth = FakeDeviceAuthenticator(secure = true, succeeds = false)
+            val f = fixture(authenticator = auth)
+            f.viewModel.onShowAdultChange(false)
+            runCurrent()
+
+            f.viewModel.onShowAdultChange(true)
+            runCurrent()
+            assertEquals(1, auth.prompts)
+            assertFalse(f.viewModel.uiState.value.showAdult)
+        }
+
+    @Test
+    fun settings_showAdult_unsecured_turnsOnWithoutPrompt() =
+        runTest(dispatcher) {
+            val auth = FakeDeviceAuthenticator(secure = false, succeeds = false)
+            val f = fixture(authenticator = auth)
+            f.viewModel.onShowAdultChange(false)
+            runCurrent()
+
+            f.viewModel.onShowAdultChange(true)
+            runCurrent()
+            assertEquals(0, auth.prompts)
+            assertTrue(f.viewModel.uiState.value.showAdult)
+        }
+
+    @Test
+    fun settings_showAdult_turnOff_neverPrompts() =
+        runTest(dispatcher) {
+            val auth = FakeDeviceAuthenticator(secure = true, succeeds = true)
+            val f = fixture(authenticator = auth)
+
+            f.viewModel.onShowAdultChange(false)
+            runCurrent()
+            assertEquals(0, auth.prompts)
+            assertFalse(f.viewModel.uiState.value.showAdult)
         }
 
     @Test
@@ -222,7 +281,7 @@ class SettingsViewModelTest {
             val workManager = initTestWorkManager(ApplicationProvider.getApplicationContext(), gateway)
 
             // Der FFI-Aufruf darf nicht synchron im Konstruktor (Main-Thread) laufen
-            val viewModel = SettingsViewModel(gateway, store, SyncScheduler(workManager, gateway))
+            val viewModel = SettingsViewModel(gateway, store, SyncScheduler(workManager, gateway), FakeDeviceAuthenticator())
             assertEquals(0, core.localeCalls)
             assertEquals(emptyList<String>(), viewModel.uiState.value.availableLocales)
 

@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -57,6 +58,7 @@ import de.crunchymate.ui.components.TagChip
 import de.crunchymate.ui.components.flagState
 import de.crunchymate.ui.tags.stateOf
 import de.crunchymate.ui.theme.Dimens
+import de.crunchymate.ui.theme.ageRatingColors
 import de.crunchymate.ui.theme.scoreColor
 
 const val DETAIL_AGE_TAG = "detail_age"
@@ -225,7 +227,8 @@ private fun AgeAndDescriptors(anime: AnimeDetail) {
         anime.ageRating?.let { age ->
             val description = stringResource(R.string.badge_age_rating_description, age)
             Box(Modifier.testTag(DETAIL_AGE_TAG).semantics(mergeDescendants = true) { contentDescription = description }) {
-                InfoLabel(stringResource(R.string.detail_age_rating, age))
+                val colors = ageRatingColors(age)
+                InfoLabel(stringResource(R.string.detail_age_rating, age), colors.background, colors.content)
             }
         }
         anime.contentDescriptors.forEach { InfoLabel(it) }
@@ -316,8 +319,12 @@ private fun Section(
 }
 
 @Composable
-private fun InfoLabel(text: String) {
-    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = MaterialTheme.shapes.small) {
+private fun InfoLabel(
+    text: String,
+    background: Color = MaterialTheme.colorScheme.surfaceVariant,
+    content: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+) {
+    Surface(color = background, contentColor = content, shape = MaterialTheme.shapes.small) {
         Text(
             text,
             style = MaterialTheme.typography.labelMedium,

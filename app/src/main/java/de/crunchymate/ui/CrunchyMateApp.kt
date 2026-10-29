@@ -146,7 +146,14 @@ private fun AppNavHost(
         composable<MehRoute> { GridTab(container, GridMode.Meh, openDetail) }
         composable<SettingsRoute> {
             SettingsDestination(
-                viewModel { SettingsViewModel(container.gateway, container.settingsStore, container.syncScheduler) },
+                viewModel {
+                    SettingsViewModel(
+                        container.gateway,
+                        container.settingsStore,
+                        container.syncScheduler,
+                        container.deviceAuthenticator,
+                    )
+                },
                 onOpenLicenses = { navController.navigate(LicensesRoute) },
             )
         }
