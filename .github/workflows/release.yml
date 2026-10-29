@@ -31,7 +31,6 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       ref: ${{ steps.version.outputs.ref }}
       version: ${{ steps.version.outputs.version }}
-      version_code: ${{ steps.version.outputs.version_code }}
     steps:
       - id: version
         env:
@@ -42,20 +41,10 @@ jobs:
             echo "::error::Tag \"$TAG\" passt nicht zum Schema v<MAJOR>.<MINOR>.<PATCH>."
             exit 1
           fi
-          major="${BASH_REMATCH[1]}"
-          minor="${BASH_REMATCH[2]}"
-          patch="${BASH_REMATCH[3]}"
-          # versionCode = MAJOR*1.000.000 + MINOR*1.000 + PATCH: monoton mit der Version, liegt weit über den
-          # Laufnummern der Nightlys (siehe README) und bleibt mit MAJOR <= 2000 unter dem Android-Limit
-          if [ "$major" -gt 2000 ] || [ "$minor" -gt 999 ] || [ "$patch" -gt 999 ]; then
-            echo "::error::MAJOR darf höchstens 2000 sein, MINOR und PATCH höchstens 999."
-            exit 1
-          fi
           {
             echo "tag=$TAG"
             echo "ref=refs/tags/$TAG"
             echo "version=${TAG#v}"
-            echo "version_code=$((major * 1000000 + minor * 1000 + patch))"
           } >> "$GITHUB_OUTPUT"
 
   checks:
@@ -74,6 +63,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.ref }}
+          fetch-depth: 0
       - uses: ./.github/actions/setup-android-build
       - name: Keystore dekodieren
         env:
@@ -92,9 +82,11 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           VERSION: ${{ needs.prepare.outputs.version }}
-          VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
         run: |
           set -euo pipefail
+          # Gleicher Zähler wie im Nightly (Commits bis zum Tag-Commit): neuerer Code hat immer die höhere
+          # Nummer, der Kanalwechsel geht in beide Richtungen. Übergang monoton: bisherige Nightly-Laufnummer 2.
+          VERSION_CODE=$(git rev-list --count HEAD)
           echo "Version: $VERSION (versionCode $VERSION_CODE)"
           ./gradlew assembleRelease \
             "-Pcrunchymate.versionCode=$VERSION_CODE" \

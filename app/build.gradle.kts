@@ -31,7 +31,7 @@ val appChannel =
         .getOrElse("dev")
         .also { require(it in updateChannels) { "crunchymate.channel muss einer von $updateChannels sein, war: $it" } }
 
-// Vergleichbare Kennung des eigenen Builds: Nightly die Laufnummer (= versionCode), Release der versionName
+// Vergleichbare Kennung des eigenen Builds: Nightly der Commit-Zähler (= versionCode), Release der versionName
 val appBuildId =
     when (appChannel) {
         "nightly" -> appVersionCode.toString()

@@ -267,7 +267,7 @@ pub enum UpdateChannel {
 /// Neuester veröffentlichter Stand eines Kanals.
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Enum)]
 pub enum UpdateInfo {
-    /// `build` ist die Laufnummer des Nightly-Workflows, `date` das Veröffentlichungsdatum (JJJJ-MM-TT).
+    /// `build` ist der Commit-Zähler des Nightly-Builds, `date` das Veröffentlichungsdatum (JJJJ-MM-TT).
     Nightly { build: i64, date: String },
     /// `version` ohne führendes „v“, etwa „1.2.0“.
     Release { version: String },

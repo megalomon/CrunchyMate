@@ -48,8 +48,8 @@ jobs:
     if: needs.decide.outputs.should_build == 'true'
     uses: ./.github/workflows/checks.yml
 
-  # Bewusster Neubau statt Artefakt aus checks: Signierung, versionCode (Laufnummer) und versionName
-  # (Datum, Commit) stecken im Manifest der APK und lassen sich nicht nachträglich setzen, ohne die
+  # Bewusster Neubau statt Artefakt aus checks: Signierung, versionCode (Commit-Zähler) und versionName
+  # (Zähler, Commit) stecken im Manifest der APK und lassen sich nicht nachträglich setzen, ohne die
   # geprüfte unsignierte APK zu verändern. Rust-Cache und Gradle-Cache halten den Mehraufwand klein.
   release:
     name: Signierte APK veröffentlichen
@@ -76,14 +76,17 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-          RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
+          # Nightly und Release teilen sich den Zähler (Commits bis zum gebauten Stand), damit neuerer Code
+          # immer die höhere Nummer hat und der Kanalwechsel in beide Richtungen als Update geht. Übergang
+          # monoton: bisherige Nightly-Laufnummer 2, Zähler bereits über 100.
+          build=$(git rev-list --count HEAD)
           base=$(grep '^crunchymate.baseVersion=' gradle.properties | cut -d= -f2)
-          version="${base}-nightly.$(date -u +%Y%m%d)+$(git rev-parse --short HEAD)"
+          version="${base}-nightly.${build}+$(git rev-parse --short HEAD)"
           echo "Version: $version"
           ./gradlew assembleRelease \
-            "-Pcrunchymate.versionCode=$RUN_NUMBER" \
+            "-Pcrunchymate.versionCode=$build" \
             "-Pcrunchymate.versionName=$version" \
             "-Pcrunchymate.channel=nightly"
           ls app/build/outputs/apk/release/
@@ -98,16 +101,15 @@ jobs:
           if [ ! -s notes.md ]; then
             echo "Keine neuen Commits." > notes.md
           fi
-      # Die Update-Prüfung der App liest die Laufnummer aus dem Dateinamen der APK
-      # (crunchymate-nightly-<Laufnummer>.apk) und fragt für Releases /releases/latest ab. Das Nightly
+      # Die Update-Prüfung der App liest die Build-Nummer (Commit-Zähler) aus dem Dateinamen der APK
+      # (crunchymate-nightly-<n>.apk) und fragt für Releases /releases/latest ab. Das Nightly
       # muss deshalb so heißen und als Pre-Release markiert sein, sonst gilt es dort als stabile Version.
       - name: Pre-Release nightly ersetzen
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
-          apk="$RUNNER_TEMP/crunchymate-nightly-${RUN_NUMBER}.apk"
+          apk="$RUNNER_TEMP/crunchymate-nightly-$(git rev-list --count HEAD).apk"
           cp app/build/outputs/apk/release/app-release.apk "$apk"
           if gh release view nightly >/dev/null 2>&1; then
             gh release delete nightly --cleanup-tag --yes

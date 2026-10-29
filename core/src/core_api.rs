@@ -155,7 +155,7 @@ impl Core {
         .await
     }
 
-    /// Liefert den neuesten Stand des Kanals, wenn er neuer ist als `current` (Nightly: Laufnummer
+    /// Liefert den neuesten Stand des Kanals, wenn er neuer ist als `current` (Nightly: Build-Nummer
     /// des installierten Builds, Release: Versionsname); sonst `None`. Es wird nichts geladen oder
     /// gespeichert.
     pub async fn check_for_update(

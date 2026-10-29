@@ -18,7 +18,7 @@ const REPO_OWNER: &str = "megalomon";
 const REPO_NAME: &str = "CrunchyMate";
 /// Tag des fortlaufend ersetzten Nightly-Releases (siehe nightly.yml).
 const NIGHTLY_TAG: &str = "nightly";
-/// Die Laufnummer steckt im Dateinamen der APK: crunchymate-nightly-<Laufnummer>.apk.
+/// Die Build-Nummer (Commit-Zähler) steckt im Dateinamen der APK: crunchymate-nightly-<n>.apk.
 const NIGHTLY_ASSET_PREFIX: &str = "crunchymate-nightly-";
 const NIGHTLY_ASSET_SUFFIX: &str = ".apk";
 const RELEASE_TAG_PREFIX: &str = "v";
@@ -134,7 +134,7 @@ fn nightly_info(release: &ReleaseDto) -> CoreResult<UpdateInfo> {
                 .parse::<i64>()
                 .ok()
         })
-        .ok_or_else(|| parse_error("Nightly ohne APK mit Laufnummer im Dateinamen"))?;
+        .ok_or_else(|| parse_error("Nightly ohne APK mit Build-Nummer im Dateinamen"))?;
     let date = release
         .published_at
         .as_deref()
