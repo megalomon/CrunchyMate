@@ -12,6 +12,8 @@ import de.crunchymate.core.ffi.SyncKind
 import de.crunchymate.core.ffi.SyncObserver
 import de.crunchymate.core.ffi.SyncStatus
 import de.crunchymate.core.ffi.SyncSummary
+import de.crunchymate.core.ffi.UpdateChannel
+import de.crunchymate.core.ffi.UpdateInfo
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.BufferOverflow
@@ -75,6 +77,12 @@ class CoreGateway(
     }
 
     suspend fun supportedContentLocales(): List<String> = guarded { core.supportedContentLocales() }
+
+    /** Neuester Stand des Kanals, wenn er neuer ist als [currentBuild]; sonst null. */
+    suspend fun checkForUpdate(
+        channel: UpdateChannel,
+        currentBuild: String,
+    ): UpdateInfo? = withContext(io) { core.checkForUpdate(channel, currentBuild) }
 
     suspend fun syncCatalog(observer: SyncObserver): SyncSummary = withContext(io) { core.syncCatalog(observer) }
 

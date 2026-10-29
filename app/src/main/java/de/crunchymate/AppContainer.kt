@@ -11,6 +11,10 @@ import de.crunchymate.core.ffi.CoreInterface
 import de.crunchymate.sync.SyncScheduler
 import de.crunchymate.ui.licenses.AssetNoticesSource
 import de.crunchymate.ui.licenses.NoticesSource
+import de.crunchymate.update.ToastUpdateNotifier
+import de.crunchymate.update.UpdateChecker
+import de.crunchymate.update.updateChannelOf
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,6 +61,28 @@ class AppContainer(
     val settingsStore by lazy { SettingsStore(gateway, applicationScope, io) }
 
     val noticesSource: NoticesSource by lazy { AssetNoticesSource(appContext.assets, io) }
+
+    val updateChecker by lazy {
+        UpdateChecker(
+            gateway,
+            settingsStore,
+            updateChannelOf(BuildConfig.UPDATE_CHANNEL),
+            BuildConfig.UPDATE_BUILD_ID,
+            ToastUpdateNotifier(appContext),
+        )
+    }
+
+    /** Prüft nach dem Öffnen des Kerns auf Updates; ein Fehler beim Öffnen meldet die Start-Oberfläche, nicht diese Prüfung. */
+    suspend fun checkForUpdateOnStart() {
+        try {
+            initializeCore()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return
+        }
+        updateChecker.checkIfDue()
+    }
 
     val workManager by lazy { WorkManager.getInstance(appContext) }
 

@@ -67,6 +67,7 @@ fun SettingsDestination(
         onOledModeChange = viewModel::onOledModeChange,
         onShowAdultChange = viewModel::onShowAdultChange,
         onShowAgeRatingChange = viewModel::onShowAgeRatingChange,
+        onCheckUpdatesChange = viewModel::onCheckUpdatesChange,
         onOpenLicenses = onOpenLicenses,
     )
 }
@@ -81,6 +82,7 @@ fun SettingsScreen(
     onOledModeChange: (Boolean) -> Unit,
     onShowAdultChange: (Boolean) -> Unit,
     onShowAgeRatingChange: (Boolean) -> Unit,
+    onCheckUpdatesChange: (Boolean) -> Unit,
     onOpenLicenses: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -117,6 +119,11 @@ fun SettingsScreen(
             state,
             DisplayActions(onHideWatchedChange, onContentLocaleChange, onOledModeChange, onShowAdultChange, onShowAgeRatingChange),
         )
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(Dimens.SpaceMd)) {
+                SwitchRow(stringResource(R.string.settings_check_updates), state.checkUpdates, onCheckUpdatesChange)
+            }
+        }
         state.stats?.let { StatsSection(it) }
         Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
             OutlinedButton(onClick = onOpenLicenses, modifier = Modifier.weight(1f)) {

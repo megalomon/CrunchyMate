@@ -81,6 +81,7 @@
     <string name="auth_adult_title">Unlock to show 18+ content nya~</string>
     <string name="settings_show_age_rating">Show age wating nya~</string>
     <string name="settings_oled_mode">OLED mode nya~</string>
+    <string name="settings_check_updates">Check fow updates nya~</string>
     <string name="settings_app_language">App wanguage</string>
     <string name="settings_language_system">System wanguage</string>
     <string name="settings_stats_heading">Statistics</string>
@@ -127,6 +128,8 @@
     <string name="intro_privacy">The app cowwects nyo diagnostic ow usage data, pwomise ^w^ Aftew the sync it wowks compwetewy offwine.</string>
     <string name="intro_confirm">Got it, nya~</string>
     <string name="action_back">Back</string>
+    <string name="update_available_nightly">New nyightwy avaiwabwe: %1$s (buiwd %2$d)</string>
+    <string name="update_available_release">New vewsion avaiwabwe: %1$s</string>
     <string name="settings_licenses">Wicenses uwu</string>
     <string name="settings_info">Abouwt</string>
     <string name="licenses_title">Open-souwce wicenses</string>

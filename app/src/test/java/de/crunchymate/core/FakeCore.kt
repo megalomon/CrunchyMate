@@ -18,6 +18,8 @@ import de.crunchymate.core.ffi.SyncRunState
 import de.crunchymate.core.ffi.SyncStatus
 import de.crunchymate.core.ffi.SyncSummary
 import de.crunchymate.core.ffi.TagRank
+import de.crunchymate.core.ffi.UpdateChannel
+import de.crunchymate.core.ffi.UpdateInfo
 import de.crunchymate.core.ffi.WatchedFilter
 
 /** In-Memory-Ersatz für den Rust-Kern; merkt sich Aufrufe und den aufrufenden Thread. */
@@ -112,6 +114,19 @@ class FakeCore(
     override fun syncStatus(kind: SyncKind): SyncStatus =
         syncStatuses[kind] ?: SyncStatus(kind, SyncRunState.IDLE, 0L, 0L, null, null, null, null, null)
 
+    var updateResult: UpdateInfo? = null
+    var updateError: Throwable? = null
+    val updateCalls = mutableListOf<Pair<UpdateChannel, String>>()
+
+    override suspend fun checkForUpdate(
+        channel: UpdateChannel,
+        current: String,
+    ): UpdateInfo? {
+        updateCalls += channel to current
+        updateError?.let { throw it }
+        return updateResult
+    }
+
     override suspend fun syncCatalog(observer: SyncObserver): SyncSummary = syncBehavior(SyncKind.CATALOG, observer)
 
     override suspend fun enrichMetadata(observer: SyncObserver): SyncSummary = syncBehavior(SyncKind.METADATA, observer)
@@ -123,6 +138,8 @@ fun sampleSettings(
     oledMode: Boolean = false,
     showAdult: Boolean = true,
     showAgeRating: Boolean = true,
+    checkUpdates: Boolean = false,
+    lastUpdateCheck: Long = 0L,
 ) = Settings(
     locale,
     SearchState("", null, LanguageFilter.ALL, WatchedFilter.ALL, SortOrder.TITLE, emptyList()),
@@ -130,6 +147,8 @@ fun sampleSettings(
     oledMode,
     showAdult,
     showAgeRating,
+    checkUpdates,
+    lastUpdateCheck,
 )
 
 fun sampleFilter() =

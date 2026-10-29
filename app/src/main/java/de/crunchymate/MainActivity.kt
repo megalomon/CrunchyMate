@@ -10,6 +10,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import de.crunchymate.ui.CrunchyMateApp
 import de.crunchymate.ui.theme.CrunchyMateTheme
 import kotlinx.coroutines.flow.map
@@ -19,6 +20,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val container = (application as CrunchyMateApplication).container
+        // Nur beim echten Start, nicht nach Drehung oder anderen Neuaufbauten der Activity
+        if (savedInstanceState == null) lifecycleScope.launch { container.checkForUpdateOnStart() }
         setContent {
             val oledFlow = remember { container.settingsStore.settings.map { it.oledMode } }
             val oledMode by oledFlow.collectAsStateWithLifecycle(initialValue = false)

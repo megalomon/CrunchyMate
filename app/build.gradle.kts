@@ -23,6 +23,22 @@ val appVersionName =
         .gradleProperty("crunchymate.versionName")
         .getOrElse("$baseVersion-dev")
 
+// Kanal der App, in CI per -Pcrunchymate.channel gesetzt; lokale Builds sind "dev" und prüfen nie auf Updates
+val updateChannels = setOf("nightly", "release", "dev")
+val appChannel =
+    providers
+        .gradleProperty("crunchymate.channel")
+        .getOrElse("dev")
+        .also { require(it in updateChannels) { "crunchymate.channel muss einer von $updateChannels sein, war: $it" } }
+
+// Vergleichbare Kennung des eigenen Builds: Nightly die Laufnummer (= versionCode), Release der versionName
+val appBuildId =
+    when (appChannel) {
+        "nightly" -> appVersionCode.toString()
+        "release" -> appVersionName
+        else -> ""
+    }
+
 // Ausgabeorte des Rust-Builds; einmal benannt, weil Source-Sets und Tasks denselben Pfad brauchen
 val rustJniLibsDir = layout.buildDirectory.dir("rustJniLibs")
 val uniffiOutDir = layout.buildDirectory.dir("generated/uniffi")
@@ -48,6 +64,9 @@ android {
         ndk {
             abiFilters += "arm64-v8a"
         }
+
+        buildConfigField("String", "UPDATE_CHANNEL", "\"$appChannel\"")
+        buildConfigField("String", "UPDATE_BUILD_ID", "\"$appBuildId\"")
 
         testInstrumentationRunner = "de.crunchymate.CrunchyMateTestRunner"
     }
@@ -77,6 +96,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 
